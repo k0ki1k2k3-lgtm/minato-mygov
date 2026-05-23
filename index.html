@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>君の代わりに全部やってあげるよアプリ</title>
+  <title>君の代わりに全部やってあげるよアプリ v1.3</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -19,8 +19,12 @@
   <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
+/* ════════════════════════════════════════════════════════
+   minato-mygov v1.3 — データ駆動型判定エンジン
+   制度データは items-db.json から fetch する
+   ════════════════════════════════════════════════════════ */
+
 /* ─── Design tokens ─── */
-// ── テーマ定義 ───────────────────────────────
 const THEMES = {
   light: {
     bg0: "#f5f7fa", bg1: "#ffffff", bg2: "#f0f4f8", bg3: "#e4e9f0",
@@ -33,11 +37,8 @@ const THEMES = {
     t1: "#eeeeff", t2: "#9999aa", t3: "#444455", border: "#5588ff22",
   },
 };
-
-// C はあとで動的に上書きされる（Appでセット）デフォルトはライト
 let C = {...THEMES.light};
 
-/* ─── Google Fonts ─── */
 const FONT_INJECT = `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 * { font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; width: 100%; overflow: hidden; }
@@ -52,1276 +53,38 @@ html, body, #root { height: 100%; width: 100%; overflow: hidden; }
 @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 `;
 
-/* ─── Info DB (18件) ─── 
-   certain(p): 4問の情報だけで対象と断言できる → true
-   match(p):   0=完全対象外, 1〜99=条件次第で表示
-   needsMore:  条件次第カードに表示する「何を追加すれば確定できるか」
-─── */
-const age = (p) => p.ageNum ? Number(p.ageNum) : null; // 数値年齢ヘルパー
+/* ════════════════════════════════════════════════════════
+   汎用 データ駆動型 判定エンジン V3
+   ════════════════════════════════════════════════════════
 
-// 年収ヘルパー
-const isLowIncome = (p) => p.income==="～200万円"||p.income==="200～400万円";
-const isMidIncome = (p) => p.income==="400～600万円"||p.income==="600～800万円";
-const isHighIncome = (p) => p.income==="800万円～";
-const incomeUnknown = (p) => !p.income;
+   items-db.json の eligibility フィールドを読んで判定する。
+   evalなし・関数なし・JSON宣言型のみで動作する。
 
-// 住居ヘルパー
-const isOwner = (p) => p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）";
-const isRenter = (p) => p.housing==="賃貸";
+   eligibility.certain   : AND条件の配列。全部満たせば確実対象
+   eligibility.exclude   : OR条件の配列。1つでも該当すると非表示
+   eligibility.matchRules: スコア加算ルール配列
+   eligibility.baseScore : ベーススコア
+   eligibility.missingFor: 確定に必要な未入力キー配列
+   eligibility.excludeReasons: キー→理由文
+   eligibility.hints     : キー→ヒント文
 
-// 子の年齢ヘルパー
-const kidsAgeUnder3  = (p) => p.kidsAge==="0〜2歳";
-const kidsAgeUnder6  = (p) => p.kidsAge==="0〜2歳"||p.kidsAge==="3〜5歳";
-const kidsAgeUnder13 = (p) => p.kidsAge==="0〜2歳"||p.kidsAge==="3〜5歳"||p.kidsAge==="6〜12歳";
-const kidsAgeUnder16 = (p) => kidsAgeUnder13(p)||p.kidsAge==="13〜15歳";
-const kidsAgeUnder19 = (p) => kidsAgeUnder16(p)||p.kidsAge==="16〜18歳";
-const kidsAgeUnknown = (p) => p.hasKids==="いる（または予定あり）"&&!p.kidsAge;
-// 出産・妊娠系：子が0〜2歳 or 年齢不明（予定含む）の場合のみ
-const isNewbornPhase = (p) => p.hasKids==="いる（または予定あり）"&&kidsAgeUnder3(p);
+   条件オブジェクトの書式:
+     {"key": "値"}           → profile[key] === "値"
+     {"key": ["値1","値2"]}  → profile[key] in 配列
+     {"key": {"not":"値"}}   → profile[key] !== "値"
+     {"key": {"notIn":[...],"ifSet":true}} → setされてて配列に含まれない場合
+     {"ageMin": N}           → Number(profile.ageNum) >= N
+     {"ageMax": N}           → Number(profile.ageNum) <= N
+     {"ageBetween":[lo,hi]}  → lo <= age < hi
+     {"_always": true}       → 常にtrue
+     {"_alwaysExclude": true}→ 常に除外（期限切れ制度）
+   ════════════════════════════════════════════════════════ */
 
-// 年齢ヘルパー
-const ageGte = (n) => (p) => { const a=age(p); return a!==null && a>=n; };
-const ageLt  = (n) => (p) => { const a=age(p); return a!==null && a<n; };
-
-/* ─── 宣言的判定エンジン ───────────────────────────
-   eligibility: {
-     certain: [fn, ...]   全部trueならcertain（4問で断言可能）
-     exclude: [fn, ...]   どれか1つでもtrueならmatch=0（非表示）
-     score:   [{check:fn, pts:number}, ...]  スコア加算ルール
-     baseScore: number    デフォルトスコア（未設定時40）
-   }
-────────────────────────────────────────── */
-function calcEligibility(p, el){
-  if(el.exclude && el.exclude.some(fn=>fn(p))) return {certain:false, matchScore:0};
-  // certain が空配列 or 未定義の場合は certain=false（空配列のevery()はtrueになるバグを防ぐ）
-  const certain = !!(el.certain && el.certain.length > 0 && el.certain.every(fn=>fn(p)));
-  if(certain) return {certain:true, matchScore:100};
-  let score = el.baseScore !== undefined ? el.baseScore : 40;
-  if(el.score) el.score.forEach(({check,pts})=>{ if(check(p)) score+=pts; });
-  return {certain:false, matchScore:Math.min(score,95)};
-}
-
-/* ─── eligibility 定義（全28件）───────────────────────
-   getConfidence / Home の sort はこれで統一して判定する
-────────────────────────────────────────── */
-const ELIGIBILITY = {
-  // 国
-  jidouteate: {
-    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder19(p)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder19(p)],
-    baseScore: 0,
-  },
-  shussan: {
-    certain:  [isNewbornPhase],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  nenkin_men: {
-    certain:  [p=>p.stage==="学生", ageGte(20)],
-    exclude:  [p=>p.stage==="年金生活者", isHighIncome, isMidIncome,
-               p=>p.stage==="社会人（会社員）"&&incomeUnknown(p)],
-    score:    [{check:isLowIncome, pts:40}],
-    baseScore: 0,
-  },
-  reskilling: {
-    certain:  [],
-    exclude:  [p=>p.stage==="学生"&&ageLt(22)(p), p=>p.stage==="年金生活者"],
-    score:    [
-      {check:p=>p.stage==="社会人（会社員）", pts:40},
-      {check:p=>p.stage==="育休・産休中",     pts:30},
-      {check:p=>p.stage==="社会人（フリーランス・自営）", pts:10},
-    ],
-    baseScore: 0,
-  },
-  scholarship: {
-    certain:  [],
-    // 800万超は対象外、600万超も第4区分以外は対象外
-    exclude:  [isHighIncome, isMidIncome,
-               p=>p.stage!=="学生", ageLt(18), ageGte(31)],
-    score:    [{check:isLowIncome, pts:50}],
-    baseScore: 15,
-  },
-  ikuji_kyufu: {
-    certain:  [],
-    exclude:  [p=>p.stage==="年金生活者", p=>p.stage==="学生"&&ageLt(22)(p)],
-    score:    [
-      {check:p=>p.stage==="育休・産休中",     pts:55},
-      {check:p=>p.hasKids==="いる（または予定あり）"&&p.stage==="社会人（会社員）", pts:40},
-      {check:p=>p.stage==="社会人（会社員）", pts:25},
-    ],
-    baseScore: 0,
-  },
-  kougaku_ryoyo: {
-    // 所得制限なし・全健保加入者対象
-    certain:  [p=>p.stage==="社会人（会社員）"||p.stage==="育休・産休中"],
-    exclude:  [],
-    score:    [{check:p=>p.stage==="年金生活者",                         pts:25},
-               {check:p=>p.stage==="社会人（フリーランス・自営）",         pts:15}],
-    baseScore: 30,
-  },
-  shogai_kyufu: {
-    certain:  [],
-    exclude:  [p=>p.stage==="社会人（フリーランス・自営）",  // 国保は対象外
-               p=>p.stage==="学生", p=>p.stage==="年金生活者",
-               isHighIncome],
-    score:    [{check:p=>p.stage==="社会人（会社員）"||p.stage==="育休・産休中", pts:40}],
-    baseScore: 0,
-  },
-  ninpu_kyufu: {
-    certain:  [isNewbornPhase],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  tashi_musho: {
-    // 2025年度〜多子世帯は所得制限なし
-    certain:  [],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）"],
-    score:    [{check:ageGte(35), pts:20}, {check:p=>ageGte(25)(p)&&ageLt(61)(p), pts:10}],
-    baseScore: 30,
-  },
-  flat35_kosodate: {
-    certain:  [],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", isHighIncome, ageGte(46)],
-    score:    [{check:ageLt(40), pts:25}, {check:isLowIncome, pts:10}],
-    baseScore: 25,
-  },
-  // 東京都
-  hoiku_muryou: {
-    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder6(p)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder6(p)],
-    score:    [{check:isLowIncome, pts:10}],
-    baseScore: 0,
-  },
-  silver_pass: {
-    certain:  [ageGte(70)],
-    exclude:  [ageLt(65)],
-    score:    [{check:ageGte(65), pts:30}],
-    baseScore: 0,
-  },
-  solar_tokyo: {
-    certain:  [isOwner],
-    exclude:  [p=>p.stage==="学生", ageLt(25), isRenter],
-    baseScore: 40,
-  },
-  shiritsu_muryou: {
-    certain:  [],
-    exclude:  [
-      // 本人が高校生以外の学生、または親として見る場合に子が高校生年齢でない
-      p=>p.studentLevel&&p.studentLevel!=="高校生"&&p.hasKids!=="いる（または予定あり）",
-      p=>p.kidsAge&&!kidsAgeUnder19(p)&&p.studentLevel!=="高校生",
-      p=>isHighIncome(p)&&p.studentLevel!=="高校生",
-      p=>p.stage!=="学生"&&p.hasKids!=="いる（または予定あり）",
-    ],
-    score: [
-      {check:p=>p.studentLevel==="高校生", pts:70},
-      {check:p=>p.kidsAge==="16〜18歳"||p.kidsAge==="13〜15歳", pts:45},
-      {check:isLowIncome, pts:20},
-      {check:isMidIncome, pts:15},
-    ],
-    baseScore: 0,
-  },
-  // 港区
-  chintai_hojo: {
-    certain:  [],
-    exclude:  [isHighIncome, isMidIncome, isOwner, p=>p.stage==="年金生活者"&&!isLowIncome(p)],
-    score:    [
-      {check:isRenter,  pts:30},
-      {check:isLowIncome, pts:30},
-      {check:p=>p.stage==="その他・無職", pts:20},
-    ],
-    baseScore: 0,
-  },
-  sports_free: {
-    certain:  [()=>true],  // 全員対象
-    exclude:  [],
-    baseScore: 100,
-  },
-  yoyou: {
-    certain:  [()=>true],  // 全員対象
-    exclude:  [],
-    baseScore: 100,
-  },
-  iryo_free: {
-    certain:  [p=>(p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder16(p))||(age(p)!==null&&age(p)<=15)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）"&&(age(p)===null||age(p)>15), p=>p.kidsAge&&!kidsAgeUnder16(p)&&(age(p)===null||age(p)>15)],
-    baseScore: 0,
-  },
-  hoiku_mosikomi: {
-    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder6(p)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder6(p)],
-    baseScore: 0,
-  },
-  solar_minato: {
-    certain:  [isOwner],
-    exclude:  [p=>p.stage==="学生", ageLt(25), isRenter],
-    baseScore: 40,
-  },
-  kenko_point: {
-    certain:  [ageGte(65)],
-    exclude:  [ageLt(60)],
-    score:    [{check:ageGte(60), pts:25}],
-    baseScore: 0,
-  },
-  cancer_check: {
-    certain:  [ageGte(40)],
-    exclude:  [],
-    score:    [{check:ageGte(20), pts:20}],  // 子宮頸がんのみ対象
-    baseScore: 0,
-  },
-  babybirthday: {
-    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder3(p)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  shussan_minato: {
-    certain:  [isNewbornPhase],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  ninpu_kyufu2: { // ninpu_kyufu と同一IDのため、ninpu_kyufu で管理
-    certain: [p=>p.hasKids==="いる（または予定あり）"],
-    exclude: [],
-    baseScore: 0,
-  },
-  doula_support: {
-    certain:  [isNewbornPhase, ageGte(18), ageLt(46)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    score:    [{check:ageGte(18), pts:20}],
-    baseScore: 0,
-  },
-  ninshin_kenshin: {
-    certain:  [isNewbornPhase, ageGte(18), ageLt(46)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  teishotoku_kyufu: {
-    certain:  [],
-    exclude:  [()=>true], // 令和7年度分期限終了・令和8年度分要確認につき一時非表示
-    score:    [
-      {check:isLowIncome, pts:50},
-      {check:p=>p.stage==="その他・無職",             pts:30},
-      {check:p=>p.stage==="年金生活者",               pts:20},
-      {check:p=>p.stage==="社会人（フリーランス・自営）", pts:10},
-    ],
-    baseScore: 0,
-  },
-  smartphone_hojo: {
-    certain:  [ageGte(65)],
-    exclude:  [ageLt(65), isHighIncome],
-    baseScore: 0,
-  },
-  kagakukan_free: {
-    certain:  [()=>true],
-    exclude:  [],
-    baseScore: 100,
-  },
-  shogai_intern: {
-    certain:  [],
-    exclude:  [p=>p.disability==="なし"||p.disability==="回答しない"],
-    score:    [{check:p=>p.disability==="あり", pts:85}],
-    baseScore: 0,
-  },
-  hitorioya_iryo: {
-    certain:  [],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", isHighIncome],
-    score:    [{check:p=>p.marital==="離婚・死別", pts:50},{check:p=>p.hasKids==="いる（または予定あり）", pts:20}],
-    baseScore: 0,
-  },
-  jidofuyohand: {
-    certain:  [],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", isHighIncome],
-    score:    [{check:p=>p.marital==="離婚・死別", pts:50},{check:p=>p.hasKids==="いる（または予定あり）", pts:20}],
-    baseScore: 0,
-  },
-  jutaku_hojo: {
-    certain:  [],
-    exclude:  [ageGte(56)],
-    score:    [
-      {check:p=>p.hasKids==="いる（または予定あり）", pts:35},
-      {check:ageLt(40), pts:25},
-    ],
-    baseScore: 0,
-  },
-  shinshin_teate: {
-    certain:  [],
-    exclude:  [p=>p.disability==="なし"||p.disability==="回答しない", isHighIncome],
-    score:    [{check:p=>p.disability==="あり", pts:90}],
-    baseScore: 0,
-  },
-  kodomo_dare_tsuen: {
-    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder3(p)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  mutsumi_iryo: {
-    certain:  [],
-    exclude:  [p=>p.disability==="なし"||p.disability==="回答しない", isHighIncome],
-    score:    [{check:p=>p.disability==="あり", pts:85}],
-    baseScore: 0,
-  },
-  tokyo_point: {
-    certain:  [ageGte(15)],
-    exclude:  [ageLt(15)],
-    baseScore: 0,
-  },
-  akachan_first: {
-    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder3(p)],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
-    baseScore: 0,
-  },
-  rs_vaccine: {
-    certain:  [],
-    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p), ageGte(46)],
-    score:    [{check:p=>kidsAgeUnder3(p)&&ageLt(46)(p), pts:60}],
-    baseScore: 0,
-  },
-  hitorioya_telework: {
-    certain:  [],
-    exclude:  [p=>p.marital!=="離婚・死別"||p.hasKids!=="いる（または予定あり）"],
-    score:    [{check:p=>p.marital==="離婚・死別"&&p.hasKids==="いる（または予定あり）", pts:85}],
-    baseScore: 0,
-  },
-  juken_challenge: {
-    certain:  [],
-    exclude:  [()=>true], // 令和8年1月16日で期限切れ
-    score:    [{check:p=>p.studentLevel==="高校生", pts:60},{check:p=>p.studentLevel==="中学生", pts:55},{check:isLowIncome, pts:20}],
-    baseScore: 0,
-  },
-  shugaku_enjo: {
-    certain:  [],
-    exclude:  [p=>p.studentLevel&&p.studentLevel!=="小学生"&&p.studentLevel!=="中学生"&&p.hasKids!=="いる（または予定あり）",
-               isHighIncome, isMidIncome],
-    score:    [{check:p=>p.studentLevel==="小学生"||p.studentLevel==="中学生", pts:50},{check:isLowIncome, pts:35},{check:p=>p.hasKids==="いる（または予定あり）"&&kidsAgeUnder13(p), pts:30}],
-    baseScore: 0,
-  },
-};
-
-const ITEMS_BASE = [
-  {
-    id:"jidouteate", gov:"国", icon:"👶", color:C.blue, tag:"子育て",
-    title:"児童手当（拡充版）",
-    officialName:"児童手当",
-    catch:"高校生まで！所得制限なし",
-    body:"2024年10月から大幅拡充。0〜18歳（高校生年代）が対象、所得制限撤廃。第1・2子：3歳未満月1.5万円、3歳〜月1万円。第3子以降：全年齢月3万円。年6回（偶数月）支給。",
-    officialBody:"児童手当法及び子ども・子育て支援法の一部を改正する法律（令和6年法律第47号）に基づき、令和6年10月分（令和6年12月支給分）から制度が改正されました。支給対象年齢が中学生（15歳到達後最初の年度末まで）から高校生年代（18歳到達後最初の年度末まで）に延長されるとともに、所得制限が撤廃されました。第1子・第2子については3歳未満月額15,000円、3歳以上月額10,000円。第3子以降については年齢にかかわらず月額30,000円。支給は年6回（偶数月の10日）。認定請求は住所地の市区町村窓口にて行うものとします。",
-    deadline:"通年", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?120000:0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"年約12万円〜":null,
-    potentialSubsidy:360000, potentialLabel:"第3子なら年36万円",
-    match:(p)=>p.hasKids==="いる（または予定あり）"?100:0,
-    reminderLabel:"申請・現況届の確認",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/jidoteate.html",
-  },
-  {
-    id:"shussan", gov:"国", icon:"🍼", color:C.blue, tag:"子育て",
-    title:"出産育児一時金",
-    officialName:"出産育児一時金",
-    catch:"出産1回につき50万円",
-    body:"健康保険・国民健康保険加入者が出産した場合に50万円支給。直接支払制度で医療機関への支払いに充当可能。産科医療補償制度対象外施設は48.8万円。",
-    officialBody:"健康保険法第101条及び国民健康保険法第58条に基づき、被保険者又はその被扶養者が出産したとき、出産育児一時金として50万円（産科医療補償制度に未加入の医療機関等における出産は488,000円）を支給します。直接支払制度を利用することにより、医療機関等が被保険者に代わって保険者に請求することができます。申請期限は出産日の翌日から2年以内。",
-    deadline:"出産後2年以内に申請", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?500000:0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"50万円":null,
-    potentialSubsidy:500000, potentialLabel:"50万円",
-    match:(p)=>p.hasKids==="いる（または予定あり）"?90:0,
-    reminderLabel:"出産後は速やかに健保組合・区役所に申請",
-    sourceUrl:"https://www.mhlw.go.jp/content/12400000/001085202.pdf",
-  },
-  {
-    id:"nenkin_men", gov:"国", icon:"💰", color:C.green, tag:"生活",
-    title:"年金の支払い、学生は猶予できる", officialName:"国民年金保険料学生納付特例制度",
-    catch:"学生なら年金保険料（年約20万円）の支払いを卒業まで先送りできる",
-    body:"学生納付特例：在学中の国民年金保険料（月約1.7万円）を猶予。20歳以上の学生が対象。所得に応じた全額・半額免除制度も。免除期間は受給資格期間に算入（受給額は減額）。毎年度申請が必要。",
-    officialBody:"国民年金法第90条の3の規定に基づく学生納付特例制度により、大学・大学院・短期大学・高等専門学校・専修学校等に在学する20歳以上の第1号被保険者は、前年所得が一定額以下の場合、在学期間中の保険料の納付が猶予されます。猶予期間は受給資格期間に算入されますが、老齢基礎年金額の計算においては反映されません。毎年度、住所地の市区町村窓口またはねんきんネットにて申請が必要です。",
-    deadline:"毎年4月〜翌年3月分", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>{
-      const a=age(p);
-      return p.stage==="学生" && a!==null && a>=20;
-    },
-    subsidy:(p)=>{
-      const a=age(p);
-      return p.stage==="学生"&&a!==null&&a>=20?200000:0;
-    },
-    subsidyLabel:(p)=>{
-      const a=age(p);
-      return p.stage==="学生"&&a!==null&&a>=20?"年約20万円節約":null;
-    },
-    potentialSubsidy:200000, potentialLabel:"年約20万円節約",
-    match:(p)=>{
-      const a=age(p);
-      if(p.stage==="年金生活者") return 0;
-      if(p.stage==="学生"){
-        if(a===null) return 70;
-        if(a>=20) return 100;
-        return 0;
-      }
-      // 非学生：低所得者向け免除
-      if(isHighIncome(p)||isMidIncome(p)) return 0;
-      if(isLowIncome(p)) return 80;
-      return 0; // 年収不明の社会人は表示しない（学生のみ）
-    },
-    reminderLabel:"毎年4月に市区町村窓口で更新申請",
-    sourceUrl:"https://www.nenkin.go.jp/service/kokunen/menjo/20150428.html",
-  },
-  {
-    id:"reskilling", gov:"国", icon:"📚", color:C.purple, tag:"キャリア",
-    title:"学び直し費用、最大80%国が払ってくれる", officialName:"教育訓練給付制度",
-    catch:"資格取得・スキルアップの授業料を国が最大80%負担。年最大56万円",
-    body:"雇用保険加入者が対象。一般教育訓練給付：費用の20%（上限10万円）。特定一般：40%（上限20万円）。専門実践：最大80%（年上限56万円・最長4年）。ハローワークで受講前に申請必須。",
-    officialBody:"雇用保険法第60条の2の規定に基づき、厚生労働大臣が指定する教育訓練を修了した場合に、支払った教育訓練経費の一定割合を支給します。一般教育訓練：経費の20%（上限10万円）。特定一般教育訓練：経費の40%（上限20万円）。専門実践教育訓練：経費の50%（年上限40万円）、さらに受講修了後に資格取得等で就職した場合は20%の追加支給あり（合計最大80%、年上限56万円・最長4年）。受講開始1か月前までにハローワークへの申請が義務付けられています。",
-    deadline:"通年（受講前に申請要）", urgent:false, subsidyType:"cash",
-    needsMore:"雇用保険の加入状況をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:560000, potentialLabel:"年最大56万円",
-    match:(p)=>{
-      const a=age(p);
-      if(p.stage==="社会人（会社員）") return 75;
-      if(p.stage==="育休・産休中") return 60;
-      if(p.stage==="社会人（フリーランス・自営）") return 20;
-      if(p.stage==="学生"&&a!==null&&a>=22) return 20;
-      return 0;
-    },
-    reminderLabel:"ハローワークで受講前申請を忘れずに",
-    sourceUrl:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/kyouiku.html",
-  },
-  {
-    id:"scholarship", gov:"国", icon:"🎓", color:C.purple, tag:"教育",
-    title:"給付型奨学金（JASSO）",
-    officialName:"給付型奨学金（日本学生支援機構）",
-    catch:"返さなくていい奨学金・月最大7.5万円",
-    body:"住民税非課税・準非課税世帯の大学・専門学校生が対象。第I区分（非課税）：国公立自宅月2.9万円〜私立自宅外月7.5万円。授業料・入学金の免除または減額も併用可。在籍大学の窓口で申込。",
-    deadline:"各大学の募集時期（毎年4〜5月頃）", urgent:false, subsidyType:"cash",
-    needsMore:"世帯年収をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:900000, potentialLabel:"月最大7.5万円",
-    match:(p)=>{
-      if(p.stage!=="学生") return 0;
-      const a=age(p);
-      if(a!==null&&(a<18||a>30)) return 0;
-      if(isHighIncome(p)) return 0;       // 800万以上は対象外
-      if(isMidIncome(p)) return 0;        // 400万以上も基本対象外
-      if(isLowIncome(p)) return 90;       // 低所得なら高スコア
-      return 55;                          // 年収不明は中程度
-    },
-    reminderLabel:"在籍大学の奨学金担当窓口に確認",
-    sourceUrl:"https://www.jasso.go.jp/shogakukin/kyufu/",
-  },
-  {
-    id:"hoiku_muryou", gov:"東京都", icon:"🏫", color:C.green, tag:"子育て",
-    title:"保育料無償化（第2子以降）",
-    officialName:"幼児教育・保育の無償化",
-    catch:"第2子から0〜2歳の保育料がゼロ",
-    body:"東京都「018サポート」拡充。0〜2歳の第2子以降の認可保育所保育料が無償化、所得制限なし。3〜5歳は全国制度で無償。認可外保育施設は月最大7.7万円まで補助。",
-    deadline:"通年（保育所入所と同時に適用）", urgent:false, subsidyType:"savings",
-    needsMore:"子どもの人数・年齢をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:360000, potentialLabel:"年最大36万円節約",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      return 60; // 子あり→可能性表示
-    },
-    reminderLabel:"保育所入所申込時に区役所へ確認",
-    sourceUrl:"https://www.metro.tokyo.lg.jp/",
-  },
-  {
-    id:"silver_pass", gov:"東京都", icon:"🚌", color:C.green, tag:"生活",
-    title:"東京都シルバーパス",
-    officialName:"東京都シルバーパス",
-    catch:"70歳以上：都内バス・都営地下鉄が乗り放題",
-    body:"70歳以上の都内在住者はバス・都営交通が乗り放題（住民税非課税者は年1,000円、課税者は年20,510円）。誕生月に都バス営業所または地下鉄駅で申請。",
-    deadline:"誕生月に申請", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>{ const a=age(p); return a!==null&&a>=70; },
-    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=70?20000:0; },
-    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=70?"年約2万円節約":null; },
-    potentialSubsidy:20000, potentialLabel:"年約2万円節約",
-    match:(p)=>{
-      const a=age(p);
-      if(a===null) return p.stage==="年金生活者"?70:0;
-      if(a>=70) return 100;
-      if(a>=65) return 40; // 65-69歳は一部割引あり
-      return 0;
-    },
-    reminderLabel:"70歳の誕生月に都バス営業所で申請",
-    sourceUrl:"https://www.kotsu.metro.tokyo.jp/other/silver/",
-  },
-  {
-    id:"solar_tokyo", gov:"東京都", icon:"☀️", color:C.green, tag:"住まい",
-    title:"太陽光パネルの設置費、都から最大36万円もらえる", officialName:"太陽光パネル設置費補助（東京都断熱・太陽光住宅普及拡大事業）",
-    catch:"持ち家（戸建て・マンション共通）に太陽光パネルを設置すると、東京都から最大36万円の補助金がもらえる",
-    body:"クール・ネット東京「断熱・太陽光住宅普及拡大事業」。【戸建て】既存住宅：12万円/kW・上限36万円。新築：14万円/kW。蓄電池も別途最大120万円補助。【マンション】管理組合が申請主体。陸屋根への設置が対象で、架台設置・防水工事費の上乗せ補助あり。港区補助と併用可能。",
-    deadline:"2026年度：申請受付中（予算上限に達し次第終了）", urgent:false, subsidyType:"cash",
-    needsMore:"住居形態をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:360000, potentialLabel:"最大36万円",
-    match:(p)=>{
-      const a=age(p);
-      // 持ち家を持つ年齢層に絞る（30代以上）
-      if(a!==null&&a<25) return 0;
-      if(p.stage==="学生") return 0;
-      return 50;
-    },
-    reminderLabel:"クール・ネット東京に事前申請が必要",
-    sourceUrl:"https://www.tokyo-co2down.jp/subsidy/solar",
-  },
-  {
-    id:"shiritsu_muryou", gov:"東京都", icon:"🏫", color:C.green, tag:"教育",
-    title:"私立高校授業料無償化（東京都）",
-    officialName:"私立高等学校等授業料実質無償化（東京都）",
-    catch:"年収910万円未満なら授業料が実質ゼロ",
-    body:"東京都「私立高校授業料の実質無償化」。世帯年収910万円未満で授業料を全額補助（上限63.2万円/年）。所得制限なし拡大方向で推移。在籍校で毎年7〜9月に申請。",
-    deadline:"毎年7〜9月に在籍校で申請", urgent:false, subsidyType:"savings",
-    needsMore:"世帯年収と子どもの年齢をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:469000, potentialLabel:"年最大46.9万円節約",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      const a=age(p);
-      if(a!==null&&(a<33||a>58)) return 0;
-      if(isHighIncome(p)) return 0;   // 800万超は概ね対象外（910万未満なら対象だが保守的に）
-      if(isLowIncome(p)||isMidIncome(p)) return 75;
-      return 55;
-    },
-    reminderLabel:"在籍校の7〜9月の申請期間に注意",
-    sourceUrl:"https://www.metro.tokyo.lg.jp/",
-  },
-  {
-    id:"chintai_hojo", gov:"港区", icon:"🏠", color:C.blue, tag:"住まい",
-    title:"失業・収入減で家賃が払えないとき、最大9ヶ月補助", officialName:"住居確保給付金",
-    catch:"離職や休業で収入が減ったとき、家賃を最大9ヶ月間、港区が肩代わり",
-    body:"離職・廃業・休業により住宅を失うおそれがある低所得者に、家賃相当額を最大9ヶ月支給。港区単身者の上限額は月約7万円。収入・資産要件あり。港区生活・就労支援センターへ要相談。",
-    deadline:"通年（離職後2年以内）", urgent:false, subsidyType:"cash",
-    needsMore:"住居形態と世帯年収をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:630000, potentialLabel:"月最大7万円×9ヶ月",
-    match:(p)=>{
-      if(p.stage==="年金生活者") return 15;
-      if(p.stage==="その他・無職") return isHighIncome(p)?0:70;
-      if(p.stage==="社会人（フリーランス・自営）") return isHighIncome(p)?0:40;
-      if(p.stage==="社会人（会社員）"||p.stage==="育休・産休中"){
-        if(isHighIncome(p)) return 0;
-        if(isLowIncome(p)) return 60;
-        return 25;
-      }
-      return 0;
-    },
-    reminderLabel:"港区生活・就労支援センター（03-6453-9032）に相談",
-    sourceUrl:"https://www.city.minato.tokyo.jp/seikatuhogo/02jyuukyokakuhokyuufukin.html",
-  },
-  {
-    id:"sports_free", gov:"港区", icon:"🏊", color:C.green, tag:"健康",
-    title:"区民スポーツセンター月2回無料",
-    officialName:"港区スポーツセンター区民利用",
-    catch:"港区民なら月2回タダで使える",
-    body:"港区スポーツセンター（三田・高輪・赤坂・芝浦）を区民は月2回まで無料で利用可能。プール・トレーニングジム・アリーナなど。区民カード（住民票で発行）が必要。",
-    officialBody:"港区スポーツセンター条例及び港区スポーツセンター条例施行規則に基づき、港区民は区内スポーツセンター（三田・高輪・赤坂・芝浦港南）のトレーニング室・温水プール等を、月2回を限度として無料で使用することができます。利用に際しては区民カードの提示が必要です。区民カードは区内各総合支所区民課及び支所にて住民票等を提示の上、申請・交付を受けてください。",
-    deadline:"通年", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>true,
-    subsidy:(p)=>24000,
-    subsidyLabel:(p)=>"年2.4万円節約",
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>70,
-    reminderLabel:"区民カードを取得して使い始めよう",
-    sourceUrl:"https://www.city.minato.tokyo.jp/shisetsu/sport/sport/04.html",
-  },
-  {
-    id:"yoyou", gov:"港区", icon:"🏔️", color:C.green, tag:"生活",
-    title:"箱根・熱海が格安で泊まれる", officialName:"港区民保養施設利用事業",
-    catch:"港区民だけの特権。箱根・熱海・軽井沢など人気リゾートが1泊2万円以上安く泊まれる",
-    body:"港区が契約する保養施設を区民価格で利用可能。施設一覧（2026年度）：【箱根】箱根湯本富士屋ホテル・箱根ハイランドホテル・ホテルはつはな・強羅環翠楼・箱根ホテル小涌園等、【熱海】熱海後楽園ホテル・ニューフジヤホテル等、【伊豆】伊豆長岡温泉ホテルサンバレー等、【鬼怒川】鬼怒川パークホテルズ等、【軽井沢・草津・那須】各契約施設。専用はがきまたは施設予約システムから申込（各月抽選制）。同一世帯・グループで複数申込は無効。夏季（7〜8月）は鬼怒川など追加施設あり。",
-    deadline:"通年（月ごとに抽選申込）", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>true,
-    subsidy:(p)=>20000,
-    subsidyLabel:(p)=>"1泊最大2万円節約",
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>55,
-    reminderLabel:"早めに予約しないと埋まりやすい",
-    sourceUrl:"https://www.city.minato.tokyo.jp/shisetsu/cate005/index.html",
-  },
-  {
-    id:"iryo_free", gov:"港区", icon:"🏥", color:C.green, tag:"子育て",
-    title:"子どもの医療費無料（中学まで）",
-    officialName:"乳幼児・子ども医療費助成制度（港区）",
-    catch:"中学生まで医療費の自己負担がゼロ",
-    body:"港区「乳幼児・子ども医療費助成」。0歳〜中学3年生（15歳年度末まで）の医療費自己負担分を全額助成。所得制限なし。入院・通院・歯科・調剤すべて対象。マル子医療証が必要。",
-    deadline:"出生後速やかに申請", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）"||(p.ageNum!==null&&Number(p.ageNum)<=15),
-    subsidy:(p)=>(p.hasKids==="いる（または予定あり）"||(p.ageNum&&Number(p.ageNum)<=15))?50000:0,
-    subsidyLabel:(p)=>(p.hasKids==="いる（または予定あり）"||(p.ageNum&&Number(p.ageNum)<=15))?"年約5万円節約":null,
-    potentialSubsidy:50000, potentialLabel:"年約5万円節約",
-    match:(p)=>(p.hasKids==="いる（または予定あり）"||(p.ageNum&&Number(p.ageNum)<=15))?95:0,
-    reminderLabel:"マル子医療証を区役所で取得（自動送付されることも）",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/kodomoiryo.html",
-  },
-  {
-    id:"hoiku_mosikomi", gov:"港区", icon:"📋", color:C.t2, tag:"子育て",
-    title:"保育所に入れたいなら11月が勝負", officialName:"港区認可保育所等利用申込",
-    catch:"来年4月に入園したいなら11月が申込期限。人気の0〜2歳は特に早めの準備が必要",
-    body:"港区の認可保育所・こども園の入園申込。1〜2歳は競争率が高い。4月入園希望は11〜12月に申込（締切厳守）。利用調整あり。認証保育所・小規模保育施設も選択肢に。",
-    deadline:"4月入園：前年11〜12月申込", urgent:true, subsidyType:"info",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"手続き情報":null,
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>p.hasKids==="いる（または予定あり）"?85:0,
-    reminderLabel:"4月入園申込は11月初旬！期限を逃さないで",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
-  },
-  {
-    id:"solar_minato", gov:"港区", icon:"⚡", color:C.green, tag:"住まい",
-    title:"太陽光パネル、都＋区あわせて最大76万円補助", officialName:"創エネルギー・省エネルギー機器等設置費助成（港区）",
-    catch:"東京都の補助（最大36万円）に港区の補助（最大40万円）を合わせると最大76万円",
-    body:"港区「創エネルギー・省エネルギー機器等設置費助成」。太陽光発電システム：区民個人は上限40万円。東京都補助（上限36万円）と併用で最大76万円。蓄電システムも別途最大20万円。2025年度申請：2026年3月19日まで。",
-    deadline:"2026年4月1日〜2027年1月29日（2026年度）", urgent:false, subsidyType:"cash",
-    needsMore:"住居形態をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:400000, potentialLabel:"最大40万円（都と合計76万円）",
-    match:(p)=>{
-      const a=age(p);
-      if(a!==null&&a<25) return 0;
-      if(p.stage==="学生") return 0;
-      return 50;
-    },
-    reminderLabel:"工事前に港区環境課へ事前申請が必須",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
-  },
-  {
-    id:"kenko_point", gov:"港区", icon:"🏃", color:C.green, tag:"健康",
-    title:"健康ポイント制度",
-    officialName:"みなとタバコ・健康ポイント事業",
-    catch:"歩いてポイント→商品券に交換",
-    body:"港区「みなとタバタ健康ポイント」。ウォーキング・健診受診でポイント付与、区内商品券と交換可能。主に65歳以上の区民が対象。年間最大5,000円相当。アプリ「みなとタバタ」で管理。",
-    deadline:"通年", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>{ const a=age(p); return a!==null&&a>=65; },
-    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=65?5000:0; },
-    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=65?"年最大5,000円":null; },
-    potentialSubsidy:5000, potentialLabel:"年最大5,000円",
-    match:(p)=>{
-      const a=age(p);
-      if(a===null) return p.stage==="年金生活者"?70:0;
-      if(a>=65) return 100;
-      if(a>=60) return 30;
-      return 0;
-    },
-    reminderLabel:"みなとタバタのアプリをダウンロード",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenkouzukuri/kenko/kenko/kenkozukuri/",
-  },
-  {
-    id:"cancer_check", gov:"港区", icon:"🔬", color:C.green, tag:"健康",
-    title:"がん検診（全種類）無料",
-    officialName:"各種がん検診（港区）",
-    catch:"40歳以上は胃・大腸・肺など全部無料",
-    body:"港区在住40歳以上の区民は、胃・大腸・肺・乳・子宮頸がん等の検診が全て無料（自己負担ゼロ）。子宮頸がんは20歳以上対象。受診券は区から郵送。受診期間は毎年7月〜翌1月31日。",
-    deadline:"毎年7月〜翌1月31日", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>{ const a=age(p); return a!==null&&a>=40; },
-    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=40?15000:0; },
-    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=40?"年約1.5万円節約":null; },
-    potentialSubsidy:15000, potentialLabel:"年約1.5万円節約",
-    match:(p)=>{
-      const a=age(p);
-      if(a===null) return 20;
-      if(a>=40) return 100;
-      if(a>=20) return 25; // 子宮頸がん検診のみ対象
-      return 0;
-    },
-    reminderLabel:"7月に受診券が届いたら早めに予約",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
-  },
-  {
-    id:"babybirthday", gov:"港区", icon:"🎂", color:C.blue, tag:"子育て",
-    title:"バースデーサポート（2歳児）",
-    officialName:"バースデーサポート事業（港区）",
-    catch:"2歳のお誕生日にカタログギフト贈呈",
-    body:"「とうきょうママパパ応援事業」の一環。港区で2歳を迎える子どもがいる家庭にカタログギフトを提供（数千〜1万円相当）。2歳の誕生月に区から自動的に案内が届く。申請不要。",
-    deadline:"2歳の誕生月に区から案内が届く（自動）", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?10000:0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"カタログギフト（〜1万円相当）":null,
-    potentialSubsidy:10000, potentialLabel:"〜1万円相当",
-    match:(p)=>p.hasKids==="いる（または予定あり）"?70:0,
-    reminderLabel:"区から自動的に案内が届く（申請不要）",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kouchou/kuse/kocho/ikenshokai49/1913.html",
-  },
-  // ── 以下、新規追加5件 ──
-  {
-    id:"shussan_minato", gov:"港区", icon:"🏥", color:C.blue, tag:"子育て",
-    title:"出産費用助成（港区独自）",
-    officialName:"港区出産育児支援事業",
-    catch:"出産費用から一時金を引いた残額を港区が全額補助",
-    body:"港区在住1年以上の方が対象。出産にかかる分娩費・入院費等から、国の出産育児一時金（50万円）を差し引いた全額を助成（算出上限額：単胎81万円、双子121万円）。東京23区でも数少ない独自制度。申請は出産後1年以内。",
-    deadline:"出産後1年以内", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?310000:0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"最大31万円":null,
-    potentialSubsidy:310000, potentialLabel:"最大31万円",
-    match:(p)=>p.hasKids==="いる（または予定あり）"?98:0,
-    reminderLabel:"出産後1年以内に子ども家庭支援課へ申請",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kodomokyufu/kenko/ninshin/shussan/jose.html",
-  },
-  {
-    id:"ninpu_kyufu", gov:"国", icon:"🤱", color:C.blue, tag:"子育て",
-    title:"妊婦のための支援給付金",
-    officialName:"出産・子育て応援交付金（国）",
-    catch:"妊娠時5万円＋出産後5万円＝計10万円",
-    body:"国の制度を港区が実施。妊娠届出時に「妊婦支援給付金」5万円、出産後に「子育て支援給付金」5万円（子1人あたり）を支給。面談を経てギフトカード等で交付。申請は港区子ども家庭支援センターへ。",
-    deadline:"妊娠届出後・出産後に面談申込み", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?100000:0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"計10万円":null,
-    potentialSubsidy:100000, potentialLabel:"計10万円",
-    match:(p)=>p.hasKids==="いる（または予定あり）"?95:0,
-    reminderLabel:"妊娠届出後すぐに子ども家庭支援センターへ連絡",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
-  },
-  {
-    id:"doula_support", gov:"港区", icon:"👩", color:C.green, tag:"子育て",
-    title:"妊娠中〜子3歳まで、家事・育児を格安でサポート", officialName:"産前産後家事・育児支援事業（港区）",
-    catch:"ヘルパーが自宅に来て家事・育児を手伝ってくれる。1時間わずか1,000円、最大128時間使える",
-    body:"港区在住の妊産婦・乳幼児家庭に、ホームヘルパーまたは産後ドゥーラが訪問し家事・育児支援を行う。単胎家庭は1時間1,000円（非課税世帯は半額）、最大128時間まで利用可能。子3歳になる前日まで利用可能。事前にID登録が必要。",
-    deadline:"子が3歳になる前日まで（通年受付）", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）",
-    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?100000:0,
-    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"最大10万円相当の支援":null,
-    potentialSubsidy:100000, potentialLabel:"最大10万円相当",
-    match:(p)=>{
-      const a=age(p);
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(a!==null&&a>=20&&a<=45) return 90;
-      return 70;
-    },
-    reminderLabel:"港区子ども家庭支援センターにオンライン申請でID取得",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
-  },
-  {
-    id:"teishotoku_kyufu", gov:"港区", icon:"💴", color:C.blue, tag:"生活",
-    title:"低所得世帯に現金給付。子がいればさらに加算", officialName:"住民税非課税世帯等 生活支援給付金",
-    catch:"住民税非課税世帯に3万円を給付。18歳以下の子どもが1人いるごとに2万円追加",
-    body:"物価高騰対策として港区が実施。令和6年度住民税が非課税または均等割のみ課税の世帯に、1世帯あたり3万円を給付。さらに18歳以下の世帯員1人につき2万円の子ども加算あり。対象世帯には区から書類が届く（自動送付）。",
-    deadline:"※令和7年度分は期限終了。令和8年度分は要確認", urgent:false, subsidyType:"cash",
-    needsMore:"世帯年収をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0,
-    subsidyLabel:(p)=>null,
-    potentialSubsidy:70000, potentialLabel:"3万円〜（子あり世帯はさらに加算）",
-    match:(p)=>{
-      if(isHighIncome(p)||isMidIncome(p)) return 0;  // 中高所得は対象外
-      if(isLowIncome(p)) return 85;
-      if(p.stage==="その他・無職") return 75;
-      if(p.stage==="年金生活者") return 65;
-      if(p.stage==="社会人（フリーランス・自営）") return 35;
-      if(p.stage==="学生") return 45;
-      return 15;
-    },
-    reminderLabel:"区から書類が届いたら期限内に返送を",
-    sourceUrl:"https://www.city.minato.tokyo.jp/rinjikyufutan/qa6kyuuhu.html",
-  },
-  {
-    id:"ninshin_kenshin", gov:"港区", icon:"🩺", color:C.green, tag:"子育て",
-    title:"妊婦健診14回分、全額無料で受けられる", officialName:"妊婦健康診査費用助成（港区）",
-    catch:"妊娠中の健診（14回分）が全て無料。妊娠届を出すと受診票が自動交付される",
-    body:"港区在住の妊婦を対象に、妊婦健康診査（14回分）の費用を助成。妊娠届出時に受診票を交付。血液検査・超音波検査・子宮頸がん検診等を含む。多胎妊娠の場合は最大19回まで対象。費用は受診票で直接医療機関に請求する仕組みのため窓口負担はほぼゼロ。",
-    deadline:"妊娠届出時に自動交付", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>{
-      const a=age(p);
-      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45;
-    },
-    subsidy:(p)=>{
-      const a=age(p);
-      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45?100000:0;
-    },
-    subsidyLabel:(p)=>{
-      const a=age(p);
-      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45?"14回分・約10万円相当":null;
-    },
-    potentialSubsidy:100000, potentialLabel:"14回分・約10万円相当",
-    match:(p)=>{
-      const a=age(p);
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(a!==null&&a>=18&&a<=45) return 90;
-      return 60;
-    },
-    reminderLabel:"妊娠がわかったらすぐ区役所で妊娠届を提出",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
-  },
-  // ── 省庁別追加5件（こども家庭庁・厚労省・文科省・国交省） ──
-  {
-    id:"ikuji_kyufu", gov:"国", icon:"👨‍👩‍👧", color:C.blue, tag:"子育て",
-    title:"育児休業給付金（厚生労働省）",
-    officialName:"育児休業給付金",
-    catchText:"育休中も給与の実質8割が雇用保険から支給",
-    body:"雇用保険加入の会社員・パートが対象。育休開始から180日は休業前賃金の67%、以降は50%を支給。社会保険料免除も加わり実質手取りの約8割相当。2025年4月から出生後休業支援給付金（両親同時育休で実質10割）も新設。",
-    deadline:"育休開始後2ヶ月ごとにハローワークへ申請", urgent:false, subsidyType:"cash",
-    needsMore:"雇用保険の加入確認が必要",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>{
-      if(p.stage==="育休・産休中") return 90;
-      if(p.hasKids==="いる（または予定あり）"&&p.stage==="社会人（会社員）") return 70;
-      if(p.stage==="社会人（会社員）") return 30;
-      return 0;
-    },
-    reminderLabel:"申請は勤務先の人事部経由でハローワークへ",
-    sourceUrl:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158800.html",
-  },
-  {
-    id:"kougaku_ryoyo", gov:"国", icon:"🏨", color:C.green, tag:"健康",
-    title:"医療費が高額になっても、一定額以上は戻ってくる", officialName:"高額療養費制度",
-    catchText:"入院・手術などで医療費が高額になっても、月8.7万円程度を超えた分は戻ってくる",
-    body:"健康保険加入者が対象。月の医療費自己負担が所得に応じた上限額（一般的な会社員は月約8.7万円）を超えた場合、超過分を健保が還付。入院・手術で高額になる場合は「限度額適用認定証」で事前に窓口負担を抑えることも可能。",
-    deadline:"診療月の翌月1日から2年以内に申請", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>p.stage==="社会人（会社員）"||p.stage==="育休・産休中",
-    subsidy:(p)=>(p.stage==="社会人（会社員）"||p.stage==="育休・産休中")?30000:0,
-    subsidyLabel:(p)=>(p.stage==="社会人（会社員）"||p.stage==="育休・産休中")?"高額医療時に還付":null,
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>{
-      if(p.stage==="社会人（会社員）"||p.stage==="育休・産休中") return 85;
-      if(p.stage==="社会人（フリーランス・自営）") return 70;
-      if(p.stage==="年金生活者") return 80;
-      return 50;
-    },
-    reminderLabel:"入院予定があれば事前に「限度額適用認定証」を申請",
-    sourceUrl:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryouhoken/juuyou/kougakuiryou/index.html",
-  },
-  {
-    id:"shogai_kyufu", gov:"国", icon:"🏥", color:C.blue, tag:"キャリア",
-    title:"病気・ケガで働けない間も、給与の2/3が支給される", officialName:"傷病手当金",
-    catchText:"病気やケガで仕事を休んだとき、最大18ヶ月間、給与の約2/3が保険から支給される",
-    body:"健康保険加入の会社員が対象（国民健康保険は対象外）。業務外の病気・ケガで4日以上連続休業し給与が出ない場合、標準報酬日額の2/3を最長1年6ヶ月支給。退職後も要件を満たせば継続受給可能。",
-    deadline:"療養開始日の翌日から2年以内", urgent:false, subsidyType:"cash",
-    needsMore:"健康保険の加入種別（会社員か否か）が必要",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>{
-      if(p.stage==="社会人（会社員）"||p.stage==="育休・産休中") return 75;
-      return 0;
-    },
-    reminderLabel:"休業4日目から申請可。勤務先・健保組合へ相談",
-    sourceUrl:"https://www.kyoukaikenpo.or.jp/g3/cat310/sb3040/",
-  },
-  {
-    id:"tashi_musho", gov:"国", icon:"🎓", color:C.purple, tag:"教育",
-    title:"子ども3人以上の家庭：大学の授業料がタダに", officialName:"多子世帯大学等修学支援制度",
-    catchText:"2025年度から。子ども3人以上いる家庭は、所得に関係なく大学・専門学校の授業料が無償",
-    body:"2025年度から開始。扶養する子どもが3人以上いる世帯は所得制限なく大学・短大・高専・専門学校の授業料・入学金が無償化。2024年度以前からの在学生も対象。在籍校の学生支援窓口で申請。",
-    deadline:"在籍校の申請時期に準じる（毎年度）", urgent:false, subsidyType:"savings",
-    needsMore:"子どもの人数をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:700000, potentialLabel:"年最大70万円程度（授業料全額）",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      const a=age(p);
-      if(a!==null&&a>=35&&a<=60) return 60;
-      if(a!==null&&a>=25) return 35;
-      return 20;
-    },
-    reminderLabel:"在籍する大学の学生支援窓口へ確認を",
-    sourceUrl:"https://www.mext.go.jp/a_menu/koutou/hutankeigen/index.htm",
-  },
-  {
-    id:"flat35_kosodate", gov:"国", icon:"🏡", color:C.green, tag:"住まい",
-    title:"子どもがいると住宅ローン金利が下がる", officialName:"フラット35子育てプラス",
-    catchText:"子どもの人数に応じて住宅ローン金利を優遇。4人以上なら5年間1%引き下げ",
-    body:"住宅金融支援機構「フラット35」の子育て・若者向け金利優遇。子1人で当初5年間0.25%引き下げ、4人以上で1.0%引き下げ。夫婦どちらかが40歳未満でも対象。新築・中古どちらも可。2024年2月から開始。",
-    deadline:"通年受付", urgent:false, subsidyType:"savings",
-    needsMore:"住宅ローン利用予定・子どもの人数をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:450000, potentialLabel:"借入3000万円の場合、5年間で最大約45万円節約",
-    match:(p)=>{
-      const a=age(p);
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(a!==null&&a<=45) return 65;
-      return 30;
-    },
-    reminderLabel:"取扱金融機関または住宅金融支援機構に問い合わせを",
-    sourceUrl:"https://www.flat35.com/loan/flat35s/kosodate.html",
-  },
-  // ── 広報みなと2026年4月号から追加 ──
-  {
-    id:"smartphone_hojo", gov:"港区", icon:"📱", color:C.blue, tag:"生活",
-    title:"65歳以上が初めてスマホを買うと3万円もらえる",
-    officialName:"高齢者スマートフォン購入費助成事業（港区）",
-    catch:"初めてのスマホ購入に最大3万円助成",
-    body:"スマートフォンを所有していない65歳以上の区民が、区内指定店舗（ドコモショップ田町・新橋・麻布十番店等）で初めてスマホを購入・通信契約した場合に最大3万円を助成。購入当日に店舗でスマホ教室を受講し、東京都公式アプリ等への登録が必要。1人1台・1回限り。",
-    deadline:"令和9年3月31日まで", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>{ const a=age(p); return a!==null&&a>=65; },
-    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=65?30000:0; },
-    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=65?"最大3万円":null; },
-    potentialSubsidy:30000, potentialLabel:"最大3万円",
-    match:(p)=>{
-      const a=age(p);
-      if(a!==null&&a>=65) return 95;
-      if(p.stage==="年金生活者") return 70;
-      return 0;
-    },
-    reminderLabel:"指定店舗（ドコモショップ等）に電話で来店予約してから購入",
-    sourceUrl:"https://www.city.minato.tokyo.jp/jouhouka/smartphone.html",
-  },
-  {
-    id:"kagakukan_free", gov:"港区", icon:"🔭", color:C.green, tag:"生活",
-    title:"郷土歴史館・みなと科学館が年4回タダで入れる",
-    officialName:"郷土歴史館・みなと科学館区民無料公開日",
-    catch:"祝日に区民は無料。プラネタリウムも無料",
-    body:"港区立郷土歴史館（白金台）とみなと科学館（虎ノ門）の有料展示・プラネタリウムが、年4回の祝日に区民無料で開放。令和8年度は5月5日・8月11日・11月3日・令和9年2月11日。当日区内在住を確認できるものを持参。みなと科学館は平日のおひるのプラネタリウム（12時30分〜20分間）も通年無料上映あり。",
-    deadline:"令和8年度：8/11・11/3・R9年2/11（5/5は終了）", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>true,
-    subsidy:(p)=>2000,
-    subsidyLabel:(p)=>"年4回・入館料無料",
-    potentialSubsidy:2000, potentialLabel:"年4回無料（通常有料）",
-    match:(p)=>60,
-    reminderLabel:"当日は区内在住確認書類（マイナンバーカード等）を持参",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kyoudorekishi/",
-  },
-  {
-    id:"shogai_intern", gov:"港区", icon:"💼", color:C.purple, tag:"キャリア",
-    title:"障害がある人に就労体験の機会（時給1,226円）",
-    officialName:"障害者インターンシップ事業（港区）",
-    catch:"障害者手帳なしでも応募可・時給1,226円",
-    body:"区内在住で身体・知的・精神・発達障害がある18歳以上の方に就労体験の機会を提供。手帳なしでも可。4〜9月のうち最大3ヶ月、ジョブコーチのサポートを受けながら実習。時給1,226円、交通費実費支給。面接により5人程度を決定。（特）みなと障がい者福祉事業団が実施。",
-    deadline:"毎年2月頃募集（次回は令和9年2月頃）", urgent:false, subsidyType:"cash",
-    needsMore:"障害の有無をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:200000, potentialLabel:"最大約20万円（3ヶ月分）",
-    match:(p)=>{
-      if(p.disability==="あり") return 85;
-      return 0;
-    },
-    reminderLabel:"毎年2月頃に広報みなとで募集。（特）みなと障がい者福祉事業団へ",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/service.html",
-  },
-  // ── 高校生向け追加 ──
-  {
-    id:"juken_challenge", gov:"東京都", icon:"📝", color:C.purple, tag:"教育",
-    title:"塾代・受験料を無利子で借りられる（高校3年生）",
-    officialName:"受験生チャレンジ支援貸付事業",
-    catch:"塾・予備校の受講料や受験料を無利子で貸付",
-    body:"東京都の制度。一定所得以下の世帯の中学3年生・高校3年生を対象に、学習塾等の受講料（上限20万円）や高校・大学等の受験料（上限7.5万円）を無利子で貸し付ける。合格すれば返済免除になる場合もあり。港区に住所がある方は港区立子ども家庭支援センターへ申請。令和8年度の港区申込期限は令和8年1月16日。",
-    deadline:"令和8年1月16日（港区窓口）", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:275000, potentialLabel:"受講料最大20万円＋受験料最大7.5万円",
-    match:(p)=>{
-      if(p.studentLevel==="高校生") return 80;
-      if(p.studentLevel==="中学生") return 75;
-      return 0;
-    },
-    reminderLabel:"港区立子ども家庭支援センターへ申請。1月中旬が期限",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kateisoudantan/challenge.html",
-  },
-  {
-    id:"shugaku_enjo", gov:"港区", icon:"🎒", color:C.blue, tag:"教育",
-    title:"経済的に苦しい家庭の子どもの学用品費を援助",
-    officialName:"就学援助費（港区）",
-    catch:"学用品費・給食費・校外学習費などを援助",
-    body:"港区立小・中学校に在学する児童・生徒の保護者で、生活保護受給中または経済的理由により就学困難な方に、学用品費・給食費・修学旅行費・校外学習費などを援助。所得基準あり。毎年度申請が必要。",
-    deadline:"毎年度4月頃（在籍校を通じて申請）", urgent:false, subsidyType:"savings",
-    needsMore:"収入状況・学校種別が必要",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:100000, potentialLabel:"年間数万〜10万円程度",
-    match:(p)=>{
-      if((p.studentLevel==="小学生"||p.studentLevel==="中学生")&&isLowIncome(p)) return 85;
-      if(p.studentLevel==="小学生"||p.studentLevel==="中学生") return 50;
-      if(p.hasKids==="いる（または予定あり）"&&kidsAgeUnder13(p)&&isLowIncome(p)) return 75;
-      return 0;
-    },
-    reminderLabel:"在籍する学校を通じて申請。毎年度更新が必要",
-    sourceUrl:"https://www.city.minato.tokyo.jp/gakkouuneishien/kodomo/gakko/shugakuenjo/shugakuenjohi.html",
-  },
-  // ── 新規追加6件（公式確認済み）──
-  {
-    id:"hitorioya_iryo", gov:"港区", icon:"🏥", color:C.blue, tag:"生活",
-    title:"ひとり親なら医療費がほぼ無料になる",
-    officialName:"ひとり親家庭等医療費助成制度（港区）",
-    catch:"離婚・死別などのひとり親家庭に医療証を交付",
-    body:"離婚・死別・婚姻によらない出生などでひとり親になった家庭に「ひとり親家庭等医療証」を交付。健康保険適用の医療費自己負担分の一部または全部を助成。子どもが18歳年度末まで対象（障害がある場合は20歳未満まで）。所得制限あり。",
-    deadline:"通年（随時申請）", urgent:false, subsidyType:"savings",
-    needsMore:"婚姻状況をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:100000, potentialLabel:"医療費自己負担分を大幅軽減",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(p.marital==="離婚・死別") return 85;
-      return 20;
-    },
-    reminderLabel:"総合支所区民課保健福祉係に申請。所得制限あり",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/iryo.html",
-  },
-  {
-    id:"jidofuyohand", gov:"港区", icon:"👨‍👧", color:C.blue, tag:"生活",
-    title:"ひとり親に毎月手当が支給される",
-    officialName:"児童扶養手当",
-    catch:"ひとり親家庭に月最大4.5万円",
-    body:"離婚・死別などでひとり親になり、18歳以下の子を養育している家庭に毎月手当を支給。全部支給：月45,500円（子1人）、一部支給：月10,740円〜。子どもが増えるごとに加算あり。所得制限あり。2ヶ月ごとに支給。",
-    deadline:"通年（随時申請）", urgent:false, subsidyType:"cash",
-    needsMore:"婚姻状況をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:0, potentialLabel:null,
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(p.marital==="離婚・死別") return 85;
-      return 15;
-    },
-    reminderLabel:"子ども若者支援課子ども給付係（03-3578-2432）へ申請",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/teate.html",
-  },
-  {
-    id:"jutaku_hojo", gov:"港区", icon:"🏡", color:C.blue, tag:"住まい",
-    title:"港区で家を買うなら、区から費用補助がある",
-    officialName:"港区子育て世帯向け住宅取得支援事業",
-    catch:"子あり・40歳未満夫婦の住宅購入に補助金",
-    body:"港区内に住宅を取得した子育て世帯（高校生以下の子あり）または若年夫婦世帯（夫婦どちらかが40歳未満）に、住宅購入手続きにかかる費用の一部を補助。所有権移転登記から1年以内に申請。令和9年3月まで経過措置あり。",
-    deadline:"所有権移転登記から1年以内（令和9年3月まで緩和中）", urgent:false, subsidyType:"cash",
-    needsMore:"住居形態・子どもの有無をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:200000, potentialLabel:"購入手続き費用の一部",
-    match:(p)=>{
-      const a=age(p);
-      if(p.hasKids==="いる（または予定あり）"&&a!==null&&a<=50) return 65;
-      if(a!==null&&a<40) return 55;
-      return 0;
-    },
-    reminderLabel:"街づくり支援部住宅課住宅支援係（03-3578-2459）へ",
-    sourceUrl:"https://www.city.minato.tokyo.jp/jutakushien/zyutakuhozyo.html",
-  },
-  {
-    id:"shinshin_teate", gov:"港区", icon:"♿", color:C.green, tag:"生活",
-    title:"障害がある人に区から毎月手当が出る",
-    officialName:"心身障害者福祉手当（港区）",
-    catch:"身体・知的・精神障害の手帳所持者に月額手当",
-    body:"港区に住む身体障害者手帳・愛の手帳（知的障害）・精神障害者保健福祉手帳の所持者に月額手当を支給。等級や手帳の種類によって金額が異なる。所得制限あり。東京都の重度心身障害者手当と国の障害基礎年金も別途あり。",
-    deadline:"通年（随時申請）", urgent:false, subsidyType:"cash",
-    needsMore:"障害の有無をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:60000, potentialLabel:"等級・手帳種別により異なる",
-    match:(p)=>{
-      if(p.disability==="あり") return 90;
-      if(p.disability==="なし"||p.disability==="回答しない") return 0;
-      return 0;
-    },
-    reminderLabel:"障害者福祉課または各総合支所保健福祉係へ相談",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/teate/hayamihyo.html",
-  },
-  {
-    id:"kodomo_dare_tsuen", gov:"港区", icon:"🎒", color:C.green, tag:"子育て",
-    title:"働いていなくても保育施設を月数時間利用できる",
-    officialName:"こども誰でも通園制度（港区）",
-    catch:"就労不問・生後6ヶ月〜3歳未満が対象",
-    body:"2025年度から港区が実施。就労しているかどうかに関わらず、生後6ヶ月〜3歳未満の子どもが月一定時間まで保育施設を利用できる。保育所に入れていない家庭の育児負担を軽減するための国の新制度を港区が実施。利用料は低額。",
-    deadline:"通年（事前登録制）", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>{
-      const a=age(p);
-      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45;
-    },
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:50000, potentialLabel:"保育費の一部負担軽減",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      const a=age(p);
-      if(a!==null&&a>=18&&a<=45) return 80;
-      return 55;
-    },
-    reminderLabel:"港区子ども課に問い合わせ・事前登録が必要",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
-  },
-  {
-    id:"mutsumi_iryo", gov:"東京都", icon:"🩺", color:C.green, tag:"健康",
-    title:"重度の障害がある人の医療費が大幅に減る",
-    officialName:"重度心身障害者医療費助成制度（マル障）",
-    catch:"重度障害者の医療費自己負担をほぼゼロに",
-    body:"東京都の「マル障」制度。身体障害者手帳1〜3級、愛の手帳1〜2度、精神障害者保健福祉手帳1級などを持つ方の医療費自己負担分を助成。医療証を提示するだけで窓口負担が大幅に軽減される。所得制限あり。港区国保年金課給付係で申請。",
-    deadline:"通年（随時申請）", urgent:false, subsidyType:"savings",
-    needsMore:"障害の有無をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:200000, potentialLabel:"医療費自己負担分を大幅軽減",
-    match:(p)=>{
-      if(p.disability==="あり") return 85;
-      if(p.disability==="なし"||p.disability==="回答しない") return 0;
-      return 0;
-    },
-    reminderLabel:"国保年金課給付係（03-3578-2642）へ申請",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/iryo/iryohi.html",
-  },
-  // ── 広報東京都2026年より追加 ──
-  {
-    id:"tokyo_point", gov:"東京都", icon:"🎯", color:C.blue, tag:"生活",
-    title:"東京アプリに登録するだけで1.1万円相当のポイントがもらえる",
-    officialName:"東京アプリ生活応援事業（東京ポイント）",
-    catch:"マイナンバーカードを持つ15歳以上全員対象。登録するだけで11,000ポイント（1.1万円相当）付与",
-    body:"「東京アプリ」をダウンロードしてマイナンバーカードで本人確認をするだけで11,000ポイント（1万1千円相当）が付与される。貯まったポイントはau PAY・dポイント・メルカリポイント・楽天ペイ・Vポイントなどに交換可能（PayPay・WAONは準備中）。2027年4月1日まで実施中。",
-    deadline:"2027年4月1日まで", urgent:false, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>{ const a=age(p); return a!==null&&a>=15; },
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:11000, potentialLabel:"11,000ポイント（1.1万円相当）即付与",
-    match:(p)=>{ const a=age(p); return a!==null&&a>=15?80:0; },
-    reminderLabel:"「東京アプリ」をダウンロードしてマイナンバーカードで登録",
-    sourceUrl:"https://www.tokyo.lg.jp/tosei/tosei/",
-  },
-  {
-    id:"akachan_first", gov:"東京都", icon:"👶", color:C.blue, tag:"子育て",
-    title:"出産したら育児用品・サービスのギフトカードがもらえる",
-    officialName:"赤ちゃんファースト事業（東京都）",
-    catch:"令和7年4月以降に生まれた子の養育者に育児用品ギフトカードを提供",
-    body:"令和7年4月1日〜令和8年3月31日に生まれた子どもを養育する方に、育児用品や子育て支援サービスが利用できるギフトカードを提供。利用登録期限は令和8年8月31日まで。対象期間外の方は各区市町村の類似事業を確認。",
-    deadline:"令和8年8月31日（利用登録）", urgent:true, subsidyType:"cash",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）"&&kidsAgeUnder3(p),
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:50000, potentialLabel:"ギフトカード相当額",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(kidsAgeUnder3(p)) return 90;
-      if(!p.kidsAge) return 60;
-      return 0;
-    },
-    reminderLabel:"東京都の特設サイトから利用登録が必要",
-    sourceUrl:"https://www.akachan-first.metro.tokyo.lg.jp/",
-  },
-  {
-    id:"rs_vaccine", gov:"東京都", icon:"💉", color:C.green, tag:"健康",
-    title:"妊娠中にRSウイルスワクチンを無料（定期）接種できる",
-    officialName:"RSウイルス感染症定期予防接種",
-    catch:"妊娠28〜36週の妊婦が対象。赤ちゃんの重症化を予防",
-    body:"2025年度から定期接種に追加。妊娠28週0日〜妊娠36週6日の方が対象。母体へのワクチン接種により赤ちゃんへの母子免疫を付与し、生後のRSウイルス感染による重症化を予防。費用や接種場所の詳細は港区保健センターまたは各医療機関へ確認。",
-    deadline:"通年（妊娠28〜36週の間）", urgent:false, subsidyType:"savings",
-    needsMore:null,
-    certain:(p)=>p.hasKids==="いる（または予定あり）"&&kidsAgeUnder3(p)&&age(p)!==null&&age(p)<=45,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:20000, potentialLabel:"接種費用相当額（定期接種のため無料または低額）",
-    match:(p)=>{
-      if(p.hasKids!=="いる（または予定あり）") return 0;
-      if(kidsAgeUnder3(p)&&age(p)!==null&&age(p)<=45) return 85;
-      if(!p.kidsAge&&age(p)!==null&&age(p)<=40) return 55;
-      return 0;
-    },
-    reminderLabel:"妊娠28週になったらかかりつけ医または港区保健センターへ相談",
-    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/kenko/",
-  },
-  {
-    id:"hitorioya_telework", gov:"東京都", icon:"💻", color:C.purple, tag:"キャリア",
-    title:"ひとり親がパソコンで在宅ワークを始められる支援",
-    officialName:"ひとり親家庭等在宅就業推進事業",
-    catch:"約10ヶ月間、在宅ワーク習得を無料サポート",
-    body:"都内在住のひとり親で、パソコンを使った在宅ワークで収入確保を目指す方を対象に、一人ひとりに合わせたプランで約10ヶ月間サポート（令和9年3月まで）。申込締切は5月29日17時（応募多数の場合は選考）。費用無料。",
-    deadline:"令和8年5月29日17時（申込締切）", urgent:true, subsidyType:"savings",
-    needsMore:"婚姻状況をプロフィールに追加",
-    certain:(p)=>false,
-    subsidy:(p)=>0, subsidyLabel:(p)=>null,
-    potentialSubsidy:0, potentialLabel:"在宅ワーク収入確保のスキル習得",
-    match:(p)=>{
-      if(p.marital==="離婚・死別"&&p.hasKids==="いる（または予定あり）") return 85;
-      return 0;
-    },
-    reminderLabel:"東京都ひとり親家庭等就業・生活支援センターへ申込",
-    sourceUrl:"https://www.tokyo-hitori.jp/",
-  },
-];
-
-/* ─── Festival DB ─── */
-// 繰り返し使える制度（利用済みにしても確認メッセージ表示）
-// ── かんたん表現マップ ──────────────────────
-const EASY_TITLES={
-  jidouteate:'子どもがいる家庭に毎月お金が振り込まれる制度',
-  shussan:'赤ちゃんが生まれたら50万円もらえる',
-  nenkin_men:'【学生限定】年金1.6万円/月を卒業まで後回しにする方法',
-  reskilling:'スキルアップの費用を国が最大8割負担してくれる',
-  scholarship:'返さなくていい奨学金（月最大7.5万円）',
-  hoiku_muryou:'2人目以降の保育料がゼロになる',
-  silver_pass:'70歳以上：都バス・地下鉄が乗り放題になる',
-  solar_tokyo:'太陽光パネル設置で都から最大36万円もらえる',
-  shiritsu_muryou:'年収910万円未満なら私立高校の授業料がタダになる',
-  chintai_hojo:'家賃が払えない時、国が最大9ヶ月分肩代わりする',
-  sports_free:'区のジムとプールが月2回タダで使える',
-  yoyou:'箱根・熱海に格安で泊まれる（港区民限定）',
-  iryo_free:'中学生以下の医療費が無料になる',
-  kenko_point:'健康診断を受けるとポイントがもらえる',
-  cancer_check:'がん検診が無料または格安で受けられる',
-  kougaku_ryoyo:'医療費が高額になっても上限で返ってくる制度',
-  ikuji_kyufu:'育休中も給与の約8割が支給される',
-  shogai_kyufu:'病気・ケガで働けない間も給与の2/3が入る',
-  hoiku_mosikomi:'保育所に入れたいなら11月が勝負',
-  babybirthday:'2歳の誕生月にプレゼントが届く（港区）',
-  shussan_minato:'港区で出産したら追加でお祝い金がもらえる',
-  doula_support:'妊娠中〜育児を格安（1時間1000円）でサポートしてもらえる',
-  ninshin_kenshin:'妊婦健診14回分が全部タダになる',
-  solar_minato:'太陽光パネルに区から最大40万円追加補助がもらえる',
-  smartphone_hojo:'初めてスマホを買う65歳以上に3万円もらえる',
-  kagakukan_free:'科学館とプラネタリウムが年4回タダで入れる',
-  tokyo_point:'東京アプリに登録するだけで1.1万円分ポイントがもらえる',
-  akachan_first:'出産後に育児グッズのギフトカードがもらえる',
-  hitorioya_iryo:'ひとり親なら医療費がほぼ無料になる',
-  jidofuyohand:'ひとり親に毎月手当が支給される',
-  kodomo_dare_tsuen:'働いていなくても保育施設を月数時間使える',
-  shugaku_enjo:'学用品費や給食費を区が援助してくれる',
-  tashi_musho:'子ども3人以上なら大学の授業料がタダになる',
-  flat35_kosodate:'子どもがいると住宅ローンの金利が下がる',
-};
-
-const REPEATABLE_IDS = new Set([
-  "sports_free","yoyou","kagakukan_free","kenko_point","cancer_check",
-  "kougaku_ryoyo","silver_pass",
-]);
-
-const FESTIVALS_DB = [
-  {id:"f01",type:"festival",name:"麻布十番納涼まつり",area:"麻布十番",date:"8/23〜24",lat:35.6566,lng:139.7368},
-  {id:"f02",type:"fireworks",name:"隅田川花火大会",area:"浅草・両国",date:"7/26",lat:35.7108,lng:139.8019},
-  {id:"f03",type:"festival",name:"愛宕神社例大祭",area:"愛宕・芝公園",date:"6/7〜8",lat:35.6588,lng:139.7492},
-  {id:"f04",type:"fireworks",name:"神宮外苑花火大会",area:"青山・信濃町",date:"8/9",lat:35.6717,lng:139.7178},
-  {id:"f05",type:"festival",name:"高輪台夏祭り",area:"高輪",date:"8/2",lat:35.6398,lng:139.7311},
-  {id:"f06",type:"festival",name:"芝大神宮大祭（だらだら祭り）",area:"芝・浜松町",date:"9/11〜21",lat:35.6544,lng:139.7503},
-  {id:"f07",type:"fireworks",name:"東京湾大華火祭",area:"港南・芝浦",date:"8/6",lat:35.6393,lng:139.7632},
-  {id:"f08",type:"festival",name:"六本木ヒルズ盆踊り",area:"六本木",date:"8/14〜15",lat:35.6604,lng:139.7292},
-  {id:"f09",type:"festival",name:"増上寺薪能",area:"芝公園",date:"10/4",lat:35.6562,lng:139.7493},
-  {id:"f10",type:"festival",name:"港南夏まつり",area:"港南・芝浦",date:"7/19",lat:35.6273,lng:139.7455},
-];
-
-/* ─── Town coords ─── */
-const TOWN_COORDS = [
+// ── ランタイム状態（DB読み込み後に設定） ──────────────────
+let ITEMS_BASE = [];
+let REPEATABLE_IDS = new Set();
+let FESTIVALS_DB = [];
+let TOWN_COORDS = [
   {name:"麻布十番",lat:35.6566,lng:139.7368},{name:"青山",lat:35.6717,lng:139.7178},
   {name:"赤坂",lat:35.6731,lng:139.7372},{name:"六本木",lat:35.6604,lng:139.7292},
   {name:"西麻布",lat:35.6622,lng:139.7247},{name:"芝",lat:35.6507,lng:139.7503},
@@ -1330,6 +93,279 @@ const TOWN_COORDS = [
   {name:"港南",lat:35.6273,lng:139.7455},{name:"芝浦",lat:35.6393,lng:139.7432},
   {name:"虎ノ門",lat:35.6673,lng:139.7495},
 ];
+
+// ── データ駆動型条件評価 ──────────────────────────────────
+function evalCondition(cond, profile) {
+  const a = profile.ageNum ? Number(profile.ageNum) : null;
+  for (const [key, val] of Object.entries(cond)) {
+    // 特殊キー
+    if (key === "_always") return val === true;
+    if (key === "_alwaysExclude") return val === true;
+    if (key === "ageMin") { if (a === null || a < val) return false; continue; }
+    if (key === "ageMax") { if (a === null || a > val) return false; continue; }
+    if (key === "ageBetween") { if (a === null || a < val[0] || a >= val[1]) return false; continue; }
+    // 通常キー
+    const pv = profile[key];
+    if (val === null || val === undefined) { if (pv !== null && pv !== undefined) return false; continue; }
+    if (typeof val === "string") { if (pv !== val) return false; continue; }
+    if (Array.isArray(val)) { if (!val.includes(pv)) return false; continue; }
+    if (typeof val === "object") {
+      if ("not" in val) { if (pv === val.not) return false; continue; }
+      if ("notIn" in val) {
+        if (val.ifSet && (!pv || pv === "")) continue; // 未設定なら無視
+        if (val.notIn.includes(pv)) return false; continue;
+      }
+    }
+  }
+  return true;
+}
+
+function evalCondArray(condArray, profile, mode = "and") {
+  if (!condArray || condArray.length === 0) return mode === "and" ? true : false;
+  if (mode === "and") return condArray.every(c => evalCondition(c, profile));
+  if (mode === "or")  return condArray.some(c  => evalCondition(c, profile));
+  return false;
+}
+
+// ── 制度判定 ──────────────────────────────────────────────
+function calcEligibilityData(profile, el) {
+  if (!el) return { certain: false, matchScore: 0, missing: [] };
+  // exclude チェック（1つでもtrueなら非表示）
+  if (el.exclude && el.exclude.some(c => evalCondition(c, profile)))
+    return { certain: false, matchScore: 0, missing: [] };
+  // certain チェック（全条件AND）
+  const certain = !!(el.certain && el.certain.length > 0 && evalCondArray(el.certain, profile, "and"));
+  if (certain) return { certain: true, matchScore: 100, missing: [] };
+  // missing キー検出
+  const missing = (el.missingFor || []).filter(k => !profile[k] || profile[k] === "");
+  // スコア計算
+  let score = el.baseScore !== undefined ? el.baseScore : 40;
+  if (el.matchRules) {
+    el.matchRules.forEach(rule => {
+      if (rule["if"] && evalCondition(rule["if"], profile)) score += rule.score;
+    });
+  }
+  return { certain: false, matchScore: Math.min(score, 95), missing };
+}
+
+function getConfidenceData(item, profile) {
+  const el = item.eligibility;
+  if (!el) return "needs_profile";
+  const { certain, matchScore } = calcEligibilityData(profile, el);
+  if (certain) return "certain";
+  if (matchScore === 0) return "none";
+  return "needs_profile";
+}
+
+function getMissingQuestionsData(item, profile) {
+  const el = item.eligibility;
+  if (!el || !el.missingFor) return [];
+  return el.missingFor
+    .filter(k => !profile[k] || profile[k] === "")
+    .map(k => ALL_PROFILE_QUESTIONS[k] ? { key: k, ...ALL_PROFILE_QUESTIONS[k] } : null)
+    .filter(Boolean);
+}
+
+function getExclusionReasonData(item, profile) {
+  const el = item.eligibility;
+  if (!el || !el.excludeReasons) return "現在の条件では対象外です";
+  const reasons = el.excludeReasons;
+  const hit = Object.keys(reasons).find(k => {
+    if (k === "hasKids") return profile.hasKids !== "いる（または予定あり）";
+    if (k === "ageNum") return true;
+    return !!profile[k];
+  });
+  return hit ? reasons[hit] : "現在の条件では対象外です";
+}
+
+function getEligibilityHintData(item, profile) {
+  const el = item.eligibility;
+  if (!el || !el.hints) return null;
+  const vals = Object.values(el.hints);
+  return vals.length > 0 ? vals[0] : null;
+}
+
+// ── 補助金額計算 ──────────────────────────────────────────
+function calcSubsidy(item, profile) {
+  if (!item.subsidyRules) return item.subsidyFixed || 0;
+  for (const rule of item.subsidyRules) {
+    if (rule.default) return rule.amount;
+    if (rule["if"] && evalCondition(rule["if"], profile)) return rule.amount;
+  }
+  return 0;
+}
+
+function calcSubsidyLabel(item, profile) {
+  if (!item.subsidyLabelRules) return null;
+  for (const rule of item.subsidyLabelRules) {
+    if (rule.default) return rule.label;
+    if (rule["if"] && evalCondition(rule["if"], profile)) return rule.label;
+  }
+  return null;
+}
+
+// ── DB をランタイムアイテムに変換 ──────────────────────────
+function convertDbItem(raw) {
+  const colorMap = {
+    blue: ()=>C.blue, green: ()=>C.green, purple: ()=>C.purple,
+    red: ()=>C.red, t2: ()=>C.t2, t3: ()=>C.t3,
+  };
+  return {
+    ...raw,
+    get color() { return (colorMap[raw.colorKey] || (() => C.blue))(); },
+    title: raw.easyTitle || raw.title, // easyTitle優先（後でeasyフラグで切り替え）
+    subsidy: (p) => calcSubsidy(raw, p),
+    subsidyLabel: (p) => calcSubsidyLabel(raw, p),
+    // 旧API互換（easyTitle/catchTextアクセス）
+    easyTitle: raw.easyTitle || raw.title,
+    catchText: raw.catch,
+  };
+}
+
+// ── items-db.json 読み込み ─────────────────────────────────
+async function loadItemsDB() {
+  try {
+    const res = await fetch("./items-db.json?" + Date.now());
+    const db = await res.json();
+    ITEMS_BASE = (db.items || []).map(convertDbItem);
+    REPEATABLE_IDS = new Set(db.repeatableIds || []);
+    FESTIVALS_DB = db.festivals || [];
+    if (db.townCoords) TOWN_COORDS = db.townCoords;
+    return true;
+  } catch (e) {
+    console.error("items-db.json の読み込みに失敗しました:", e);
+    return false;
+  }
+}
+
+// ── 後方互換エイリアス（UIコンポーネントが参照するグローバル関数） ──
+const ELIGIBILITY = {}; // 動的追加制度用
+function calcEligibility(p, el) { return calcEligibilityData(p, el); }
+function getConfidence(item, profile) { return getConfidenceData(item, profile); }
+function getMissingQuestions(item, profile) { return getMissingQuestionsData(item, profile); }
+function getExclusionReason(item, profile) { return getExclusionReasonData(item, profile); }
+function getEligibilityHint(item, profile) { return getEligibilityHintData(item, profile); }
+
+// ── 全プロフィール質問定義（ミニクイズ用） ──────────────────
+const ALL_PROFILE_QUESTIONS = {
+  housing:     {label:"住居形態",         opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
+  income:      {label:"世帯年収",         opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
+  kidsAge:     {label:"お子さんの年齢（最年少）", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
+  marital:     {label:"婚姻状況",         opts:["未婚","既婚","離婚・死別"]},
+  disability:  {label:"障がいの有無",     opts:["あり","なし","回答しない"]},
+  disabilityGrade: {label:"障がいの等級", opts:["1-2級（重度）","3-4級","5-6級","対象外"]},
+  disabilityType:  {label:"手帳の種類",   opts:["身体障害者手帳","愛の手帳（知的）","精神障害者手帳","なし"]},
+  taxStatus:   {label:"住民税の課税状況", opts:["課税世帯","均等割のみ","非課税","わからない"]},
+  childcareStatus:{label:"お子さんの保育状況",opts:["在宅育児","認可保育園","認可外保育園","幼稚園","認定こども園","未定"]},
+  schoolType:  {label:"在学校の種別",     opts:["公立","私立","国立","通信制","その他"]},
+  pregnancyStatus:{label:"妊娠の状況",    opts:["妊娠中","妊娠中でない"]},
+  housingLoan: {label:"住宅ローン",       opts:["あり","なし"]},
+  hasMynumber: {label:"マイナンバーカード",opts:["持っている","持っていない"]},
+  isUnemployed:{label:"求職中かどうか",   opts:["求職中","求職中でない"]},
+  careLevel:   {label:"介護認定の有無",   opts:["非該当","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"]},
+};
+
+const BOOL_KEYS = {
+  housingLoan:{"あり":"true","なし":"false"},
+  hasMynumber:{"持っている":"true","持っていない":"false"},
+  isUnemployed:{"求職中":"true","求職中でない":"false"},
+  pregnancyStatus:{"妊娠中":"pregnant","妊娠中でない":"not"},
+};
+
+// ── バナー計算（UI互換） ──────────────────────────────────
+const calcBanner = (profile, items, done=[], hidden=[]) => {
+  let cash=0, savings=0, potential=0;
+  items.forEach(it => {
+    if ((done||[]).includes(it.id) || (hidden||[]).includes(it.id)) return;
+    try {
+      const el = it.eligibility;
+      let isCertain = false;
+      if (el) {
+        if (el.exclude && el.exclude.some(c => evalCondition(c, profile))) return;
+        isCertain = !!(el.certain && el.certain.length > 0 && evalCondArray(el.certain, profile, "and"));
+      }
+      if (isCertain && it.subsidy(profile) > 0) {
+        if (it.subsidyType === "cash") cash += it.subsidy(profile);
+        else if (it.subsidyType === "savings") savings += it.subsidy(profile);
+      } else if (!isCertain && it.potentialSubsidy > 0) {
+        potential += it.potentialSubsidy;
+      }
+    } catch(e) {}
+  });
+  return { cash, savings, potential };
+};
+
+// ── 動的制度ビルダー（AdminTab用） ────────────────────────
+function buildDynamicItem(raw) {
+  const conditions = raw.conditions || [];
+  const id = raw.id || `dynamic_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+
+  // 条件テキスト → eligibility データ形式に変換
+  const certainConds = [];
+  const scoreConds = [];
+
+  conditions.forEach(c => {
+    if (c === "全員") {
+      certainConds.push({ _always: true });
+    } else if (c === "子あり") {
+      certainConds.push({ hasKids: "いる（または予定あり）" });
+      scoreConds.push({ "if": { hasKids: "いる（または予定あり）" }, score: 40 });
+    } else if (c.includes("歳以上")) {
+      const n = parseInt(c);
+      certainConds.push({ ageMin: n });
+      scoreConds.push({ "if": { ageMin: n }, score: 40 });
+    } else if (c.includes("歳未満")) {
+      const n = parseInt(c);
+      certainConds.push({ ageMax: n - 1 });
+      scoreConds.push({ "if": { ageMax: n - 1 }, score: 30 });
+    } else if (c === "学生") {
+      certainConds.push({ stage: "学生" });
+      scoreConds.push({ "if": { stage: "学生" }, score: 40 });
+    } else if (c === "社会人") {
+      certainConds.push({ stage: ["社会人（会社員）","社会人（フリーランス・自営）"] });
+      scoreConds.push({ "if": { stage: ["社会人（会社員）","社会人（フリーランス・自営）"] }, score: 35 });
+    } else if (c === "賃貸") {
+      certainConds.push({ housing: "賃貸" });
+      scoreConds.push({ "if": { housing: "賃貸" }, score: 40 });
+    } else if (c === "持ち家") {
+      certainConds.push({ housing: ["持ち家（戸建て）","持ち家（マンション）"] });
+      scoreConds.push({ "if": { housing: ["持ち家（戸建て）","持ち家（マンション）"] }, score: 40 });
+    } else if (c === "年金生活者") {
+      certainConds.push({ stage: "年金生活者" });
+      scoreConds.push({ "if": { stage: "年金生活者" }, score: 40 });
+    } else {
+      scoreConds.push({ "if": { _always: true }, score: 20 });
+    }
+  });
+
+  const eligibility = {
+    certain: certainConds,
+    exclude: [],
+    matchRules: scoreConds,
+    baseScore: conditions.length === 0 ? 50 : 0,
+    missingFor: [],
+    excludeReasons: {},
+    hints: {},
+  };
+
+  const subsidyAmount = raw.subsidyAmount || 0;
+  return {
+    ...raw,
+    id,
+    eligibility,
+    get color() { return C.blue; },
+    subsidy: (p) => {
+      const { certain } = calcEligibilityData(p, eligibility);
+      return certain ? subsidyAmount : 0;
+    },
+    subsidyLabel: (p) => {
+      const { certain } = calcEligibilityData(p, eligibility);
+      return certain ? (raw.subsidyLabel || null) : null;
+    },
+    dynamic: true,
+  };
+}
+
 
 /* ─── Utils ─── */
 const fmt = (n) => `${n.toLocaleString()}円`;
@@ -1340,30 +376,6 @@ const calcDist = (a1,o1,a2,o2) => {
 };
 const nearestTown = (lat,lng) => TOWN_COORDS.reduce((a,b) => calcDist(lat,lng,a.lat,a.lng)<calcDist(lat,lng,b.lat,b.lng)?a:b);
 const radiusLabel = (r) => r===999999?"区全域":r>=1000?`半径${r/1000}km以内`:`半径${r}m以内`;
-const calcBanner = (profile, items, done=[], hidden=[]) => {
-  let cash=0, savings=0, potential=0;
-  items.forEach(it=>{
-    // 申請済み（一度きり）または非表示は除外
-    if((done||[]).includes(it.id) || (hidden||[]).includes(it.id)) return;
-    try{
-      const el=ELIGIBILITY[it.id];
-      let isCertain=false;
-      if(el){
-        if(el.exclude&&el.exclude.some(fn=>fn(profile))) return;
-        isCertain=!!(el.certain&&el.certain.length>0&&el.certain.every(fn=>fn(profile)));
-      } else {
-        isCertain=it.certain(profile);
-      }
-      if(isCertain && it.subsidy(profile)>0){
-        if(it.subsidyType==="cash") cash+=it.subsidy(profile);
-        else if(it.subsidyType==="savings") savings+=it.subsidy(profile);
-      } else if(!isCertain && it.potentialSubsidy>0){
-        potential+=it.potentialSubsidy;
-      }
-    }catch(e){}
-  });
-  return {cash,savings,potential};
-};
 
 /* ─── Styles ─── */
 const S = {
@@ -1379,7 +391,6 @@ const S = {
   }},
   get card(){return{background:C.bg2,borderRadius:20,padding:"16px",marginBottom:"10px",border:`1px solid ${C.border}`,animation:"fadeUp .3s ease"}},
   btn:(color,sm)=>{
-    // bg系の色（背景色）の場合はテキストをC.t1、それ以外は白
     const isBg=color===C.bg3||color===C.bg2||color===C.bg1||color===C.bg0;
     return{background:color,border:"none",borderRadius:sm?8:12,padding:sm?"6px 12px":"10px 18px",color:isBg?C.t1:"#fff",fontSize:sm?12:14,fontWeight:700,cursor:"pointer"};
   },
@@ -1387,27 +398,11 @@ const S = {
   get liveTag(){return{background:"#ff6b6b22",color:C.red,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",gap:4}},
 };
 
-/* ─── Claude API web search ─── */
-const OFFICIAL_SOURCES = {
-  jidouteate:"https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/jidoteate.html",
-  reskilling:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/",
-  scholarship:"https://www.jasso.go.jp/shogakukin/kyufu/",
-  nenkin_men:"https://www.nenkin.go.jp/service/kokunen/menjo/",
-  shussan:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryouhoken/iryouhoken09/",
-  hoiku_muryou:"https://www.metro.tokyo.lg.jp/",
-  solar_tokyo:"https://www.tokyo-co2down.jp/subsidy/solar",
-  silver_pass:"https://www.kotsu.metro.tokyo.jp/other/silver/",
-  shiritsu_muryou:"https://www.metro.tokyo.lg.jp/",
-  chintai_hojo:"https://www.city.minato.tokyo.jp/jiritsusien/",
-  sports_free:"https://www.city.minato.tokyo.jp/sports/",
-  yoyou:"https://www.city.minato.tokyo.jp/sports/sports/hoyou/",
-  iryo_free:"https://www.city.minato.tokyo.jp/kodomokatei/",
-  hoiku_mosikomi:"https://www.city.minato.tokyo.jp/kodomokatei/kosodate/hoikusho/",
-  solar_minato:"https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
-  kenko_point:"https://www.city.minato.tokyo.jp/kenkouzukuri/",
-  cancer_check:"https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
-  babybirthday:"https://www.city.minato.tokyo.jp/kodomokatei/",
-};
+
+/* ─── 互換ヘルパー関数（UIコンポーネント内で参照） ─── */
+const age = (p) => p.ageNum ? Number(p.ageNum) : null;
+const isOwner = (p) => p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）";
+
 
 const fetchLiveInfo = async (item) => {
   const today = new Date().toLocaleDateString("ja-JP");
@@ -1475,12 +470,12 @@ function RevealScreen({profile, items, onEnter, done=[], hidden=[]}){
   const banner = calcBanner(profile, items, done, hidden);
   const total = banner.cash + banner.savings;
   const certainCount = items.filter(it=>{
-    const el=ELIGIBILITY[it.id];
-    return el ? calcEligibility(profile,el).certain : it.certain(profile);
+    const el=it.eligibility;
+    return el ? calcEligibilityData(profile,el).certain : false;
   }).length;
   const maybeCount = items.filter(it=>{
-    const el=ELIGIBILITY[it.id];
-    const score = el ? calcEligibility(profile,el).matchScore : it.match(profile);
+    const el=it.eligibility;
+    const score = el ? calcEligibilityData(profile,el).matchScore : 0;
     return score>0 && score<100;
   }).length;
 
@@ -1778,7 +773,7 @@ function Quiz({onDone}){
     const allItems=typeof ITEMS_BASE!=="undefined"?ITEMS_BASE:[];
     allItems.forEach(it=>{
       try{
-        const el=ELIGIBILITY[it.id];
+        const el=it.eligibility;
         if(!el) return;
         // ELIGIBILITYのexcludeで除外される場合は絶対に含めない
         if(el.exclude&&el.exclude.some(fn=>fn(p))) return;
@@ -2003,25 +998,6 @@ function LiveBadge(){
   return <span style={S.liveTag}><span style={{width:6,height:6,background:C.red,borderRadius:"50%",animation:"pulse 1s ease infinite"}}/>LIVE</span>;
 }
 
-/* ── getConfidence: 4問の情報だけで「確実」と言えるかのみ判定
-   certain  = クイズ4問だけで対象と断言できる
-   needs_profile = 年収・住居などプロフィール追加が必要
-   none     = 明らかに対象外
-──*/
-function getConfidence(item, profile){
-  const el = ELIGIBILITY[item.id];
-  if(!el) {
-    // エンジン未定義の場合は旧ロジックにフォールバック
-    if(item.certain(profile)) return "certain";
-    if(item.match(profile)===0) return "none";
-    return "needs_profile";
-  }
-  const {certain, matchScore} = calcEligibility(profile, el);
-  if(certain) return "certain";
-  if(matchScore===0) return "none";
-  return "needs_profile";
-}
-
 function InfoCard({item,profile,liked,reminded,hidden,onLike,onRemind,onHide,onClick,liveData,conf}){
   if(hidden.includes(item.id)) return null;
   const isCertain = conf==="certain";
@@ -2068,9 +1044,13 @@ function InfoCard({item,profile,liked,reminded,hidden,onLike,onRemind,onHide,onC
               <span style={{color:C.t3,fontSize:11,fontWeight:400,marginLeft:4}}>（条件次第）</span>
             </div>
           )}
-          {!isCertain&&item.needsMore&&(
-            <div style={{color:C.t3,fontSize:11,marginTop:4}}>🔑 {item.needsMore}</div>
-          )}
+          {!isCertain&&(()=>{
+            const el=item.eligibility;
+            const {missing=[]}=el?calcEligibility(profile,el):{};
+            if(missing.length===0) return null;
+            const labels=missing.map(k=>ALL_PROFILE_QUESTIONS[k]?.label||k).join("・");
+            return <div style={{color:C.t3,fontSize:11,marginTop:4}}>🔑 {labels}を入力すると確定できます</div>;
+          })()}
 
           {/* live strip */}
           {hasLive&&(
@@ -2102,68 +1082,6 @@ function InfoCard({item,profile,liked,reminded,hidden,onLike,onRemind,onHide,onC
   );
 }
 
-/* ─── 不足フィールド特定 ───────────────────────────────
-   ELIGIBILITYの certain 条件から、profileに何が足りないかを返す
-   [{key, label, opts}] の配列
-──────────────────────────────────────── */
-const PROFILE_QUESTIONS = [
-  {key:"housing", label:"住居形態", opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
-  {key:"income",  label:"世帯年収", opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
-  {key:"kidsAge", label:"お子さんの年齢（最年少）", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
-];
-
-
-/* ─── 各制度に必要な情報・除外理由のメタデータ ─────────────
-   ELIGIBILITYのfn.toString()に頼らず明示的に定義する
-──────────────────────────────────────── */
-const ITEM_META = {
-  // key: 制度ID
-  // missingKeys: 不足している場合に質問するフィールド
-  // excludeReasons: 除外された場合の理由文
-  // hints: 将来対象になる可能性のヒント
-  solar_tokyo:    { missingKeys:["housing"], excludeReasons:{housing:"持ち家でない場合は対象外です"}, hints:{housing:"持ち家に引っ越した場合は対象になります"} },
-  solar_minato:   { missingKeys:["housing"], excludeReasons:{housing:"持ち家でない場合は対象外です"}, hints:{housing:"持ち家に引っ越した場合は対象になります"} },
-  chintai_hojo:   { missingKeys:["housing","income"], excludeReasons:{income:"世帯年収が一定以上の場合は対象外です",housing:"持ち家の場合は対象外です"}, hints:{income:"離職・休業で収入が下がった場合は対象になる可能性があります"} },
-  scholarship:    { missingKeys:["income"], excludeReasons:{income:"世帯年収が高い場合は対象外です（目安：400万円超）"}, hints:{income:"世帯収入が減った場合は対象になる可能性があります"} },
-  shiritsu_muryou:{ missingKeys:["income"], excludeReasons:{income:"世帯年収910万円以上の場合は対象外です"}, hints:{income:"所得制限は年々緩和される傾向があります"} },
-  teishotoku_kyufu:{ missingKeys:["income"], excludeReasons:{income:"住民税課税世帯は対象外です"}, hints:{income:"離職等で住民税非課税になった場合は対象になります"} },
-  flat35_kosodate:{ missingKeys:["housing"], excludeReasons:{housing:"住宅ローン利用予定でない場合は対象外です"}, hints:{} },
-  shogai_kyufu:   { missingKeys:["stage"], excludeReasons:{stage:"会社員・育休中の方（健康保険加入者）が対象です"}, hints:{stage:"就職して健康保険に加入した場合は対象になります"} },
-  hoiku_muryou:   { missingKeys:["kidsAge"], excludeReasons:{kidsAge:"0〜2歳のお子さんがいる場合に主に対象となります"}, hints:{kidsAge:"次のお子さんが生まれた際に対象になります"} },
-};
-
-function getMissingQuestions(item, profile){
-  const meta = ITEM_META[item.id];
-  if(!meta) return [];
-  return meta.missingKeys
-    .filter(key=>!profile[key])
-    .map(key=>PROFILE_QUESTIONS.find(q=>q.key===key))
-    .filter(Boolean);
-}
-
-function getExclusionReason(item, profile){
-  const el = ELIGIBILITY[item.id];
-  const meta = ITEM_META[item.id];
-  if(!el||!el.exclude) return "現在の条件では対象外です";
-  var excluded = el.exclude.filter(function(fn){ return fn(profile); });
-  if(excluded.length===0) return "現在の条件では対象外です";
-  if(!meta||!meta.excludeReasons) return "現在の条件では対象外です";
-  var keys = Object.keys(meta.excludeReasons);
-  for(var i=0;i<keys.length;i++){
-    var key=keys[i];
-    if(profile[key]) return meta.excludeReasons[key];
-  }
-  return "現在の条件では対象外です";
-}
-
-function getEligibilityHint(item, profile){
-  var meta = ITEM_META[item.id];
-  if(!meta||!meta.hints) return null;
-  var keys = Object.keys(meta.hints);
-  if(keys.length===0) return null;
-  return meta.hints[keys[0]];
-}
-
 function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked,reminded,onLike,onRemind,done,onDone,easy,setEasy}){
   const [miniQuiz,setMiniQuiz]=useState(false);
   const [hideConfirmed,setHideConfirmed]=useState(false);
@@ -2191,7 +1109,7 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
   const currentMissingQ = getMissingQuestions(item, mergedProfile);
   const allAnswered = miniQuiz && currentMissingQ.length === 0;
   const nowExcluded = allAnswered && (()=>{
-    const el=ELIGIBILITY[item.id];
+    const el=item.eligibility;
     return el&&el.exclude&&el.exclude.some(fn=>fn(mergedProfile));
   })();
   const nowCertain = allAnswered && !nowExcluded && getConfidence(item,mergedProfile)==="certain";
@@ -2375,10 +1293,12 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
                       style={{...S.btn(miniAnswers[q.key]===v?C.blue:C.bg3,true),border:`1px solid ${miniAnswers[q.key]===v?C.blue:C.border}`,fontSize:12}}
                       onClick={e=>{
                         e.stopPropagation();
-                        const newAnswers={...miniAnswers,[q.key]:v};
+                        // booleanライクなキーは変換してから保存
+                        const converted = BOOL_KEYS[q.key] ? (BOOL_KEYS[q.key][v]||v) : v;
+                        const newAnswers={...miniAnswers,[q.key]:converted};
                         setMiniAnswers(newAnswers);
                         // 即座にプロフィールへ反映
-                        setProfile(p=>({...p,[q.key]:v}));
+                        setProfile(p=>({...p,[q.key]:converted}));
                       }}>
                       {v}
                     </button>
@@ -2661,8 +1581,8 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
   },[]);
 
   const getScore=(it)=>{
-    const el=ELIGIBILITY[it.id];
-    const baseScore=el?calcEligibility(profile,el).matchScore:it.match(profile);
+    const el=it.eligibility;
+    const baseScore=el?calcEligibilityData(profile,el).matchScore:0;
     // certainな場合でも属性の関連度でさらに差をつける
     if(getConfidence(it,profile)==="certain"){
       // 金額が大きいほど上位
@@ -3123,30 +2043,112 @@ const PROFILE_FIELDS=[
   {key:"disability", label:"障がいの有無",emoji:"♿", opts:["あり","なし","回答しない"]},
 ];
 
+// ── 詳細設定フィールド（カテゴリ分け） ──────────────────
+const DETAIL_FIELD_GROUPS = [
+  {
+    id:"work", label:"就労・社会保険", emoji:"💼",
+    fields:[
+      {key:"taxStatus",      label:"住民税の課税状況", emoji:"🏛️", opts:["課税世帯","均等割のみ課税","非課税","わからない"]},
+      {key:"healthInsurance",label:"社会保険の種類",   emoji:"🏥", opts:["協会けんぽ","健康保険組合","国民健康保険","後期高齢者医療","共済組合","未加入"]},
+      {key:"leaveStatus",    label:"休職・休業状況",   emoji:"🛌", opts:["通常勤務","育児休業中","介護休業中","傷病手当金受給中","休職中","その他"]},
+      {key:"isUnemployed",   label:"求職中",           emoji:"🔍", opts:["求職中","求職中でない"], boolKeys:{"求職中":"true","求職中でない":"false"}},
+    ],
+  },
+  {
+    id:"childcare", label:"子育て・教育", emoji:"🎒",
+    fields:[
+      {key:"childcareStatus",label:"保育状況",         emoji:"🏫", opts:["在宅育児","認可保育園","認可外保育園","幼稚園","認定こども園","地域型保育","未定"]},
+      {key:"schoolType",     label:"在学校の種別",     emoji:"🏫", opts:["公立","私立","国立","通信制","その他"]},
+      {key:"specialNeeds",   label:"特別支援ニーズ",   emoji:"🌈", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+    ],
+  },
+  {
+    id:"health", label:"健康・医療・福祉", emoji:"🏥",
+    fields:[
+      {key:"pregnancyStatus",label:"妊娠の状況",       emoji:"🤰", opts:["妊娠中","妊娠中でない"], boolKeys:{"妊娠中":"pregnant","妊娠中でない":"not"}},
+      {key:"disabilityGrade",label:"障がいの等級",     emoji:"♿", opts:["1-2級（重度）","3-4級","5-6級","対象外"]},
+      {key:"disabilityType", label:"手帳の種類",       emoji:"📋", opts:["身体障害者手帳","愛の手帳（知的）","精神障害者手帳","なし"]},
+      {key:"careLevel",      label:"介護認定",         emoji:"🧓", opts:["非該当","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"]},
+      {key:"intractableDisease",label:"指定難病",      emoji:"💊", opts:["受給者証あり","なし"], boolKeys:{"受給者証あり":"true","なし":"false"}},
+      {key:"welfareStatus",  label:"生活保護",         emoji:"🤝", opts:["受給中","非受給"], boolKeys:{"受給中":"receiving","非受給":"not"}},
+    ],
+  },
+  {
+    id:"assets", label:"資産・インフラ", emoji:"🏡",
+    fields:[
+      {key:"housingLoan",    label:"住宅ローン",       emoji:"🏦", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+      {key:"housingBuiltYear",label:"建築年（西暦）",  emoji:"📅", inputType:"year"},
+      {key:"vehicleType",    label:"車両",             emoji:"🚗", opts:["なし","普通車","軽自動車","EV・PHV","二輪・原付","複数所有"]},
+      {key:"hasBicycle",     label:"自転車",           emoji:"🚲", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+      {key:"hasDog",         label:"犬の飼育",         emoji:"🐕", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+    ],
+  },
+  {
+    id:"other", label:"その他・行政手続き", emoji:"🗂️",
+    fields:[
+      {key:"hasMynumber",    label:"マイナンバーカード",emoji:"🪪", opts:["持っている","持っていない"], boolKeys:{"持っている":"true","持っていない":"false"}},
+      {key:"nationalityStatus",label:"在留状況",       emoji:"🌏", opts:["日本国籍","永住者","特別永住者","就労ビザ","留学ビザ","その他"]},
+    ],
+  },
+];
+
+// 詳細設定の表示値変換（内部値→日本語）
+const DETAIL_DISPLAY_MAP = {
+  isUnemployed:      {"true":"求職中","false":"求職中でない"},
+  housingLoan:       {"true":"あり","false":"なし"},
+  hasMynumber:       {"true":"持っている","false":"持っていない"},
+  hasBicycle:        {"true":"あり","false":"なし"},
+  hasDog:            {"true":"あり","false":"なし"},
+  specialNeeds:      {"true":"あり","false":"なし"},
+  pregnancyStatus:   {"pregnant":"妊娠中","not":"妊娠中でない"},
+  intractableDisease:{"true":"受給者証あり","false":"なし"},
+  welfareStatus:     {"receiving":"受給中","not":"非受給"},
+};
+
 function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,darkMode,setDarkMode}){
   const [showHiddenList,setShowHiddenList]=useState(false);
   const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
-  // 申請済み（done）で消えたものはプロフィールの非表示欄に出さない
+  const [showDetailSection,setShowDetailSection]=useState(false);
+  const [openDetailGroup,setOpenDetailGroup]=useState(null);
   const trueHidden=(hidden||[]).filter(id=>!(done||[]).includes(id));
   const [sheet,setSheet]=useState(null);
   const [numInput,setNumInput]=useState("");
   const [numError,setNumError]=useState("");
 
   const visible=PROFILE_FIELDS.filter(f=>!f.studentOnly||profile.stage==="学生");
-  const filled=visible.filter(f=>profile[f.key]!==undefined&&profile[f.key]!==null&&profile[f.key]!=="").length;
-  const pct=Math.round((filled/visible.length)*100);
+  const allDetailFields=DETAIL_FIELD_GROUPS.flatMap(g=>g.fields);
+  const filledBasic=visible.filter(f=>profile[f.key]!==undefined&&profile[f.key]!==null&&profile[f.key]!=="").length;
+  const filledDetail=allDetailFields.filter(f=>profile[f.key]!==undefined&&profile[f.key]!==null&&profile[f.key]!=="").length;
+  const totalFields=visible.length+allDetailFields.length;
+  const pct=Math.round(((filledBasic+filledDetail)/totalFields)*100);
 
-  const openSheet=(f)=>{ setSheet(f); setNumInput(f.key==="ageNum"&&profile.ageNum?String(profile.ageNum):""); setNumError(""); };
+  const openSheet=(f)=>{
+    setSheet(f);
+    setNumInput((f.key==="ageNum"||f.inputType==="year")&&profile[f.key]?String(profile[f.key]):"");
+    setNumError("");
+  };
 
   const displayValue=(f)=>{
     const v=profile[f.key];
     if(v===undefined||v===null||v==="") return "未設定";
     if(f.key==="ageNum") return `${v}歳`;
+    if(f.inputType==="year") return `${v}年築`;
+    if(DETAIL_DISPLAY_MAP[f.key]&&DETAIL_DISPLAY_MAP[f.key][v]) return DETAIL_DISPLAY_MAP[f.key][v];
     return String(v);
+  };
+
+  const saveSheetValue=(v)=>{
+    const converted=sheet.boolKeys?(sheet.boolKeys[v]||v):v;
+    const next={...profile,[sheet.key]:converted};
+    if(sheet.key==="stage"&&v!=="学生") delete next.studentLevel;
+    setProfile(next);
+    setSheet(null);
   };
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+
+      {/* 完成度バー */}
       <div style={{background:C.bg2,borderRadius:14,padding:12,marginBottom:12,border:`1px solid ${C.border}`}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
           <span style={{color:C.t1,fontWeight:700,fontSize:14}}>プロフィール完成度</span>
@@ -3155,8 +2157,12 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         <div style={{background:C.bg3,borderRadius:4,height:6}}>
           <div style={{background:C.blue,height:6,borderRadius:4,width:`${pct}%`,transition:"width .4s"}}/>
         </div>
+        <div style={{color:C.t3,fontSize:10,marginTop:5}}>
+          基本 {filledBasic}/{visible.length}件　詳細 {filledDetail}/{allDetailFields.length}件
+        </div>
       </div>
-      {/* 非表示一覧ページ */}
+
+      {/* 非表示一覧 */}
       {showHiddenList&&(
         <div style={{position:"fixed",inset:0,background:C.bg0,zIndex:200,display:"flex",flexDirection:"column"}}>
           <div style={{padding:"16px 16px 8px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
@@ -3174,48 +2180,36 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
                     <div style={{color:C.t2,fontSize:11}}>{it.gov}</div>
                     <div style={{color:C.t1,fontSize:13,fontWeight:600}}>{it.title}</div>
                   </div>
-                  <button
-                    style={{...S.btn(C.blue,true),fontSize:12,flexShrink:0}}
-                    onClick={()=>onRestoreOne(id)}>
-                    復元
-                  </button>
+                  <button style={{...S.btn(C.blue,true),fontSize:12,flexShrink:0}} onClick={()=>onRestoreOne(id)}>復元</button>
                 </div>
               );
             })}
             {trueHidden.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:40}}>非表示にした制度はありません</div>}
           </div>
-        <div style={{padding:"12px 16px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
-          <button style={{width:"100%",...S.btn(C.bg3),border:`1px solid ${C.border}`,color:C.t2}}
-            onClick={()=>setShowRestoreConfirm(true)}>
-            すべて復元する（{trueHidden.length}件）
-          </button>
-        </div>
-
-        {/* 確認ポップ */}
-        {showRestoreConfirm&&(
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowRestoreConfirm(false)}>
-            <div style={{background:C.bg1,borderRadius:20,padding:20,width:"100%",maxWidth:380}} onClick={e=>e.stopPropagation()}>
-              <div style={{color:C.t1,fontWeight:700,fontSize:15,marginBottom:8,textAlign:"center"}}>すべて復元しますか？</div>
-              <div style={{color:C.t2,fontSize:13,textAlign:"center",marginBottom:16,lineHeight:1.6}}>
-                非表示にした{trueHidden.length}件の制度を<br/>ホームに戻します
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <button style={{flex:1,...S.btn(C.blue),fontSize:13,fontWeight:700}}
-                  onClick={()=>{onRestoreAll();setShowHiddenList(false);setShowRestoreConfirm(false);}}>
-                  復元する
-                </button>
-                <button style={{flex:1,...S.btn(C.bg3),border:`1px solid ${C.border}`,fontSize:13}}
-                  onClick={()=>setShowRestoreConfirm(false)}>
-                  キャンセル
-                </button>
+          <div style={{padding:"12px 16px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+            <button style={{width:"100%",...S.btn(C.bg3),border:`1px solid ${C.border}`,color:C.t2}} onClick={()=>setShowRestoreConfirm(true)}>
+              すべて復元する（{trueHidden.length}件）
+            </button>
+          </div>
+          {showRestoreConfirm&&(
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowRestoreConfirm(false)}>
+              <div style={{background:C.bg1,borderRadius:20,padding:20,width:"100%",maxWidth:380}} onClick={e=>e.stopPropagation()}>
+                <div style={{color:C.t1,fontWeight:700,fontSize:15,marginBottom:8,textAlign:"center"}}>すべて復元しますか？</div>
+                <div style={{color:C.t2,fontSize:13,textAlign:"center",marginBottom:16,lineHeight:1.6}}>非表示にした{trueHidden.length}件の制度を<br/>ホームに戻します</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button style={{flex:1,...S.btn(C.blue),fontSize:13,fontWeight:700}} onClick={()=>{onRestoreAll();setShowHiddenList(false);setShowRestoreConfirm(false);}}>復元する</button>
+                  <button style={{flex:1,...S.btn(C.bg3),border:`1px solid ${C.border}`,fontSize:13}} onClick={()=>setShowRestoreConfirm(false)}>キャンセル</button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       )}
+
+      {/* ── 基本プロフィール ── */}
+      <div style={{color:C.t3,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:0.5}}>基本情報</div>
       {visible.map(f=>(
-        <div key={f.key} style={{...S.card,cursor:"pointer"}} onClick={()=>openSheet(f)}>
+        <div key={f.key} style={{...S.card,cursor:"pointer",marginBottom:8}} onClick={()=>openSheet(f)}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{color:C.t2,fontSize:11}}>{f.emoji} {f.label}</div>
@@ -3228,58 +2222,145 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         </div>
       ))}
 
-      {/* ボトムシート */}
+      {/* ── 詳細設定アコーディオン ── */}
+      <div
+        style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",padding:"12px 0 8px",borderTop:`1px solid ${C.border}`,marginTop:4}}
+        onClick={()=>setShowDetailSection(s=>!s)}>
+        <div>
+          <div style={{color:C.t1,fontWeight:700,fontSize:14}}>🔬 詳細設定</div>
+          <div style={{color:C.t3,fontSize:11,marginTop:2}}>より精度の高い制度判定のために</div>
+        </div>
+        <div style={{color:C.blue,fontSize:20,transition:"transform .25s",transform:showDetailSection?"rotate(90deg)":"rotate(0deg)"}}>›</div>
+      </div>
+
+      {showDetailSection&&(
+        <div style={{animation:"fadeUp .2s ease"}}>
+          {DETAIL_FIELD_GROUPS.map(group=>{
+            const groupFilled=group.fields.filter(f=>profile[f.key]&&profile[f.key]!=="").length;
+            const isOpen=openDetailGroup===group.id;
+            return (
+              <div key={group.id} style={{marginBottom:8}}>
+                <div
+                  style={{
+                    display:"flex",alignItems:"center",justifyContent:"space-between",
+                    background:C.bg2,borderRadius:isOpen?"12px 12px 0 0":12,
+                    padding:"11px 14px",cursor:"pointer",
+                    border:`1px solid ${C.border}`,
+                    borderBottom:isOpen?`1px solid ${C.border}`:`1px solid ${C.border}`,
+                  }}
+                  onClick={()=>setOpenDetailGroup(g=>g===group.id?null:group.id)}>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>
+                    {group.emoji} {group.label}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {groupFilled>0&&(
+                      <span style={{background:C.blue+"22",color:C.blue,borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>
+                        {groupFilled}/{group.fields.length}
+                      </span>
+                    )}
+                    <div style={{color:C.t3,fontSize:16,transition:"transform .2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)"}}>›</div>
+                  </div>
+                </div>
+                {isOpen&&(
+                  <div style={{border:`1px solid ${C.border}`,borderTop:"none",borderRadius:"0 0 12px 12px",overflow:"hidden"}}>
+                    {group.fields.map((f,i)=>(
+                      <div
+                        key={f.key}
+                        style={{
+                          display:"flex",justifyContent:"space-between",alignItems:"center",
+                          padding:"11px 14px",cursor:"pointer",
+                          background:i%2===0?C.bg1:C.bg2,
+                          borderTop:i>0?`1px solid ${C.border}`:"none",
+                        }}
+                        onClick={()=>openSheet(f)}>
+                        <div>
+                          <div style={{color:C.t2,fontSize:10}}>{f.emoji} {f.label}</div>
+                          <div style={{color:profile[f.key]?C.t1:C.t3,fontSize:13,marginTop:1,fontWeight:profile[f.key]?600:400}}>
+                            {displayValue(f)}
+                          </div>
+                        </div>
+                        <div style={{color:C.t3,fontSize:16}}>›</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── ボトムシート（基本・詳細共通） ── */}
       {sheet&&(
         <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",zIndex:120,display:"flex",alignItems:"flex-end"}} onClick={()=>setSheet(null)}>
           <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"70%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
-            <div style={{color:C.t1,fontWeight:700,fontSize:16,marginBottom:16}}>{sheet.emoji} {sheet.label}</div>
+            <div style={{color:C.t1,fontWeight:700,fontSize:16,marginBottom:4}}>{sheet.emoji} {sheet.label}</div>
 
-            {/* 数値入力（ageNum） */}
             {sheet.inputType==="number"&&<>
               <input
                 type="number" inputMode="numeric" min="1" max="110"
                 value={numInput}
                 onChange={e=>{setNumInput(e.target.value);setNumError("");}}
                 placeholder="例：34"
-                style={{background:C.bg3,border:`2px solid ${numError?C.red:C.blue}`,borderRadius:14,padding:"14px 18px",color:C.t1,fontSize:28,fontWeight:700,textAlign:"center",outline:"none",width:"100%",marginBottom:8}}
+                style={{background:C.bg3,border:`2px solid ${numError?C.red:C.blue}`,borderRadius:14,padding:"14px 18px",color:C.t1,fontSize:28,fontWeight:700,textAlign:"center",outline:"none",width:"100%",marginBottom:8,marginTop:12}}
                 autoFocus
               />
               {numError&&<div style={{color:C.red,fontSize:12,marginBottom:8}}>{numError}</div>}
               <button style={{...S.btn(C.blue),width:"100%"}} onClick={()=>{
                 const n=parseInt(numInput,10);
                 if(isNaN(n)||n<1||n>110){setNumError("1〜110の数字を入力してください");return;}
-                setProfile({...profile,[sheet.key]:n});
-                setSheet(null);
+                setProfile({...profile,[sheet.key]:n}); setSheet(null);
               }}>保存</button>
             </>}
 
-            {/* 選択肢（opts） */}
-            {sheet.opts&&sheet.opts.map(v=>(
-              <button key={v} style={{...S.btn(profile[sheet.key]===v?C.blue:C.bg3),border:`1px solid ${profile[sheet.key]===v?C.blue:C.border}`,width:"100%",marginBottom:8,textAlign:"left"}}
-                onClick={()=>{
-                  const next={...profile,[sheet.key]:v};
-                  if(sheet.key==="stage"&&v!=="学生") delete next.studentLevel;
-                  setProfile(next);
-                  setSheet(null);
-                }}>
-                {v}
-              </button>
-            ))}
+            {sheet.inputType==="year"&&<>
+              <div style={{color:C.t2,fontSize:12,marginBottom:8,marginTop:4}}>建物が建てられた西暦を入力してください</div>
+              <input
+                type="number" inputMode="numeric" min="1900" max="2030"
+                value={numInput}
+                onChange={e=>{setNumInput(e.target.value);setNumError("");}}
+                placeholder="例：2005"
+                style={{background:C.bg3,border:`2px solid ${numError?C.red:C.blue}`,borderRadius:14,padding:"14px 18px",color:C.t1,fontSize:24,fontWeight:700,textAlign:"center",outline:"none",width:"100%",marginBottom:8}}
+                autoFocus
+              />
+              {numError&&<div style={{color:C.red,fontSize:12,marginBottom:8}}>{numError}</div>}
+              <button style={{...S.btn(C.blue),width:"100%"}} onClick={()=>{
+                const n=parseInt(numInput,10);
+                if(isNaN(n)||n<1900||n>2030){setNumError("1900〜2030の西暦を入力してください");return;}
+                setProfile({...profile,[sheet.key]:n}); setSheet(null);
+              }}>保存</button>
+            </>}
 
-            {/* テキスト入力フォールバック（opts・inputType両方ない項目） */}
+            {sheet.opts&&<>
+              <div style={{marginTop:8}}>
+                {sheet.opts.map(v=>{
+                  const converted=sheet.boolKeys?(sheet.boolKeys[v]||v):v;
+                  const cur=profile[sheet.key];
+                  const isSel=cur===converted||cur===v;
+                  return (
+                    <button key={v}
+                      style={{...S.btn(isSel?C.blue:C.bg3),border:`1px solid ${isSel?C.blue:C.border}`,width:"100%",marginBottom:8,textAlign:"left"}}
+                      onClick={()=>saveSheetValue(v)}>
+                      {v}
+                    </button>
+                  );
+                })}
+              </div>
+            </>}
+
             {!sheet.opts&&!sheet.inputType&&(
-              <div style={{color:C.t2,fontSize:13,marginBottom:12}}>
+              <div style={{color:C.t2,fontSize:13,marginBottom:12,marginTop:8}}>
                 現在：{profile[sheet.key]||"未設定"}<br/>
-                <span style={{fontSize:11,color:C.t3}}>クイズから設定されます</span>
+                <span style={{fontSize:11,color:C.t3}}>クイズから自動設定されます</span>
               </div>
             )}
-
             <button style={{...S.btn(C.bg3),width:"100%",border:`1px solid ${C.border}`,marginTop:4}} onClick={()=>setSheet(null)}>キャンセル</button>
           </div>
         </div>
       )}
-      <div style={{marginTop:8,paddingTop:12,borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8}}>
-        {/* ダークモード切り替え */}
+
+      {/* ── 設定ボタン群 ── */}
+      <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8}}>
         <div style={{background:C.bg2,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
             <div style={{color:C.t1,fontWeight:600,fontSize:13}}>{darkMode?"🌙 ダークモード":"☀️ ライトモード"}</div>
@@ -3295,7 +2376,6 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t3,fontSize:12}} onClick={onShowAdmin}>
           ⚙️ 制度を追加・管理する
         </button>
-        {/* 非表示にした制度の復元 — 設定グループの一番下 */}
         {trueHidden.length>0&&(
           <div style={{background:C.bg2,borderRadius:14,padding:12,border:`1px solid ${C.border}`}}>
             <div style={{color:C.t2,fontSize:12,marginBottom:8}}>非表示にした制度：{trueHidden.length}件</div>
@@ -3307,71 +2387,6 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
   );
 }
 
-/* ─── 動的制度アイテムのmatch/certain変換 ───
-   AIが返す条件テキスト（例："子あり", "40歳以上"）を
-   profile オブジェクトに対して評価する関数に変換する
-──*/
-function buildDynamicItem(raw){
-  // conditions: 文字列の配列 ["子あり", "40歳以上", "学生"] など
-  const conditions = raw.conditions || [];
-
-  const certain = (p) => {
-    return conditions.every(c => {
-      if(c==="子あり") return p.hasKids==="いる（または予定あり）";
-      if(c==="全員") return true;
-      if(c.includes("歳以上")){
-        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
-        return a!==null && a>=n;
-      }
-      if(c.includes("歳未満")){
-        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
-        return a!==null && a<n;
-      }
-      if(c==="学生") return p.stage==="学生";
-      if(c==="社会人") return p.stage==="社会人（会社員）"||p.stage==="社会人（フリーランス・自営）";
-      if(c==="賃貸") return p.housing==="賃貸";
-      if(c==="持ち家") return p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）";
-      if(c==="年金生活者") return p.stage==="年金生活者";
-      return false; // 不明な条件は確実判定しない
-    });
-  };
-
-  const match = (p) => {
-    if(conditions.includes("全員")) return 70;
-    let score = 0;
-    conditions.forEach(c => {
-      if(c==="子あり"){ score += p.hasKids==="いる（または予定あり）"?40:0; }
-      else if(c.includes("歳以上")){
-        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
-        score += (a!==null&&a>=n)?40:0;
-      }
-      else if(c.includes("歳未満")){
-        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
-        score += (a!==null&&a<n)?30:0;
-      }
-      else if(c==="学生"){ score += p.stage==="学生"?40:0; }
-      else if(c==="社会人"){ score += (p.stage==="社会人（会社員）"||p.stage==="社会人（フリーランス・自営）")?35:0; }
-      else if(c==="賃貸"){ score += p.housing==="賃貸"?40:0; }
-      else if(c==="持ち家"){ score += (p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）")?40:0; }
-      else if(c==="年金生活者"){ score += p.stage==="年金生活者"?40:0; }
-      else { score += 20; } // 不明条件は低めのスコア
-    });
-    // 条件が複数あるほど絞り込まれる
-    const base = conditions.length > 0 ? Math.min(score, 90) : 50;
-    return certain(p) ? 95 : base > 0 ? base : 0;
-  };
-
-  return {
-    ...raw,
-    id: raw.id || `dynamic_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-    certain,
-    subsidy: (p) => certain(p) ? (raw.subsidyAmount||0) : 0,
-    subsidyLabel: (p) => certain(p) ? raw.subsidyLabel : null,
-    match,
-    needsMore: raw.needsMore || null,
-    dynamic: true, // 動的追加フラグ
-  };
-}
 
 /* ─── AdminTab: URL/PDFテキスト → AI抽出 → 確認 → 追加 ─── */
 function AdminTab({onAddItem, existingIds}){
@@ -3515,7 +2530,6 @@ function AdminTab({onAddItem, existingIds}){
                 <div style={{color:C.t2,fontSize:11,lineHeight:1.5}}>{p.body}</div>
                 {p.subsidyAmount>0&&<div style={{color:C.blue,fontWeight:700,fontSize:13,marginTop:4}}>💙 {p.subsidyLabel||fmt(p.subsidyAmount)}</div>}
                 <div style={{color:C.t3,fontSize:10,marginTop:4}}>📅 {p.deadline}</div>
-                {p.needsMore&&<div style={{color:C.t3,fontSize:10,marginTop:2}}>🔑 {p.needsMore}</div>}
               </div>
             </div>
             <div style={{display:"flex",gap:8,marginTop:10,borderTop:`1px solid ${C.border}`,paddingTop:8}}>
@@ -3571,7 +2585,7 @@ function Gateway({profile, items, onEnter}){
   const [detail,setDetail]=useState(null);
 
   const allVisible=items
-    .filter(it=>{ const el=ELIGIBILITY[it.id]; if(!el) return it.match(profile)>0; const res=calcEligibility(profile,el); return res.matchScore>0; })
+    .filter(it=>{ const el=it.eligibility; if(!el) return false; const res=calcEligibility(profile,el); return res.matchScore>0; })
     .sort((a,b)=>{
       const ca=getConfidence(a,profile)==="certain"?0:1;
       const cb=getConfidence(b,profile)==="certain"?0:1;
@@ -3675,7 +2689,9 @@ function BottomNav({tab,setTab,notifCount,festivalCount}){
 
 /* ─── App ─── */
 function App(){
-  const [phase,setPhase]=useState("splash");
+  const [phase,setPhase]=useState("loading"); // loading→splash→preview→quiz→reveal→main
+  const [dbLoaded,setDbLoaded]=useState(false);
+  const [dbError,setDbError]=useState(false);
   const [profile,setProfile]=useState({});
   const [tab,setTab]=useState("home");
   const [easy,setEasy]=useState(false);
@@ -3687,6 +2703,15 @@ function App(){
 
   // body背景を動的に変更
   if(typeof document !== "undefined") document.body.style.background = C.bg0;
+
+  // ── items-db.json を起動時に読み込む ──
+  useEffect(()=>{
+    loadItemsDB().then(ok=>{
+      setDbLoaded(true);
+      if(!ok) setDbError(true);
+      setPhase("splash");
+    });
+  },[]);
 
   const toggleDark=(v)=>{setDarkMode(v);forceUpdate(n=>n+1);};
   const [liked,setLiked]=useState([]);
@@ -3764,7 +2789,15 @@ function App(){
         display:"flex", flexDirection:"column",
         overflow:"hidden", position:"relative",
       }}>
-        {phase==="splash"&&<Splash onDone={()=>setPhase("preview")}/>}
+        {phase==="loading"&&(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:C.bg0,gap:16}}>
+          <div style={{fontSize:52,animation:"scaleIn .5s ease"}}>🏙️</div>
+          <div style={{color:C.t1,fontSize:18,fontWeight:700,textAlign:"center"}}>読み込み中…</div>
+          <div style={{width:36,height:36,border:`3px solid ${C.blue}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
+          {dbError&&<div style={{color:C.red,fontSize:13,textAlign:"center",padding:"0 24px",lineHeight:1.6}}>⚠️ items-db.jsonの読み込みに失敗しました。<br/>同じディレクトリにファイルが存在するか確認してください。</div>}
+        </div>
+      )}
+      {phase==="splash"&&<Splash onDone={()=>setPhase("preview")}/>}
         {phase==="preview"&&<PreviewHome items={allItems} onStart={()=>setPhase("quiz")}/>}
         {phase==="quiz"&&<Quiz onDone={handleQuizDone}/>}
         {phase==="reveal"&&<RevealScreen profile={profile} items={allItems} onEnter={handleRevealEnter} done={done} hidden={hidden}/>}
@@ -3871,6 +2904,11 @@ function App(){
     </div>
   );
 }
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+  </script>
+</body>
+</html>
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(App));
   </script>
