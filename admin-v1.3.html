@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>minato-mygov 管理画面 v1.3</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif; }
+    body { background:#f0f4f8; min-height:100vh; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1a2332; color:#fff; padding:10px 20px; border-radius:10px; font-size:14px; z-index:9999; animation:fadeIn .3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translate(-50%,10px)} to{opacity:1;transform:translate(-50%,0)} }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ── カラーテーマ ── */
+const C = {
+  blue:"#2d5fc4", green:"#1a9e6b", purple:"#6b46c1", red:"#c0392b",
+  bg0:"#f0f4f8", bg1:"#ffffff", bg2:"#f5f7fa", border:"#dde3ec",
+  t1:"#1a2332", t2:"#4a5568", t3:"#8896a8",
+};
+
+/* ── DB_PATH: items-db.json の相対パス ── */
+const DB_PATH = "../items-db.json";
+
+/* ── Anthropic API 呼び出し ── */
+async function callClaude(prompt, useWebSearch = false) {
+  const tools = useWebSearch ? [{type:"web_search_20250305",name:"web_search"}] : undefined;
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514",
+      max_tokens:4000,
+      ...(tools?{tools}:{}),
+      messages:[{role:"user",content:prompt}],
+    }),
+  });
+  const data = await resp.json();
+  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+}
+
+/* ── 空の制度テンプレート ── */
+function emptyItem() {
+  return {
+    id:"", gov:"港区", icon:"📋", colorKey:"blue", tag:"生活",
+    title:"", officialName:"", catch:"", body:"", officialBody:"",
+    deadline:"通年", urgent:false, subsidyType:"cash",
+    subsidyRules:[{default:true,amount:0}],
+    subsidyLabelRules:[{default:true,label:null}],
+    potentialSubsidy:0, potentialLabel:null,
+    reminderLabel:"", sourceUrl:"",
+    easyTitle:"",
+    eligibility:{
+      certain:[], exclude:[], matchRules:[],
+      baseScore:0, missingFor:[],
+      excludeReasons:{}, hints:{}
+    },
+  };
+}
+
+/* ════════════════════════════════════════════════════════
+   メインApp
+   ════════════════════════════════════════════════════════ */
+function App() {
+  const [db, setDb] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [tab, setTab] = useState("list"); // list | add | extract | settings
+  const [editItem, setEditItem] = useState(null);
+  const [toast, setToast] = useState("");
+  const [search, setSearch] = useState("");
+
+  // ── DB読み込み ──
+  useEffect(() => {
+    fetch(DB_PATH + "?" + Date.now())
+      .then(r => r.json())
+      .then(data => { setDb(data); setLoading(false); })
+      .catch(e => { setLoadError("items-db.json の読み込みに失敗しました: " + e.message); setLoading(false); });
+  }, []);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
+
+  // ── DB をダウンロード ──
+  const downloadDb = () => {
+    const blob = new Blob([JSON.stringify(db, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "items-db.json"; a.click();
+    URL.revokeObjectURL(url);
+    showToast("✅ items-db.json をダウンロードしました");
+  };
+
+  // ── 制度を保存（新規 or 更新） ──
+  const saveItem = (item) => {
+    const updated = {...db};
+    const idx = updated.items.findIndex(x => x.id === item.id);
+    if (idx >= 0) {
+      updated.items[idx] = item;
+      showToast(`✅「${item.title}」を更新しました`);
+    } else {
+      updated.items.push(item);
+      updated._meta.totalItems = updated.items.length;
+      showToast(`✅「${item.title}」を追加しました`);
+    }
+    updated._meta.updatedAt = new Date().toISOString().slice(0,10);
+    setDb(updated);
+    setEditItem(null);
+    setTab("list");
+  };
+
+  // ── 制度を削除 ──
+  const deleteItem = (id, title) => {
+    if (!window.confirm(`「${title}」を削除してよいですか？`)) return;
+    const updated = {...db, items: db.items.filter(x => x.id !== id)};
+    updated._meta.totalItems = updated.items.length;
+    updated._meta.updatedAt = new Date().toISOString().slice(0,10);
+    setDb(updated);
+    showToast(`🗑 「${title}」を削除しました`);
+  };
+
+  if (loading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16}}>
+      <div style={{fontSize:32}}>⏳</div>
+      <div style={{color:C.t2}}>items-db.json を読み込み中…</div>
+    </div>
+  );
+
+  if (loadError) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16,padding:32}}>
+      <div style={{fontSize:32}}>⚠️</div>
+      <div style={{color:C.red,fontWeight:700}}>読み込みエラー</div>
+      <div style={{color:C.t2,textAlign:"center",lineHeight:1.7}}>{loadError}</div>
+      <div style={{background:C.bg2,borderRadius:12,padding:16,border:`1px solid ${C.border}`,color:C.t2,fontSize:13,lineHeight:1.8}}>
+        <b>確認事項：</b><br/>
+        • このファイルは admin/index.html として配置してください<br/>
+        • items-db.json は1つ上のディレクトリ（リポジトリルート）に置いてください<br/>
+        • Netlifyでローカルサーバーを立ち上げている場合は <code>netlify dev</code> で確認してください
+      </div>
+    </div>
+  );
+
+  const filtered = db.items.filter(it =>
+    !search || it.title.includes(search) || it.gov.includes(search) || it.tag.includes(search)
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:C.bg0}}>
+      {/* ヘッダー */}
+      <div style={{background:C.bg1,borderBottom:`1px solid ${C.border}`,padding:"16px 24px",position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:960,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:18,color:C.t1}}>🏙️ minato-mygov 管理画面</div>
+            <div style={{color:C.t3,fontSize:12,marginTop:2}}>
+              v{db._meta.version} · {db.items.length}件 · 最終更新：{db._meta.updatedAt}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <NavBtn id="list"   current={tab} setTab={setTab}>📋 制度一覧</NavBtn>
+            <NavBtn id="add"    current={tab} setTab={()=>{setEditItem(null);setTab("add");}}>➕ 新規追加</NavBtn>
+            <NavBtn id="extract" current={tab} setTab={setTab}>🤖 AI抽出</NavBtn>
+            <button
+              onClick={downloadDb}
+              style={{background:C.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              ⬇ DL
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:960,margin:"0 auto",padding:"24px 16px"}}>
+        {/* 制度一覧タブ */}
+        {tab === "list" && (
+          <ListTab
+            items={filtered} allItems={db.items}
+            search={search} setSearch={setSearch}
+            onEdit={(item) => { setEditItem(item); setTab("add"); }}
+            onDelete={deleteItem}
+          />
+        )}
+
+        {/* 新規追加・編集タブ */}
+        {tab === "add" && (
+          <EditTab
+            key={editItem?.id || 'new'}
+            item={editItem || emptyItem()}
+            existingIds={db.items.map(x=>x.id)}
+            onSave={saveItem}
+            onCancel={() => { setEditItem(null); setTab("list"); }}
+            showToast={showToast}
+          />
+        )}
+
+        {/* AI抽出タブ */}
+        {tab === "extract" && (
+          <ExtractTab
+            existingIds={db.items.map(x=>x.id)}
+            onAdd={(item) => saveItem(item)}
+            showToast={showToast}
+          />
+        )}
+      </div>
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+/* ── ナビボタン ── */
+function NavBtn({id, current, setTab, children}) {
+  const active = current === id;
+  return (
+    <button
+      onClick={() => setTab(id)}
+      style={{
+        background: active ? C.blue : C.bg2,
+        color: active ? "#fff" : C.t2,
+        border: `1px solid ${active ? C.blue : C.border}`,
+        borderRadius:8, padding:"8px 14px", fontWeight:700, fontSize:13, cursor:"pointer",
+      }}>
+      {children}
+    </button>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   制度一覧タブ
+   ════════════════════════════════════════════════════════ */
+function ListTab({items, allItems, search, setSearch, onEdit, onDelete}) {
+  const govColors = {"国":C.blue,"東京都":C.green,"港区":C.purple};
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <input
+          value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="🔍 制度名・区分・タグで検索…"
+          style={{flex:1,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.t1,outline:"none",background:C.bg1}}
+        />
+        <div style={{color:C.t3,fontSize:13,whiteSpace:"nowrap"}}>{items.length}/{allItems.length}件</div>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {items.map(item => (
+          <div key={item.id} style={{background:C.bg1,borderRadius:12,padding:"14px 16px",border:`1px solid ${C.border}`,display:"flex",alignItems:"flex-start",gap:12}}>
+            <div style={{fontSize:28,flexShrink:0}}>{item.icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+                <span style={{background:(govColors[item.gov]||C.blue)+"22",color:govColors[item.gov]||C.blue,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{item.gov}</span>
+                <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{item.tag}</span>
+                <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11,fontFamily:"monospace"}}>{item.id}</span>
+                {item.urgent && <span style={{background:C.red+"22",color:C.red,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>⚠️ 期限注意</span>}
+              </div>
+              <div style={{fontWeight:700,fontSize:15,color:C.t1,marginBottom:2}}>{item.title}</div>
+              <div style={{color:C.t2,fontSize:13,marginBottom:4}}>{item.catch}</div>
+              <div style={{color:C.t3,fontSize:12}}>
+                {item.subsidyType === "cash" ? "💙 現金" : item.subsidyType === "savings" ? "💚 節約" : "📋 情報"}
+                {" · "}最大 {(item.potentialSubsidy || 0).toLocaleString()}円
+                {" · "}📅 {item.deadline}
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+              <button
+                onClick={() => onEdit(item)}
+                style={{background:C.blue+"22",color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                ✏️ 編集
+              </button>
+              <button
+                onClick={() => onDelete(item.id, item.title)}
+                style={{background:C.red+"11",color:C.red,border:`1px solid ${C.red}33`,borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                🗑 削除
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   制度編集タブ（フォーム形式）
+   ════════════════════════════════════════════════════════ */
+function EditTab({item, existingIds, onSave, onCancel, showToast}) {
+  const [form, setForm] = useState(JSON.parse(JSON.stringify(item)));
+  const [errors, setErrors] = useState({});
+  const isNew = !item.id || !existingIds.includes(item.id);
+
+  const set = (key, val) => setForm(f => ({...f, [key]: val}));
+  const setEl = (key, val) => setForm(f => ({...f, eligibility: {...f.eligibility, [key]: val}}));
+
+  const validate = () => {
+    const errs = {};
+    if (!form.id) errs.id = "IDは必須です";
+    if (form.id && !/^[a-z0-9_]+$/.test(form.id)) errs.id = "IDは英小文字・数字・アンダースコアのみ";
+    if (isNew && existingIds.includes(form.id)) errs.id = "このIDはすでに存在します";
+    if (!form.title) errs.title = "タイトルは必須です";
+    if (!form.gov) errs.gov = "所管は必須です";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSave = () => {
+    if (!validate()) { showToast("⚠️ 入力エラーがあります"); return; }
+    onSave(form);
+  };
+
+  const F = ({label, error, children}) => (
+    <div style={{marginBottom:16}}>
+      <div style={{color:C.t2,fontSize:12,fontWeight:700,marginBottom:4}}>{label}</div>
+      {children}
+      {error && <div style={{color:C.red,fontSize:11,marginTop:4}}>{error}</div>}
+    </div>
+  );
+
+  const inp = (key, placeholder, type="text") => (
+    <input
+      type={type} value={form[key]||""} onChange={e=>set(key, type==="number"?Number(e.target.value):e.target.value)}
+      placeholder={placeholder}
+      style={{width:"100%",border:`1px solid ${errors[key]?C.red:C.border}`,borderRadius:8,padding:"9px 12px",fontSize:14,color:C.t1,outline:"none",background:C.bg1}}
+    />
+  );
+
+  const sel = (key, opts) => (
+    <select value={form[key]||""} onChange={e=>set(key,e.target.value)}
+      style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:14,color:C.t1,outline:"none",background:C.bg1}}>
+      {opts.map(o=><option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+
+  const textarea = (key, placeholder, rows=3) => (
+    <textarea value={form[key]||""} onChange={e=>set(key,e.target.value)}
+      placeholder={placeholder} rows={rows}
+      style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.t1,outline:"none",background:C.bg1,resize:"vertical",fontFamily:"inherit",lineHeight:1.6}}
+    />
+  );
+
+  // eligibility certain/exclude/matchRules をJSON文字列で編集
+  const [elJson, setElJson] = useState(JSON.stringify(form.eligibility, null, 2));
+  const [elError, setElError] = useState("");
+
+  const applyElJson = () => {
+    try {
+      const parsed = JSON.parse(elJson);
+      setEl("certain", parsed.certain || []);
+      setEl("exclude", parsed.exclude || []);
+      setEl("matchRules", parsed.matchRules || []);
+      setEl("baseScore", parsed.baseScore || 0);
+      setEl("missingFor", parsed.missingFor || []);
+      setEl("excludeReasons", parsed.excludeReasons || {});
+      setEl("hints", parsed.hints || {});
+      setForm(f => ({...f, eligibility: parsed}));
+      setElError("");
+      showToast("✅ 判定条件を反映しました");
+    } catch(e) {
+      setElError("JSON形式エラー: " + e.message);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={onCancel} style={{background:"none",border:"none",color:C.blue,fontSize:14,cursor:"pointer",fontWeight:700}}>← 一覧に戻る</button>
+        <h2 style={{color:C.t1,fontSize:18,fontWeight:700}}>{isNew ? "➕ 制度を新規追加" : `✏️ 編集：${item.title}`}</h2>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
+        {/* 左カラム：基本情報 */}
+        <div>
+          <Section title="基本情報">
+            <F label="ID（英小文字・数字・_）" error={errors.id}>{inp("id","例: jidouteate_2026")}</F>
+            <F label="所管" error={errors.gov}>
+              {sel("gov",["国","東京都","港区"])}
+            </F>
+            <F label="タグ">
+              {sel("tag",["子育て","教育","健康","住まい","生活","キャリア"])}
+            </F>
+            <F label="アイコン（絵文字1文字）">{inp("icon","例: 👶")}</F>
+            <F label="カラーキー">
+              {sel("colorKey",["blue","green","purple","red","t2"])}
+            </F>
+          </Section>
+
+          <Section title="タイトル・説明">
+            <F label="かんたんタイトル（easyTitle）" error={errors.title}>{inp("easyTitle","例: 子どもがいると毎月お金が振り込まれる制度")}</F>
+            <F label="正式タイトル（title）" error={errors.title}>{inp("title","例: 児童手当（拡充版）")}</F>
+            <F label="正式名称（officialName）">{inp("officialName","例: 児童手当")}</F>
+            <F label="キャッチコピー（catch・20文字以内）">{inp("catch","例: 高校生まで！所得制限なし")}</F>
+            <F label="かんたん説明（body）">{textarea("body","わかりやすい説明（150文字以内）",4)}</F>
+            <F label="行政用語説明（officialBody）">{textarea("officialBody","法令根拠を含む正式な説明",5)}</F>
+          </Section>
+        </div>
+
+        {/* 右カラム：給付・判定 */}
+        <div>
+          <Section title="給付情報">
+            <F label="申請期限（deadline）">{inp("deadline","例: 通年 / 毎年7〜9月")}</F>
+            <div style={{marginBottom:16}}>
+              <div style={{color:C.t2,fontSize:12,fontWeight:700,marginBottom:8}}>期限注意フラグ（urgent）</div>
+              <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+                <input type="checkbox" checked={form.urgent||false} onChange={e=>set("urgent",e.target.checked)}
+                  style={{width:16,height:16}}/>
+                <span style={{color:C.t1,fontSize:14}}>⚠️ 期限注意として表示する</span>
+              </label>
+            </div>
+            <F label="補助タイプ（subsidyType）">
+              {sel("subsidyType",["cash","savings","info"])}
+            </F>
+            <F label="最大可能性額（potentialSubsidy・円）">
+              <input type="number" value={form.potentialSubsidy||0} onChange={e=>set("potentialSubsidy",Number(e.target.value))}
+                style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:14,color:C.t1,outline:"none",background:C.bg1}}/>
+            </F>
+            <F label="可能性額ラベル（potentialLabel）">{inp("potentialLabel","例: 年最大36万円")}</F>
+            <F label="リマインドラベル（reminderLabel）">{inp("reminderLabel","例: 港区子ども家庭支援センターへ申請")}</F>
+            <F label="公式URL（sourceUrl）">{inp("sourceUrl","https://...")}</F>
+          </Section>
+
+          <Section title="給付金額ルール（subsidyRules）">
+            <SubsidyRulesEditor
+              rules={form.subsidyRules||[]}
+              labelRules={form.subsidyLabelRules||[]}
+              onChange={(rules,labelRules) => { set("subsidyRules",rules); set("subsidyLabelRules",labelRules); }}
+            />
+          </Section>
+
+          <Section title="判定条件（eligibility）">
+            <div style={{color:C.t3,fontSize:12,marginBottom:8,lineHeight:1.7}}>
+              JSON形式で直接編集します。<br/>
+              <code style={{background:C.bg2,padding:"1px 4px",borderRadius:4}}>certain</code>・
+              <code style={{background:C.bg2,padding:"1px 4px",borderRadius:4}}>exclude</code>・
+              <code style={{background:C.bg2,padding:"1px 4px",borderRadius:4}}>matchRules</code> を編集してください。
+            </div>
+            <textarea
+              value={elJson}
+              onChange={e=>setElJson(e.target.value)}
+              rows={14}
+              style={{width:"100%",border:`1px solid ${elError?C.red:C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.t1,outline:"none",background:"#1a2332",color:"#eeeeff",resize:"vertical",fontFamily:"monospace",lineHeight:1.6}}
+            />
+            {elError && <div style={{color:C.red,fontSize:12,marginTop:4}}>{elError}</div>}
+            <button onClick={applyElJson}
+              style={{marginTop:8,background:C.purple+"22",color:C.purple,border:`1px solid ${C.purple}44`,borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer",width:"100%"}}>
+              ✓ 判定条件を反映する
+            </button>
+            <EligibilityPreview eligibility={form.eligibility}/>
+          </Section>
+        </div>
+      </div>
+
+      {/* 保存ボタン */}
+      <div style={{display:"flex",gap:12,marginTop:24,borderTop:`1px solid ${C.border}`,paddingTop:20}}>
+        <button onClick={handleSave}
+          style={{flex:1,background:C.green,color:"#fff",border:"none",borderRadius:10,padding:"14px",fontWeight:700,fontSize:16,cursor:"pointer"}}>
+          💾 {isNew ? "制度を追加する" : "変更を保存する"}
+        </button>
+        <button onClick={onCancel}
+          style={{flex:0.4,background:C.bg2,color:C.t2,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px",fontWeight:700,fontSize:15,cursor:"pointer"}}>
+          キャンセル
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sectionコンポーネント ── */
+function Section({title, children}) {
+  return (
+    <div style={{background:C.bg1,borderRadius:12,padding:20,border:`1px solid ${C.border}`,marginBottom:20}}>
+      <h3 style={{color:C.t1,fontSize:14,fontWeight:700,marginBottom:16,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+/* ── 給付金額ルールエディター ── */
+function SubsidyRulesEditor({rules, labelRules, onChange}) {
+  const [localRules, setLocalRules] = useState(rules);
+  const [localLabels, setLocalLabels] = useState(labelRules);
+
+  const update = (r, l) => { setLocalRules(r); setLocalLabels(l); onChange(r, l); };
+
+  const addRule = () => {
+    const r = [...localRules, {"if":{"hasKids":"いる（または予定あり）"}, amount:0}];
+    const l = [...localLabels, {"if":{"hasKids":"いる（または予定あり）"}, label:""}];
+    update(r, l);
+  };
+
+  const removeRule = (i) => {
+    update(localRules.filter((_,j)=>j!==i), localLabels.filter((_,j)=>j!==i));
+  };
+
+  const updateAmount = (i, v) => {
+    const r = localRules.map((x,j)=>j===i?{...x,amount:Number(v)}:x);
+    update(r, localLabels);
+  };
+
+  const updateLabel = (i, v) => {
+    const l = localLabels.map((x,j)=>j===i?{...x,label:v||null}:x);
+    update(localRules, l);
+  };
+
+  return (
+    <div>
+      {localRules.map((rule, i) => {
+        const label = localLabels[i];
+        const isDefault = !!rule.default;
+        return (
+          <div key={i} style={{background:C.bg2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <span style={{color:C.t3,fontSize:12,fontWeight:700}}>{isDefault ? "デフォルト" : `条件 ${i+1}`}</span>
+              {!isDefault && <button onClick={()=>removeRule(i)} style={{background:C.red+"11",color:C.red,border:"none",borderRadius:6,padding:"2px 8px",fontSize:12,cursor:"pointer"}}>削除</button>}
+            </div>
+            {!isDefault && (
+              <div style={{color:C.t3,fontSize:11,marginBottom:6}}>
+                条件キー: <code style={{background:C.bg1,padding:"1px 4px",borderRadius:4}}>{JSON.stringify(rule["if"]||{})}</code>
+              </div>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div>
+                <div style={{color:C.t3,fontSize:11,marginBottom:4}}>金額（円）</div>
+                <input type="number" value={rule.amount||0} onChange={e=>updateAmount(i,e.target.value)}
+                  style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 8px",fontSize:13,outline:"none",background:C.bg1}}/>
+              </div>
+              <div>
+                <div style={{color:C.t3,fontSize:11,marginBottom:4}}>ラベル</div>
+                <input type="text" value={label?.label||""} onChange={e=>updateLabel(i,e.target.value)}
+                  placeholder="例: 年約12万円〜"
+                  style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 8px",fontSize:13,outline:"none",background:C.bg1}}/>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <button onClick={addRule}
+        style={{width:"100%",background:"none",border:`1px dashed ${C.border}`,borderRadius:8,padding:"8px",color:C.t3,fontSize:13,cursor:"pointer"}}>
+        ＋ 条件ルールを追加
+      </button>
+    </div>
+  );
+}
+
+/* ── 判定条件プレビュー ── */
+function EligibilityPreview({eligibility}) {
+  if (!eligibility) return null;
+  const { certain=[], exclude=[], matchRules=[], baseScore=0, missingFor=[] } = eligibility;
+  return (
+    <div style={{marginTop:12,background:C.bg2,borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
+      <div style={{color:C.t2,fontSize:11,fontWeight:700,marginBottom:8}}>📊 判定条件サマリー</div>
+      <div style={{color:C.t3,fontSize:11,lineHeight:2}}>
+        <span style={{color:C.green}}>✅ certain:</span> {certain.length}件のAND条件<br/>
+        <span style={{color:C.red}}>❌ exclude:</span> {exclude.length}件の除外条件<br/>
+        <span style={{color:C.blue}}>🎯 matchRules:</span> {matchRules.length}件のスコアルール (base: {baseScore})<br/>
+        <span style={{color:C.purple}}>❓ missingFor:</span> [{missingFor.join(", ")}]
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   AI抽出タブ
+   ════════════════════════════════════════════════════════ */
+function ExtractTab({existingIds, onAdd, showToast}) {
+  const [input, setInput] = useState("");
+  const [inputType, setInputType] = useState("url");
+  const [loading, setLoading] = useState(false);
+  const [proposals, setProposals] = useState([]);
+  const [error, setError] = useState("");
+
+  const extract = async () => {
+    if (!input.trim()) { setError("URLまたはテキストを入力してください"); return; }
+    setLoading(true); setError(""); setProposals([]);
+
+    const sourceDesc = inputType === "url" ? "対象URL: " + input : "テキスト内容:\n" + input;
+    const inputTypeLabel = inputType === "url" ? "URL（Web検索して内容を取得）" : "テキスト";
+
+    const prompt = `あなたは港区民向け行政情報アプリの制度データ抽出AIです。
+
+以下の${inputTypeLabel}から、港区民が受け取れる給付金・補助金・減免・手当・無料サービスの情報を抽出し、JSON配列で返してください。
+
+${sourceDesc}
+
+以下のJSON形式で返してください（配列のみ、前後の文章・コードブロック不要）:
+[
+  {
+    "id": "英小文字_数字のみのID（例: jidouteate2026）",
+    "gov": "国" または "東京都" または "港区",
+    "tag": "子育て" または "住まい" または "健康" または "キャリア" または "教育" または "生活",
+    "icon": "絵文字1文字",
+    "colorKey": "blue" または "green" または "purple",
+    "title": "正式な制度名",
+    "easyTitle": "わかりやすいタイトル（20文字以内）",
+    "officialName": "正式名称",
+    "catch": "一言キャッチコピー（20文字以内）",
+    "body": "わかりやすい説明（150文字以内）",
+    "deadline": "申請期限",
+    "urgent": false,
+    "subsidyType": "cash" または "savings" または "info",
+    "potentialSubsidy": 最大金額（数値・円）,
+    "potentialLabel": "最大金額の表示文字列",
+    "reminderLabel": "申請時の注意事項（1文）",
+    "sourceUrl": "公式URL",
+    "eligibility": {
+      "certain": [{"条件キー": "値"}],
+      "exclude": [],
+      "matchRules": [{"if": {"条件キー": "値"}, "score": 40}],
+      "baseScore": 0,
+      "missingFor": ["income"],
+      "excludeReasons": {},
+      "hints": {}
+    },
+    "subsidyRules": [{"default": true, "amount": 0}],
+    "subsidyLabelRules": [{"default": true, "label": null}]
+  }
+]
+
+制度が見つからない場合は空配列 [] を返してください。JSONのみ返してください。`;
+
+    try {
+      const text = await callClaude(prompt, inputType === "url");
+      const clean = text.replace(/```json|```/g, "").trim();
+      const start = clean.indexOf("["); const end = clean.lastIndexOf("]");
+      if (start === -1) throw new Error("制度情報が見つかりませんでした");
+      const parsed = JSON.parse(clean.slice(start, end + 1));
+      const filtered = parsed.filter(p => !existingIds.includes(p.id));
+      setProposals(filtered.map(p => ({...p, _accepted:false})));
+      if (filtered.length === 0) setError("新しい制度は見つかりませんでした（すでに登録済みの可能性）");
+    } catch(e) {
+      setError("抽出に失敗しました: " + e.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{maxWidth:720,margin:"0 auto"}}>
+      <Section title="🤖 URLまたはテキストから制度を自動抽出">
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          {[["url","🔗 URL"],["text","📄 テキスト"]].map(([v,l])=>(
+            <button key={v}
+              onClick={()=>setInputType(v)}
+              style={{flex:1,background:inputType===v?C.blue+"22":"none",color:inputType===v?C.blue:C.t2,border:`1px solid ${inputType===v?C.blue:C.border}`,borderRadius:8,padding:"8px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {inputType === "url" ? (
+          <input value={input} onChange={e=>setInput(e.target.value)}
+            placeholder="例: https://www.city.minato.tokyo.jp/..."
+            style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.t1,outline:"none",background:C.bg1,marginBottom:12}}/>
+        ) : (
+          <textarea value={input} onChange={e=>setInput(e.target.value)}
+            placeholder="広報みなとのPDFテキストや制度説明文を貼り付け..."
+            rows={8}
+            style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:13,color:C.t1,outline:"none",background:C.bg1,resize:"vertical",fontFamily:"inherit",marginBottom:12}}/>
+        )}
+
+        <button onClick={extract} disabled={loading}
+          style={{width:"100%",background:loading?C.t3:C.blue,color:"#fff",border:"none",borderRadius:8,padding:"12px",fontWeight:700,fontSize:15,cursor:loading?"not-allowed":"pointer"}}>
+          {loading ? "🔍 AIが分析中…" : "🔍 制度を抽出する"}
+        </button>
+
+        {loading && (
+          <div style={{textAlign:"center",marginTop:16,color:C.t2,fontSize:13}}>
+            公式サイトを読んで制度を整理しています…
+          </div>
+        )}
+        {error && <div style={{color:C.red,fontSize:13,marginTop:10}}>{error}</div>}
+      </Section>
+
+      {/* 抽出結果 */}
+      {proposals.length > 0 && (
+        <Section title={`✨ ${proposals.length}件の制度が見つかりました`}>
+          {proposals.map((p, i) => (
+            <div key={i} style={{background:p._accepted?C.green+"11":C.bg2,borderRadius:10,padding:16,marginBottom:12,border:`1px solid ${p._accepted?C.green+"44":C.border}`}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                <div style={{fontSize:28,flexShrink:0}}>{p.icon||"📋"}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+                    <span style={{background:C.blue+"22",color:C.blue,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{p.gov}</span>
+                    <span style={{background:C.bg1,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{p.tag}</span>
+                    <code style={{background:C.bg1,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{p.id}</code>
+                  </div>
+                  <div style={{fontWeight:700,fontSize:15,color:C.t1,marginBottom:4}}>{p.title}</div>
+                  <div style={{color:C.t2,fontSize:13,marginBottom:4}}>{p.catch}</div>
+                  <div style={{color:C.t3,fontSize:12,lineHeight:1.6}}>{p.body}</div>
+                  {p.potentialSubsidy > 0 && (
+                    <div style={{color:C.blue,fontWeight:700,fontSize:13,marginTop:6}}>
+                      💙 最大 {(p.potentialSubsidy||0).toLocaleString()}円
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:12,borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+                <button
+                  onClick={()=>setProposals(ps=>ps.map((x,j)=>j===i?{...x,_accepted:!x._accepted}:x))}
+                  style={{flex:1,background:p._accepted?C.green+"22":"none",color:p._accepted?C.green:C.t2,border:`1px solid ${p._accepted?C.green:C.border}`,borderRadius:8,padding:"8px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                  {p._accepted ? "✅ 追加する（選択済）" : "追加する"}
+                </button>
+                <button
+                  onClick={()=>{ const {_accepted,...raw}=p; onAdd(raw); setProposals(ps=>ps.filter((_,j)=>j!==i)); showToast(`✅「${p.title}」を追加しました`); }}
+                  style={{background:C.blue+"22",color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                  今すぐ追加
+                </button>
+                <button
+                  onClick={()=>setProposals(ps=>ps.filter((_,j)=>j!==i))}
+                  style={{background:C.red+"11",color:C.red,border:"none",borderRadius:8,padding:"8px 12px",fontSize:13,cursor:"pointer"}}>
+                  🗑 却下
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {proposals.some(p=>p._accepted) && (
+            <button
+              onClick={()=>{
+                proposals.filter(p=>p._accepted).forEach(p=>{ const {_accepted,...raw}=p; onAdd(raw); });
+                setProposals(ps=>ps.filter(p=>!p._accepted));
+                showToast(`✅ ${proposals.filter(p=>p._accepted).length}件の制度を追加しました`);
+              }}
+              style={{width:"100%",background:C.green,color:"#fff",border:"none",borderRadius:10,padding:"14px",fontWeight:700,fontSize:15,cursor:"pointer"}}>
+              ✅ 選択した制度をまとめて追加（{proposals.filter(p=>p._accepted).length}件）
+            </button>
+          )}
+        </Section>
+      )}
+    </div>
+  );
+}
+
+/* ── Root render ── */
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
