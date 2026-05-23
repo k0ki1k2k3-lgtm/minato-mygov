@@ -1,0 +1,3795 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>君の代わりに全部やってあげるよアプリ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ─── Design tokens ─── */
+// ── テーマ定義 ───────────────────────────────
+const THEMES = {
+  light: {
+    bg0: "#f5f7fa", bg1: "#ffffff", bg2: "#f0f4f8", bg3: "#e4e9f0",
+    blue: "#2d5fc4", green: "#1a9e6b", purple: "#6b46c1", red: "#c0392b",
+    t1: "#1a2332", t2: "#4a5568", t3: "#8896a8", border: "#dde3ec",
+  },
+  dark: {
+    bg0: "#07070f", bg1: "#0b0b18", bg2: "#111120", bg3: "#16162a",
+    blue: "#5588ff", green: "#34C78A", purple: "#aa44ff", red: "#FF6B6B",
+    t1: "#eeeeff", t2: "#9999aa", t3: "#444455", border: "#5588ff22",
+  },
+};
+
+// C はあとで動的に上書きされる（Appでセット）デフォルトはライト
+let C = {...THEMES.light};
+
+/* ─── Google Fonts ─── */
+const FONT_INJECT = `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+* { font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+@keyframes scaleIn { from { opacity:0; transform:scale(.92) } to { opacity:1; transform:scale(1) } }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes popIn { 0%{transform:scale(1)} 40%{transform:scale(1.4)} 100%{transform:scale(1)} }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@keyframes toastIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes toastOut { from{opacity:1} to{opacity:0} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+`;
+
+/* ─── Info DB (18件) ─── 
+   certain(p): 4問の情報だけで対象と断言できる → true
+   match(p):   0=完全対象外, 1〜99=条件次第で表示
+   needsMore:  条件次第カードに表示する「何を追加すれば確定できるか」
+─── */
+const age = (p) => p.ageNum ? Number(p.ageNum) : null; // 数値年齢ヘルパー
+
+// 年収ヘルパー
+const isLowIncome = (p) => p.income==="～200万円"||p.income==="200～400万円";
+const isMidIncome = (p) => p.income==="400～600万円"||p.income==="600～800万円";
+const isHighIncome = (p) => p.income==="800万円～";
+const incomeUnknown = (p) => !p.income;
+
+// 住居ヘルパー
+const isOwner = (p) => p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）";
+const isRenter = (p) => p.housing==="賃貸";
+
+// 子の年齢ヘルパー
+const kidsAgeUnder3  = (p) => p.kidsAge==="0〜2歳";
+const kidsAgeUnder6  = (p) => p.kidsAge==="0〜2歳"||p.kidsAge==="3〜5歳";
+const kidsAgeUnder13 = (p) => p.kidsAge==="0〜2歳"||p.kidsAge==="3〜5歳"||p.kidsAge==="6〜12歳";
+const kidsAgeUnder16 = (p) => kidsAgeUnder13(p)||p.kidsAge==="13〜15歳";
+const kidsAgeUnder19 = (p) => kidsAgeUnder16(p)||p.kidsAge==="16〜18歳";
+const kidsAgeUnknown = (p) => p.hasKids==="いる（または予定あり）"&&!p.kidsAge;
+// 出産・妊娠系：子が0〜2歳 or 年齢不明（予定含む）の場合のみ
+const isNewbornPhase = (p) => p.hasKids==="いる（または予定あり）"&&kidsAgeUnder3(p);
+
+// 年齢ヘルパー
+const ageGte = (n) => (p) => { const a=age(p); return a!==null && a>=n; };
+const ageLt  = (n) => (p) => { const a=age(p); return a!==null && a<n; };
+
+/* ─── 宣言的判定エンジン ───────────────────────────
+   eligibility: {
+     certain: [fn, ...]   全部trueならcertain（4問で断言可能）
+     exclude: [fn, ...]   どれか1つでもtrueならmatch=0（非表示）
+     score:   [{check:fn, pts:number}, ...]  スコア加算ルール
+     baseScore: number    デフォルトスコア（未設定時40）
+   }
+────────────────────────────────────────── */
+function calcEligibility(p, el){
+  if(el.exclude && el.exclude.some(fn=>fn(p))) return {certain:false, matchScore:0};
+  // certain が空配列 or 未定義の場合は certain=false（空配列のevery()はtrueになるバグを防ぐ）
+  const certain = !!(el.certain && el.certain.length > 0 && el.certain.every(fn=>fn(p)));
+  if(certain) return {certain:true, matchScore:100};
+  let score = el.baseScore !== undefined ? el.baseScore : 40;
+  if(el.score) el.score.forEach(({check,pts})=>{ if(check(p)) score+=pts; });
+  return {certain:false, matchScore:Math.min(score,95)};
+}
+
+/* ─── eligibility 定義（全28件）───────────────────────
+   getConfidence / Home の sort はこれで統一して判定する
+────────────────────────────────────────── */
+const ELIGIBILITY = {
+  // 国
+  jidouteate: {
+    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder19(p)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder19(p)],
+    baseScore: 0,
+  },
+  shussan: {
+    certain:  [isNewbornPhase],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  nenkin_men: {
+    certain:  [p=>p.stage==="学生", ageGte(20)],
+    exclude:  [p=>p.stage==="年金生活者", isHighIncome, isMidIncome,
+               p=>p.stage==="社会人（会社員）"&&incomeUnknown(p)],
+    score:    [{check:isLowIncome, pts:40}],
+    baseScore: 0,
+  },
+  reskilling: {
+    certain:  [],
+    exclude:  [p=>p.stage==="学生"&&ageLt(22)(p), p=>p.stage==="年金生活者"],
+    score:    [
+      {check:p=>p.stage==="社会人（会社員）", pts:40},
+      {check:p=>p.stage==="育休・産休中",     pts:30},
+      {check:p=>p.stage==="社会人（フリーランス・自営）", pts:10},
+    ],
+    baseScore: 0,
+  },
+  scholarship: {
+    certain:  [],
+    // 800万超は対象外、600万超も第4区分以外は対象外
+    exclude:  [isHighIncome, isMidIncome,
+               p=>p.stage!=="学生", ageLt(18), ageGte(31)],
+    score:    [{check:isLowIncome, pts:50}],
+    baseScore: 15,
+  },
+  ikuji_kyufu: {
+    certain:  [],
+    exclude:  [p=>p.stage==="年金生活者", p=>p.stage==="学生"&&ageLt(22)(p)],
+    score:    [
+      {check:p=>p.stage==="育休・産休中",     pts:55},
+      {check:p=>p.hasKids==="いる（または予定あり）"&&p.stage==="社会人（会社員）", pts:40},
+      {check:p=>p.stage==="社会人（会社員）", pts:25},
+    ],
+    baseScore: 0,
+  },
+  kougaku_ryoyo: {
+    // 所得制限なし・全健保加入者対象
+    certain:  [p=>p.stage==="社会人（会社員）"||p.stage==="育休・産休中"],
+    exclude:  [],
+    score:    [{check:p=>p.stage==="年金生活者",                         pts:25},
+               {check:p=>p.stage==="社会人（フリーランス・自営）",         pts:15}],
+    baseScore: 30,
+  },
+  shogai_kyufu: {
+    certain:  [],
+    exclude:  [p=>p.stage==="社会人（フリーランス・自営）",  // 国保は対象外
+               p=>p.stage==="学生", p=>p.stage==="年金生活者",
+               isHighIncome],
+    score:    [{check:p=>p.stage==="社会人（会社員）"||p.stage==="育休・産休中", pts:40}],
+    baseScore: 0,
+  },
+  ninpu_kyufu: {
+    certain:  [isNewbornPhase],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  tashi_musho: {
+    // 2025年度〜多子世帯は所得制限なし
+    certain:  [],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）"],
+    score:    [{check:ageGte(35), pts:20}, {check:p=>ageGte(25)(p)&&ageLt(61)(p), pts:10}],
+    baseScore: 30,
+  },
+  flat35_kosodate: {
+    certain:  [],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", isHighIncome, ageGte(46)],
+    score:    [{check:ageLt(40), pts:25}, {check:isLowIncome, pts:10}],
+    baseScore: 25,
+  },
+  // 東京都
+  hoiku_muryou: {
+    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder6(p)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder6(p)],
+    score:    [{check:isLowIncome, pts:10}],
+    baseScore: 0,
+  },
+  silver_pass: {
+    certain:  [ageGte(70)],
+    exclude:  [ageLt(65)],
+    score:    [{check:ageGte(65), pts:30}],
+    baseScore: 0,
+  },
+  solar_tokyo: {
+    certain:  [isOwner],
+    exclude:  [p=>p.stage==="学生", ageLt(25), isRenter],
+    baseScore: 40,
+  },
+  shiritsu_muryou: {
+    certain:  [],
+    exclude:  [
+      // 本人が高校生以外の学生、または親として見る場合に子が高校生年齢でない
+      p=>p.studentLevel&&p.studentLevel!=="高校生"&&p.hasKids!=="いる（または予定あり）",
+      p=>p.kidsAge&&!kidsAgeUnder19(p)&&p.studentLevel!=="高校生",
+      p=>isHighIncome(p)&&p.studentLevel!=="高校生",
+      p=>p.stage!=="学生"&&p.hasKids!=="いる（または予定あり）",
+    ],
+    score: [
+      {check:p=>p.studentLevel==="高校生", pts:70},
+      {check:p=>p.kidsAge==="16〜18歳"||p.kidsAge==="13〜15歳", pts:45},
+      {check:isLowIncome, pts:20},
+      {check:isMidIncome, pts:15},
+    ],
+    baseScore: 0,
+  },
+  // 港区
+  chintai_hojo: {
+    certain:  [],
+    exclude:  [isHighIncome, isMidIncome, isOwner, p=>p.stage==="年金生活者"&&!isLowIncome(p)],
+    score:    [
+      {check:isRenter,  pts:30},
+      {check:isLowIncome, pts:30},
+      {check:p=>p.stage==="その他・無職", pts:20},
+    ],
+    baseScore: 0,
+  },
+  sports_free: {
+    certain:  [()=>true],  // 全員対象
+    exclude:  [],
+    baseScore: 100,
+  },
+  yoyou: {
+    certain:  [()=>true],  // 全員対象
+    exclude:  [],
+    baseScore: 100,
+  },
+  iryo_free: {
+    certain:  [p=>(p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder16(p))||(age(p)!==null&&age(p)<=15)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）"&&(age(p)===null||age(p)>15), p=>p.kidsAge&&!kidsAgeUnder16(p)&&(age(p)===null||age(p)>15)],
+    baseScore: 0,
+  },
+  hoiku_mosikomi: {
+    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder6(p)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder6(p)],
+    baseScore: 0,
+  },
+  solar_minato: {
+    certain:  [isOwner],
+    exclude:  [p=>p.stage==="学生", ageLt(25), isRenter],
+    baseScore: 40,
+  },
+  kenko_point: {
+    certain:  [ageGte(65)],
+    exclude:  [ageLt(60)],
+    score:    [{check:ageGte(60), pts:25}],
+    baseScore: 0,
+  },
+  cancer_check: {
+    certain:  [ageGte(40)],
+    exclude:  [],
+    score:    [{check:ageGte(20), pts:20}],  // 子宮頸がんのみ対象
+    baseScore: 0,
+  },
+  babybirthday: {
+    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder3(p)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  shussan_minato: {
+    certain:  [isNewbornPhase],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  ninpu_kyufu2: { // ninpu_kyufu と同一IDのため、ninpu_kyufu で管理
+    certain: [p=>p.hasKids==="いる（または予定あり）"],
+    exclude: [],
+    baseScore: 0,
+  },
+  doula_support: {
+    certain:  [isNewbornPhase, ageGte(18), ageLt(46)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    score:    [{check:ageGte(18), pts:20}],
+    baseScore: 0,
+  },
+  ninshin_kenshin: {
+    certain:  [isNewbornPhase, ageGte(18), ageLt(46)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>!p.kidsAge, p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  teishotoku_kyufu: {
+    certain:  [],
+    exclude:  [()=>true], // 令和7年度分期限終了・令和8年度分要確認につき一時非表示
+    score:    [
+      {check:isLowIncome, pts:50},
+      {check:p=>p.stage==="その他・無職",             pts:30},
+      {check:p=>p.stage==="年金生活者",               pts:20},
+      {check:p=>p.stage==="社会人（フリーランス・自営）", pts:10},
+    ],
+    baseScore: 0,
+  },
+  smartphone_hojo: {
+    certain:  [ageGte(65)],
+    exclude:  [ageLt(65), isHighIncome],
+    baseScore: 0,
+  },
+  kagakukan_free: {
+    certain:  [()=>true],
+    exclude:  [],
+    baseScore: 100,
+  },
+  shogai_intern: {
+    certain:  [],
+    exclude:  [p=>p.disability==="なし"||p.disability==="回答しない"],
+    score:    [{check:p=>p.disability==="あり", pts:85}],
+    baseScore: 0,
+  },
+  hitorioya_iryo: {
+    certain:  [],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", isHighIncome],
+    score:    [{check:p=>p.marital==="離婚・死別", pts:50},{check:p=>p.hasKids==="いる（または予定あり）", pts:20}],
+    baseScore: 0,
+  },
+  jidofuyohand: {
+    certain:  [],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", isHighIncome],
+    score:    [{check:p=>p.marital==="離婚・死別", pts:50},{check:p=>p.hasKids==="いる（または予定あり）", pts:20}],
+    baseScore: 0,
+  },
+  jutaku_hojo: {
+    certain:  [],
+    exclude:  [ageGte(56)],
+    score:    [
+      {check:p=>p.hasKids==="いる（または予定あり）", pts:35},
+      {check:ageLt(40), pts:25},
+    ],
+    baseScore: 0,
+  },
+  shinshin_teate: {
+    certain:  [],
+    exclude:  [p=>p.disability==="なし"||p.disability==="回答しない", isHighIncome],
+    score:    [{check:p=>p.disability==="あり", pts:90}],
+    baseScore: 0,
+  },
+  kodomo_dare_tsuen: {
+    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder3(p)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  mutsumi_iryo: {
+    certain:  [],
+    exclude:  [p=>p.disability==="なし"||p.disability==="回答しない", isHighIncome],
+    score:    [{check:p=>p.disability==="あり", pts:85}],
+    baseScore: 0,
+  },
+  tokyo_point: {
+    certain:  [ageGte(15)],
+    exclude:  [ageLt(15)],
+    baseScore: 0,
+  },
+  akachan_first: {
+    certain:  [p=>p.hasKids==="いる（または予定あり）"&&p.kidsAge&&kidsAgeUnder3(p)],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p)],
+    baseScore: 0,
+  },
+  rs_vaccine: {
+    certain:  [],
+    exclude:  [p=>p.hasKids!=="いる（または予定あり）", p=>p.kidsAge&&!kidsAgeUnder3(p), ageGte(46)],
+    score:    [{check:p=>kidsAgeUnder3(p)&&ageLt(46)(p), pts:60}],
+    baseScore: 0,
+  },
+  hitorioya_telework: {
+    certain:  [],
+    exclude:  [p=>p.marital!=="離婚・死別"||p.hasKids!=="いる（または予定あり）"],
+    score:    [{check:p=>p.marital==="離婚・死別"&&p.hasKids==="いる（または予定あり）", pts:85}],
+    baseScore: 0,
+  },
+  juken_challenge: {
+    certain:  [],
+    exclude:  [()=>true], // 令和8年1月16日で期限切れ
+    score:    [{check:p=>p.studentLevel==="高校生", pts:60},{check:p=>p.studentLevel==="中学生", pts:55},{check:isLowIncome, pts:20}],
+    baseScore: 0,
+  },
+  shugaku_enjo: {
+    certain:  [],
+    exclude:  [p=>p.studentLevel&&p.studentLevel!=="小学生"&&p.studentLevel!=="中学生"&&p.hasKids!=="いる（または予定あり）",
+               isHighIncome, isMidIncome],
+    score:    [{check:p=>p.studentLevel==="小学生"||p.studentLevel==="中学生", pts:50},{check:isLowIncome, pts:35},{check:p=>p.hasKids==="いる（または予定あり）"&&kidsAgeUnder13(p), pts:30}],
+    baseScore: 0,
+  },
+};
+
+const ITEMS_BASE = [
+  {
+    id:"jidouteate", gov:"国", icon:"👶", color:C.blue, tag:"子育て",
+    title:"児童手当（拡充版）",
+    officialName:"児童手当",
+    catch:"高校生まで！所得制限なし",
+    body:"2024年10月から大幅拡充。0〜18歳（高校生年代）が対象、所得制限撤廃。第1・2子：3歳未満月1.5万円、3歳〜月1万円。第3子以降：全年齢月3万円。年6回（偶数月）支給。",
+    officialBody:"児童手当法及び子ども・子育て支援法の一部を改正する法律（令和6年法律第47号）に基づき、令和6年10月分（令和6年12月支給分）から制度が改正されました。支給対象年齢が中学生（15歳到達後最初の年度末まで）から高校生年代（18歳到達後最初の年度末まで）に延長されるとともに、所得制限が撤廃されました。第1子・第2子については3歳未満月額15,000円、3歳以上月額10,000円。第3子以降については年齢にかかわらず月額30,000円。支給は年6回（偶数月の10日）。認定請求は住所地の市区町村窓口にて行うものとします。",
+    deadline:"通年", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?120000:0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"年約12万円〜":null,
+    potentialSubsidy:360000, potentialLabel:"第3子なら年36万円",
+    match:(p)=>p.hasKids==="いる（または予定あり）"?100:0,
+    reminderLabel:"申請・現況届の確認",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/jidoteate.html",
+  },
+  {
+    id:"shussan", gov:"国", icon:"🍼", color:C.blue, tag:"子育て",
+    title:"出産育児一時金",
+    officialName:"出産育児一時金",
+    catch:"出産1回につき50万円",
+    body:"健康保険・国民健康保険加入者が出産した場合に50万円支給。直接支払制度で医療機関への支払いに充当可能。産科医療補償制度対象外施設は48.8万円。",
+    officialBody:"健康保険法第101条及び国民健康保険法第58条に基づき、被保険者又はその被扶養者が出産したとき、出産育児一時金として50万円（産科医療補償制度に未加入の医療機関等における出産は488,000円）を支給します。直接支払制度を利用することにより、医療機関等が被保険者に代わって保険者に請求することができます。申請期限は出産日の翌日から2年以内。",
+    deadline:"出産後2年以内に申請", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?500000:0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"50万円":null,
+    potentialSubsidy:500000, potentialLabel:"50万円",
+    match:(p)=>p.hasKids==="いる（または予定あり）"?90:0,
+    reminderLabel:"出産後は速やかに健保組合・区役所に申請",
+    sourceUrl:"https://www.mhlw.go.jp/content/12400000/001085202.pdf",
+  },
+  {
+    id:"nenkin_men", gov:"国", icon:"💰", color:C.green, tag:"生活",
+    title:"年金の支払い、学生は猶予できる", officialName:"国民年金保険料学生納付特例制度",
+    catch:"学生なら年金保険料（年約20万円）の支払いを卒業まで先送りできる",
+    body:"学生納付特例：在学中の国民年金保険料（月約1.7万円）を猶予。20歳以上の学生が対象。所得に応じた全額・半額免除制度も。免除期間は受給資格期間に算入（受給額は減額）。毎年度申請が必要。",
+    officialBody:"国民年金法第90条の3の規定に基づく学生納付特例制度により、大学・大学院・短期大学・高等専門学校・専修学校等に在学する20歳以上の第1号被保険者は、前年所得が一定額以下の場合、在学期間中の保険料の納付が猶予されます。猶予期間は受給資格期間に算入されますが、老齢基礎年金額の計算においては反映されません。毎年度、住所地の市区町村窓口またはねんきんネットにて申請が必要です。",
+    deadline:"毎年4月〜翌年3月分", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>{
+      const a=age(p);
+      return p.stage==="学生" && a!==null && a>=20;
+    },
+    subsidy:(p)=>{
+      const a=age(p);
+      return p.stage==="学生"&&a!==null&&a>=20?200000:0;
+    },
+    subsidyLabel:(p)=>{
+      const a=age(p);
+      return p.stage==="学生"&&a!==null&&a>=20?"年約20万円節約":null;
+    },
+    potentialSubsidy:200000, potentialLabel:"年約20万円節約",
+    match:(p)=>{
+      const a=age(p);
+      if(p.stage==="年金生活者") return 0;
+      if(p.stage==="学生"){
+        if(a===null) return 70;
+        if(a>=20) return 100;
+        return 0;
+      }
+      // 非学生：低所得者向け免除
+      if(isHighIncome(p)||isMidIncome(p)) return 0;
+      if(isLowIncome(p)) return 80;
+      return 0; // 年収不明の社会人は表示しない（学生のみ）
+    },
+    reminderLabel:"毎年4月に市区町村窓口で更新申請",
+    sourceUrl:"https://www.nenkin.go.jp/service/kokunen/menjo/20150428.html",
+  },
+  {
+    id:"reskilling", gov:"国", icon:"📚", color:C.purple, tag:"キャリア",
+    title:"学び直し費用、最大80%国が払ってくれる", officialName:"教育訓練給付制度",
+    catch:"資格取得・スキルアップの授業料を国が最大80%負担。年最大56万円",
+    body:"雇用保険加入者が対象。一般教育訓練給付：費用の20%（上限10万円）。特定一般：40%（上限20万円）。専門実践：最大80%（年上限56万円・最長4年）。ハローワークで受講前に申請必須。",
+    officialBody:"雇用保険法第60条の2の規定に基づき、厚生労働大臣が指定する教育訓練を修了した場合に、支払った教育訓練経費の一定割合を支給します。一般教育訓練：経費の20%（上限10万円）。特定一般教育訓練：経費の40%（上限20万円）。専門実践教育訓練：経費の50%（年上限40万円）、さらに受講修了後に資格取得等で就職した場合は20%の追加支給あり（合計最大80%、年上限56万円・最長4年）。受講開始1か月前までにハローワークへの申請が義務付けられています。",
+    deadline:"通年（受講前に申請要）", urgent:false, subsidyType:"cash",
+    needsMore:"雇用保険の加入状況をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:560000, potentialLabel:"年最大56万円",
+    match:(p)=>{
+      const a=age(p);
+      if(p.stage==="社会人（会社員）") return 75;
+      if(p.stage==="育休・産休中") return 60;
+      if(p.stage==="社会人（フリーランス・自営）") return 20;
+      if(p.stage==="学生"&&a!==null&&a>=22) return 20;
+      return 0;
+    },
+    reminderLabel:"ハローワークで受講前申請を忘れずに",
+    sourceUrl:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/kyouiku.html",
+  },
+  {
+    id:"scholarship", gov:"国", icon:"🎓", color:C.purple, tag:"教育",
+    title:"給付型奨学金（JASSO）",
+    officialName:"給付型奨学金（日本学生支援機構）",
+    catch:"返さなくていい奨学金・月最大7.5万円",
+    body:"住民税非課税・準非課税世帯の大学・専門学校生が対象。第I区分（非課税）：国公立自宅月2.9万円〜私立自宅外月7.5万円。授業料・入学金の免除または減額も併用可。在籍大学の窓口で申込。",
+    deadline:"各大学の募集時期（毎年4〜5月頃）", urgent:false, subsidyType:"cash",
+    needsMore:"世帯年収をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:900000, potentialLabel:"月最大7.5万円",
+    match:(p)=>{
+      if(p.stage!=="学生") return 0;
+      const a=age(p);
+      if(a!==null&&(a<18||a>30)) return 0;
+      if(isHighIncome(p)) return 0;       // 800万以上は対象外
+      if(isMidIncome(p)) return 0;        // 400万以上も基本対象外
+      if(isLowIncome(p)) return 90;       // 低所得なら高スコア
+      return 55;                          // 年収不明は中程度
+    },
+    reminderLabel:"在籍大学の奨学金担当窓口に確認",
+    sourceUrl:"https://www.jasso.go.jp/shogakukin/kyufu/",
+  },
+  {
+    id:"hoiku_muryou", gov:"東京都", icon:"🏫", color:C.green, tag:"子育て",
+    title:"保育料無償化（第2子以降）",
+    officialName:"幼児教育・保育の無償化",
+    catch:"第2子から0〜2歳の保育料がゼロ",
+    body:"東京都「018サポート」拡充。0〜2歳の第2子以降の認可保育所保育料が無償化、所得制限なし。3〜5歳は全国制度で無償。認可外保育施設は月最大7.7万円まで補助。",
+    deadline:"通年（保育所入所と同時に適用）", urgent:false, subsidyType:"savings",
+    needsMore:"子どもの人数・年齢をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:360000, potentialLabel:"年最大36万円節約",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      return 60; // 子あり→可能性表示
+    },
+    reminderLabel:"保育所入所申込時に区役所へ確認",
+    sourceUrl:"https://www.metro.tokyo.lg.jp/",
+  },
+  {
+    id:"silver_pass", gov:"東京都", icon:"🚌", color:C.green, tag:"生活",
+    title:"東京都シルバーパス",
+    officialName:"東京都シルバーパス",
+    catch:"70歳以上：都内バス・都営地下鉄が乗り放題",
+    body:"70歳以上の都内在住者はバス・都営交通が乗り放題（住民税非課税者は年1,000円、課税者は年20,510円）。誕生月に都バス営業所または地下鉄駅で申請。",
+    deadline:"誕生月に申請", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>{ const a=age(p); return a!==null&&a>=70; },
+    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=70?20000:0; },
+    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=70?"年約2万円節約":null; },
+    potentialSubsidy:20000, potentialLabel:"年約2万円節約",
+    match:(p)=>{
+      const a=age(p);
+      if(a===null) return p.stage==="年金生活者"?70:0;
+      if(a>=70) return 100;
+      if(a>=65) return 40; // 65-69歳は一部割引あり
+      return 0;
+    },
+    reminderLabel:"70歳の誕生月に都バス営業所で申請",
+    sourceUrl:"https://www.kotsu.metro.tokyo.jp/other/silver/",
+  },
+  {
+    id:"solar_tokyo", gov:"東京都", icon:"☀️", color:C.green, tag:"住まい",
+    title:"太陽光パネルの設置費、都から最大36万円もらえる", officialName:"太陽光パネル設置費補助（東京都断熱・太陽光住宅普及拡大事業）",
+    catch:"持ち家（戸建て・マンション共通）に太陽光パネルを設置すると、東京都から最大36万円の補助金がもらえる",
+    body:"クール・ネット東京「断熱・太陽光住宅普及拡大事業」。【戸建て】既存住宅：12万円/kW・上限36万円。新築：14万円/kW。蓄電池も別途最大120万円補助。【マンション】管理組合が申請主体。陸屋根への設置が対象で、架台設置・防水工事費の上乗せ補助あり。港区補助と併用可能。",
+    deadline:"2026年度：申請受付中（予算上限に達し次第終了）", urgent:false, subsidyType:"cash",
+    needsMore:"住居形態をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:360000, potentialLabel:"最大36万円",
+    match:(p)=>{
+      const a=age(p);
+      // 持ち家を持つ年齢層に絞る（30代以上）
+      if(a!==null&&a<25) return 0;
+      if(p.stage==="学生") return 0;
+      return 50;
+    },
+    reminderLabel:"クール・ネット東京に事前申請が必要",
+    sourceUrl:"https://www.tokyo-co2down.jp/subsidy/solar",
+  },
+  {
+    id:"shiritsu_muryou", gov:"東京都", icon:"🏫", color:C.green, tag:"教育",
+    title:"私立高校授業料無償化（東京都）",
+    officialName:"私立高等学校等授業料実質無償化（東京都）",
+    catch:"年収910万円未満なら授業料が実質ゼロ",
+    body:"東京都「私立高校授業料の実質無償化」。世帯年収910万円未満で授業料を全額補助（上限63.2万円/年）。所得制限なし拡大方向で推移。在籍校で毎年7〜9月に申請。",
+    deadline:"毎年7〜9月に在籍校で申請", urgent:false, subsidyType:"savings",
+    needsMore:"世帯年収と子どもの年齢をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:469000, potentialLabel:"年最大46.9万円節約",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      const a=age(p);
+      if(a!==null&&(a<33||a>58)) return 0;
+      if(isHighIncome(p)) return 0;   // 800万超は概ね対象外（910万未満なら対象だが保守的に）
+      if(isLowIncome(p)||isMidIncome(p)) return 75;
+      return 55;
+    },
+    reminderLabel:"在籍校の7〜9月の申請期間に注意",
+    sourceUrl:"https://www.metro.tokyo.lg.jp/",
+  },
+  {
+    id:"chintai_hojo", gov:"港区", icon:"🏠", color:C.blue, tag:"住まい",
+    title:"失業・収入減で家賃が払えないとき、最大9ヶ月補助", officialName:"住居確保給付金",
+    catch:"離職や休業で収入が減ったとき、家賃を最大9ヶ月間、港区が肩代わり",
+    body:"離職・廃業・休業により住宅を失うおそれがある低所得者に、家賃相当額を最大9ヶ月支給。港区単身者の上限額は月約7万円。収入・資産要件あり。港区生活・就労支援センターへ要相談。",
+    deadline:"通年（離職後2年以内）", urgent:false, subsidyType:"cash",
+    needsMore:"住居形態と世帯年収をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:630000, potentialLabel:"月最大7万円×9ヶ月",
+    match:(p)=>{
+      if(p.stage==="年金生活者") return 15;
+      if(p.stage==="その他・無職") return isHighIncome(p)?0:70;
+      if(p.stage==="社会人（フリーランス・自営）") return isHighIncome(p)?0:40;
+      if(p.stage==="社会人（会社員）"||p.stage==="育休・産休中"){
+        if(isHighIncome(p)) return 0;
+        if(isLowIncome(p)) return 60;
+        return 25;
+      }
+      return 0;
+    },
+    reminderLabel:"港区生活・就労支援センター（03-6453-9032）に相談",
+    sourceUrl:"https://www.city.minato.tokyo.jp/seikatuhogo/02jyuukyokakuhokyuufukin.html",
+  },
+  {
+    id:"sports_free", gov:"港区", icon:"🏊", color:C.green, tag:"健康",
+    title:"区民スポーツセンター月2回無料",
+    officialName:"港区スポーツセンター区民利用",
+    catch:"港区民なら月2回タダで使える",
+    body:"港区スポーツセンター（三田・高輪・赤坂・芝浦）を区民は月2回まで無料で利用可能。プール・トレーニングジム・アリーナなど。区民カード（住民票で発行）が必要。",
+    officialBody:"港区スポーツセンター条例及び港区スポーツセンター条例施行規則に基づき、港区民は区内スポーツセンター（三田・高輪・赤坂・芝浦港南）のトレーニング室・温水プール等を、月2回を限度として無料で使用することができます。利用に際しては区民カードの提示が必要です。区民カードは区内各総合支所区民課及び支所にて住民票等を提示の上、申請・交付を受けてください。",
+    deadline:"通年", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>true,
+    subsidy:(p)=>24000,
+    subsidyLabel:(p)=>"年2.4万円節約",
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>70,
+    reminderLabel:"区民カードを取得して使い始めよう",
+    sourceUrl:"https://www.city.minato.tokyo.jp/shisetsu/sport/sport/04.html",
+  },
+  {
+    id:"yoyou", gov:"港区", icon:"🏔️", color:C.green, tag:"生活",
+    title:"箱根・熱海が格安で泊まれる", officialName:"港区民保養施設利用事業",
+    catch:"港区民だけの特権。箱根・熱海・軽井沢など人気リゾートが1泊2万円以上安く泊まれる",
+    body:"港区が契約する保養施設を区民価格で利用可能。施設一覧（2026年度）：【箱根】箱根湯本富士屋ホテル・箱根ハイランドホテル・ホテルはつはな・強羅環翠楼・箱根ホテル小涌園等、【熱海】熱海後楽園ホテル・ニューフジヤホテル等、【伊豆】伊豆長岡温泉ホテルサンバレー等、【鬼怒川】鬼怒川パークホテルズ等、【軽井沢・草津・那須】各契約施設。専用はがきまたは施設予約システムから申込（各月抽選制）。同一世帯・グループで複数申込は無効。夏季（7〜8月）は鬼怒川など追加施設あり。",
+    deadline:"通年（月ごとに抽選申込）", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>true,
+    subsidy:(p)=>20000,
+    subsidyLabel:(p)=>"1泊最大2万円節約",
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>55,
+    reminderLabel:"早めに予約しないと埋まりやすい",
+    sourceUrl:"https://www.city.minato.tokyo.jp/shisetsu/cate005/index.html",
+  },
+  {
+    id:"iryo_free", gov:"港区", icon:"🏥", color:C.green, tag:"子育て",
+    title:"子どもの医療費無料（中学まで）",
+    officialName:"乳幼児・子ども医療費助成制度（港区）",
+    catch:"中学生まで医療費の自己負担がゼロ",
+    body:"港区「乳幼児・子ども医療費助成」。0歳〜中学3年生（15歳年度末まで）の医療費自己負担分を全額助成。所得制限なし。入院・通院・歯科・調剤すべて対象。マル子医療証が必要。",
+    deadline:"出生後速やかに申請", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）"||(p.ageNum!==null&&Number(p.ageNum)<=15),
+    subsidy:(p)=>(p.hasKids==="いる（または予定あり）"||(p.ageNum&&Number(p.ageNum)<=15))?50000:0,
+    subsidyLabel:(p)=>(p.hasKids==="いる（または予定あり）"||(p.ageNum&&Number(p.ageNum)<=15))?"年約5万円節約":null,
+    potentialSubsidy:50000, potentialLabel:"年約5万円節約",
+    match:(p)=>(p.hasKids==="いる（または予定あり）"||(p.ageNum&&Number(p.ageNum)<=15))?95:0,
+    reminderLabel:"マル子医療証を区役所で取得（自動送付されることも）",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/kodomoiryo.html",
+  },
+  {
+    id:"hoiku_mosikomi", gov:"港区", icon:"📋", color:C.t2, tag:"子育て",
+    title:"保育所に入れたいなら11月が勝負", officialName:"港区認可保育所等利用申込",
+    catch:"来年4月に入園したいなら11月が申込期限。人気の0〜2歳は特に早めの準備が必要",
+    body:"港区の認可保育所・こども園の入園申込。1〜2歳は競争率が高い。4月入園希望は11〜12月に申込（締切厳守）。利用調整あり。認証保育所・小規模保育施設も選択肢に。",
+    deadline:"4月入園：前年11〜12月申込", urgent:true, subsidyType:"info",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"手続き情報":null,
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>p.hasKids==="いる（または予定あり）"?85:0,
+    reminderLabel:"4月入園申込は11月初旬！期限を逃さないで",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
+  },
+  {
+    id:"solar_minato", gov:"港区", icon:"⚡", color:C.green, tag:"住まい",
+    title:"太陽光パネル、都＋区あわせて最大76万円補助", officialName:"創エネルギー・省エネルギー機器等設置費助成（港区）",
+    catch:"東京都の補助（最大36万円）に港区の補助（最大40万円）を合わせると最大76万円",
+    body:"港区「創エネルギー・省エネルギー機器等設置費助成」。太陽光発電システム：区民個人は上限40万円。東京都補助（上限36万円）と併用で最大76万円。蓄電システムも別途最大20万円。2025年度申請：2026年3月19日まで。",
+    deadline:"2026年4月1日〜2027年1月29日（2026年度）", urgent:false, subsidyType:"cash",
+    needsMore:"住居形態をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:400000, potentialLabel:"最大40万円（都と合計76万円）",
+    match:(p)=>{
+      const a=age(p);
+      if(a!==null&&a<25) return 0;
+      if(p.stage==="学生") return 0;
+      return 50;
+    },
+    reminderLabel:"工事前に港区環境課へ事前申請が必須",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
+  },
+  {
+    id:"kenko_point", gov:"港区", icon:"🏃", color:C.green, tag:"健康",
+    title:"健康ポイント制度",
+    officialName:"みなとタバコ・健康ポイント事業",
+    catch:"歩いてポイント→商品券に交換",
+    body:"港区「みなとタバタ健康ポイント」。ウォーキング・健診受診でポイント付与、区内商品券と交換可能。主に65歳以上の区民が対象。年間最大5,000円相当。アプリ「みなとタバタ」で管理。",
+    deadline:"通年", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>{ const a=age(p); return a!==null&&a>=65; },
+    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=65?5000:0; },
+    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=65?"年最大5,000円":null; },
+    potentialSubsidy:5000, potentialLabel:"年最大5,000円",
+    match:(p)=>{
+      const a=age(p);
+      if(a===null) return p.stage==="年金生活者"?70:0;
+      if(a>=65) return 100;
+      if(a>=60) return 30;
+      return 0;
+    },
+    reminderLabel:"みなとタバタのアプリをダウンロード",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenkouzukuri/kenko/kenko/kenkozukuri/",
+  },
+  {
+    id:"cancer_check", gov:"港区", icon:"🔬", color:C.green, tag:"健康",
+    title:"がん検診（全種類）無料",
+    officialName:"各種がん検診（港区）",
+    catch:"40歳以上は胃・大腸・肺など全部無料",
+    body:"港区在住40歳以上の区民は、胃・大腸・肺・乳・子宮頸がん等の検診が全て無料（自己負担ゼロ）。子宮頸がんは20歳以上対象。受診券は区から郵送。受診期間は毎年7月〜翌1月31日。",
+    deadline:"毎年7月〜翌1月31日", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>{ const a=age(p); return a!==null&&a>=40; },
+    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=40?15000:0; },
+    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=40?"年約1.5万円節約":null; },
+    potentialSubsidy:15000, potentialLabel:"年約1.5万円節約",
+    match:(p)=>{
+      const a=age(p);
+      if(a===null) return 20;
+      if(a>=40) return 100;
+      if(a>=20) return 25; // 子宮頸がん検診のみ対象
+      return 0;
+    },
+    reminderLabel:"7月に受診券が届いたら早めに予約",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
+  },
+  {
+    id:"babybirthday", gov:"港区", icon:"🎂", color:C.blue, tag:"子育て",
+    title:"バースデーサポート（2歳児）",
+    officialName:"バースデーサポート事業（港区）",
+    catch:"2歳のお誕生日にカタログギフト贈呈",
+    body:"「とうきょうママパパ応援事業」の一環。港区で2歳を迎える子どもがいる家庭にカタログギフトを提供（数千〜1万円相当）。2歳の誕生月に区から自動的に案内が届く。申請不要。",
+    deadline:"2歳の誕生月に区から案内が届く（自動）", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?10000:0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"カタログギフト（〜1万円相当）":null,
+    potentialSubsidy:10000, potentialLabel:"〜1万円相当",
+    match:(p)=>p.hasKids==="いる（または予定あり）"?70:0,
+    reminderLabel:"区から自動的に案内が届く（申請不要）",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kouchou/kuse/kocho/ikenshokai49/1913.html",
+  },
+  // ── 以下、新規追加5件 ──
+  {
+    id:"shussan_minato", gov:"港区", icon:"🏥", color:C.blue, tag:"子育て",
+    title:"出産費用助成（港区独自）",
+    officialName:"港区出産育児支援事業",
+    catch:"出産費用から一時金を引いた残額を港区が全額補助",
+    body:"港区在住1年以上の方が対象。出産にかかる分娩費・入院費等から、国の出産育児一時金（50万円）を差し引いた全額を助成（算出上限額：単胎81万円、双子121万円）。東京23区でも数少ない独自制度。申請は出産後1年以内。",
+    deadline:"出産後1年以内", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?310000:0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"最大31万円":null,
+    potentialSubsidy:310000, potentialLabel:"最大31万円",
+    match:(p)=>p.hasKids==="いる（または予定あり）"?98:0,
+    reminderLabel:"出産後1年以内に子ども家庭支援課へ申請",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kodomokyufu/kenko/ninshin/shussan/jose.html",
+  },
+  {
+    id:"ninpu_kyufu", gov:"国", icon:"🤱", color:C.blue, tag:"子育て",
+    title:"妊婦のための支援給付金",
+    officialName:"出産・子育て応援交付金（国）",
+    catch:"妊娠時5万円＋出産後5万円＝計10万円",
+    body:"国の制度を港区が実施。妊娠届出時に「妊婦支援給付金」5万円、出産後に「子育て支援給付金」5万円（子1人あたり）を支給。面談を経てギフトカード等で交付。申請は港区子ども家庭支援センターへ。",
+    deadline:"妊娠届出後・出産後に面談申込み", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?100000:0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"計10万円":null,
+    potentialSubsidy:100000, potentialLabel:"計10万円",
+    match:(p)=>p.hasKids==="いる（または予定あり）"?95:0,
+    reminderLabel:"妊娠届出後すぐに子ども家庭支援センターへ連絡",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
+  },
+  {
+    id:"doula_support", gov:"港区", icon:"👩", color:C.green, tag:"子育て",
+    title:"妊娠中〜子3歳まで、家事・育児を格安でサポート", officialName:"産前産後家事・育児支援事業（港区）",
+    catch:"ヘルパーが自宅に来て家事・育児を手伝ってくれる。1時間わずか1,000円、最大128時間使える",
+    body:"港区在住の妊産婦・乳幼児家庭に、ホームヘルパーまたは産後ドゥーラが訪問し家事・育児支援を行う。単胎家庭は1時間1,000円（非課税世帯は半額）、最大128時間まで利用可能。子3歳になる前日まで利用可能。事前にID登録が必要。",
+    deadline:"子が3歳になる前日まで（通年受付）", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）",
+    subsidy:(p)=>p.hasKids==="いる（または予定あり）"?100000:0,
+    subsidyLabel:(p)=>p.hasKids==="いる（または予定あり）"?"最大10万円相当の支援":null,
+    potentialSubsidy:100000, potentialLabel:"最大10万円相当",
+    match:(p)=>{
+      const a=age(p);
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(a!==null&&a>=20&&a<=45) return 90;
+      return 70;
+    },
+    reminderLabel:"港区子ども家庭支援センターにオンライン申請でID取得",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
+  },
+  {
+    id:"teishotoku_kyufu", gov:"港区", icon:"💴", color:C.blue, tag:"生活",
+    title:"低所得世帯に現金給付。子がいればさらに加算", officialName:"住民税非課税世帯等 生活支援給付金",
+    catch:"住民税非課税世帯に3万円を給付。18歳以下の子どもが1人いるごとに2万円追加",
+    body:"物価高騰対策として港区が実施。令和6年度住民税が非課税または均等割のみ課税の世帯に、1世帯あたり3万円を給付。さらに18歳以下の世帯員1人につき2万円の子ども加算あり。対象世帯には区から書類が届く（自動送付）。",
+    deadline:"※令和7年度分は期限終了。令和8年度分は要確認", urgent:false, subsidyType:"cash",
+    needsMore:"世帯年収をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0,
+    subsidyLabel:(p)=>null,
+    potentialSubsidy:70000, potentialLabel:"3万円〜（子あり世帯はさらに加算）",
+    match:(p)=>{
+      if(isHighIncome(p)||isMidIncome(p)) return 0;  // 中高所得は対象外
+      if(isLowIncome(p)) return 85;
+      if(p.stage==="その他・無職") return 75;
+      if(p.stage==="年金生活者") return 65;
+      if(p.stage==="社会人（フリーランス・自営）") return 35;
+      if(p.stage==="学生") return 45;
+      return 15;
+    },
+    reminderLabel:"区から書類が届いたら期限内に返送を",
+    sourceUrl:"https://www.city.minato.tokyo.jp/rinjikyufutan/qa6kyuuhu.html",
+  },
+  {
+    id:"ninshin_kenshin", gov:"港区", icon:"🩺", color:C.green, tag:"子育て",
+    title:"妊婦健診14回分、全額無料で受けられる", officialName:"妊婦健康診査費用助成（港区）",
+    catch:"妊娠中の健診（14回分）が全て無料。妊娠届を出すと受診票が自動交付される",
+    body:"港区在住の妊婦を対象に、妊婦健康診査（14回分）の費用を助成。妊娠届出時に受診票を交付。血液検査・超音波検査・子宮頸がん検診等を含む。多胎妊娠の場合は最大19回まで対象。費用は受診票で直接医療機関に請求する仕組みのため窓口負担はほぼゼロ。",
+    deadline:"妊娠届出時に自動交付", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>{
+      const a=age(p);
+      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45;
+    },
+    subsidy:(p)=>{
+      const a=age(p);
+      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45?100000:0;
+    },
+    subsidyLabel:(p)=>{
+      const a=age(p);
+      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45?"14回分・約10万円相当":null;
+    },
+    potentialSubsidy:100000, potentialLabel:"14回分・約10万円相当",
+    match:(p)=>{
+      const a=age(p);
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(a!==null&&a>=18&&a<=45) return 90;
+      return 60;
+    },
+    reminderLabel:"妊娠がわかったらすぐ区役所で妊娠届を提出",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
+  },
+  // ── 省庁別追加5件（こども家庭庁・厚労省・文科省・国交省） ──
+  {
+    id:"ikuji_kyufu", gov:"国", icon:"👨‍👩‍👧", color:C.blue, tag:"子育て",
+    title:"育児休業給付金（厚生労働省）",
+    officialName:"育児休業給付金",
+    catchText:"育休中も給与の実質8割が雇用保険から支給",
+    body:"雇用保険加入の会社員・パートが対象。育休開始から180日は休業前賃金の67%、以降は50%を支給。社会保険料免除も加わり実質手取りの約8割相当。2025年4月から出生後休業支援給付金（両親同時育休で実質10割）も新設。",
+    deadline:"育休開始後2ヶ月ごとにハローワークへ申請", urgent:false, subsidyType:"cash",
+    needsMore:"雇用保険の加入確認が必要",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>{
+      if(p.stage==="育休・産休中") return 90;
+      if(p.hasKids==="いる（または予定あり）"&&p.stage==="社会人（会社員）") return 70;
+      if(p.stage==="社会人（会社員）") return 30;
+      return 0;
+    },
+    reminderLabel:"申請は勤務先の人事部経由でハローワークへ",
+    sourceUrl:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158800.html",
+  },
+  {
+    id:"kougaku_ryoyo", gov:"国", icon:"🏨", color:C.green, tag:"健康",
+    title:"医療費が高額になっても、一定額以上は戻ってくる", officialName:"高額療養費制度",
+    catchText:"入院・手術などで医療費が高額になっても、月8.7万円程度を超えた分は戻ってくる",
+    body:"健康保険加入者が対象。月の医療費自己負担が所得に応じた上限額（一般的な会社員は月約8.7万円）を超えた場合、超過分を健保が還付。入院・手術で高額になる場合は「限度額適用認定証」で事前に窓口負担を抑えることも可能。",
+    deadline:"診療月の翌月1日から2年以内に申請", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>p.stage==="社会人（会社員）"||p.stage==="育休・産休中",
+    subsidy:(p)=>(p.stage==="社会人（会社員）"||p.stage==="育休・産休中")?30000:0,
+    subsidyLabel:(p)=>(p.stage==="社会人（会社員）"||p.stage==="育休・産休中")?"高額医療時に還付":null,
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>{
+      if(p.stage==="社会人（会社員）"||p.stage==="育休・産休中") return 85;
+      if(p.stage==="社会人（フリーランス・自営）") return 70;
+      if(p.stage==="年金生活者") return 80;
+      return 50;
+    },
+    reminderLabel:"入院予定があれば事前に「限度額適用認定証」を申請",
+    sourceUrl:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryouhoken/juuyou/kougakuiryou/index.html",
+  },
+  {
+    id:"shogai_kyufu", gov:"国", icon:"🏥", color:C.blue, tag:"キャリア",
+    title:"病気・ケガで働けない間も、給与の2/3が支給される", officialName:"傷病手当金",
+    catchText:"病気やケガで仕事を休んだとき、最大18ヶ月間、給与の約2/3が保険から支給される",
+    body:"健康保険加入の会社員が対象（国民健康保険は対象外）。業務外の病気・ケガで4日以上連続休業し給与が出ない場合、標準報酬日額の2/3を最長1年6ヶ月支給。退職後も要件を満たせば継続受給可能。",
+    deadline:"療養開始日の翌日から2年以内", urgent:false, subsidyType:"cash",
+    needsMore:"健康保険の加入種別（会社員か否か）が必要",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>{
+      if(p.stage==="社会人（会社員）"||p.stage==="育休・産休中") return 75;
+      return 0;
+    },
+    reminderLabel:"休業4日目から申請可。勤務先・健保組合へ相談",
+    sourceUrl:"https://www.kyoukaikenpo.or.jp/g3/cat310/sb3040/",
+  },
+  {
+    id:"tashi_musho", gov:"国", icon:"🎓", color:C.purple, tag:"教育",
+    title:"子ども3人以上の家庭：大学の授業料がタダに", officialName:"多子世帯大学等修学支援制度",
+    catchText:"2025年度から。子ども3人以上いる家庭は、所得に関係なく大学・専門学校の授業料が無償",
+    body:"2025年度から開始。扶養する子どもが3人以上いる世帯は所得制限なく大学・短大・高専・専門学校の授業料・入学金が無償化。2024年度以前からの在学生も対象。在籍校の学生支援窓口で申請。",
+    deadline:"在籍校の申請時期に準じる（毎年度）", urgent:false, subsidyType:"savings",
+    needsMore:"子どもの人数をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:700000, potentialLabel:"年最大70万円程度（授業料全額）",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      const a=age(p);
+      if(a!==null&&a>=35&&a<=60) return 60;
+      if(a!==null&&a>=25) return 35;
+      return 20;
+    },
+    reminderLabel:"在籍する大学の学生支援窓口へ確認を",
+    sourceUrl:"https://www.mext.go.jp/a_menu/koutou/hutankeigen/index.htm",
+  },
+  {
+    id:"flat35_kosodate", gov:"国", icon:"🏡", color:C.green, tag:"住まい",
+    title:"子どもがいると住宅ローン金利が下がる", officialName:"フラット35子育てプラス",
+    catchText:"子どもの人数に応じて住宅ローン金利を優遇。4人以上なら5年間1%引き下げ",
+    body:"住宅金融支援機構「フラット35」の子育て・若者向け金利優遇。子1人で当初5年間0.25%引き下げ、4人以上で1.0%引き下げ。夫婦どちらかが40歳未満でも対象。新築・中古どちらも可。2024年2月から開始。",
+    deadline:"通年受付", urgent:false, subsidyType:"savings",
+    needsMore:"住宅ローン利用予定・子どもの人数をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:450000, potentialLabel:"借入3000万円の場合、5年間で最大約45万円節約",
+    match:(p)=>{
+      const a=age(p);
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(a!==null&&a<=45) return 65;
+      return 30;
+    },
+    reminderLabel:"取扱金融機関または住宅金融支援機構に問い合わせを",
+    sourceUrl:"https://www.flat35.com/loan/flat35s/kosodate.html",
+  },
+  // ── 広報みなと2026年4月号から追加 ──
+  {
+    id:"smartphone_hojo", gov:"港区", icon:"📱", color:C.blue, tag:"生活",
+    title:"65歳以上が初めてスマホを買うと3万円もらえる",
+    officialName:"高齢者スマートフォン購入費助成事業（港区）",
+    catch:"初めてのスマホ購入に最大3万円助成",
+    body:"スマートフォンを所有していない65歳以上の区民が、区内指定店舗（ドコモショップ田町・新橋・麻布十番店等）で初めてスマホを購入・通信契約した場合に最大3万円を助成。購入当日に店舗でスマホ教室を受講し、東京都公式アプリ等への登録が必要。1人1台・1回限り。",
+    deadline:"令和9年3月31日まで", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>{ const a=age(p); return a!==null&&a>=65; },
+    subsidy:(p)=>{ const a=age(p); return a!==null&&a>=65?30000:0; },
+    subsidyLabel:(p)=>{ const a=age(p); return a!==null&&a>=65?"最大3万円":null; },
+    potentialSubsidy:30000, potentialLabel:"最大3万円",
+    match:(p)=>{
+      const a=age(p);
+      if(a!==null&&a>=65) return 95;
+      if(p.stage==="年金生活者") return 70;
+      return 0;
+    },
+    reminderLabel:"指定店舗（ドコモショップ等）に電話で来店予約してから購入",
+    sourceUrl:"https://www.city.minato.tokyo.jp/jouhouka/smartphone.html",
+  },
+  {
+    id:"kagakukan_free", gov:"港区", icon:"🔭", color:C.green, tag:"生活",
+    title:"郷土歴史館・みなと科学館が年4回タダで入れる",
+    officialName:"郷土歴史館・みなと科学館区民無料公開日",
+    catch:"祝日に区民は無料。プラネタリウムも無料",
+    body:"港区立郷土歴史館（白金台）とみなと科学館（虎ノ門）の有料展示・プラネタリウムが、年4回の祝日に区民無料で開放。令和8年度は5月5日・8月11日・11月3日・令和9年2月11日。当日区内在住を確認できるものを持参。みなと科学館は平日のおひるのプラネタリウム（12時30分〜20分間）も通年無料上映あり。",
+    deadline:"令和8年度：8/11・11/3・R9年2/11（5/5は終了）", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>true,
+    subsidy:(p)=>2000,
+    subsidyLabel:(p)=>"年4回・入館料無料",
+    potentialSubsidy:2000, potentialLabel:"年4回無料（通常有料）",
+    match:(p)=>60,
+    reminderLabel:"当日は区内在住確認書類（マイナンバーカード等）を持参",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kyoudorekishi/",
+  },
+  {
+    id:"shogai_intern", gov:"港区", icon:"💼", color:C.purple, tag:"キャリア",
+    title:"障害がある人に就労体験の機会（時給1,226円）",
+    officialName:"障害者インターンシップ事業（港区）",
+    catch:"障害者手帳なしでも応募可・時給1,226円",
+    body:"区内在住で身体・知的・精神・発達障害がある18歳以上の方に就労体験の機会を提供。手帳なしでも可。4〜9月のうち最大3ヶ月、ジョブコーチのサポートを受けながら実習。時給1,226円、交通費実費支給。面接により5人程度を決定。（特）みなと障がい者福祉事業団が実施。",
+    deadline:"毎年2月頃募集（次回は令和9年2月頃）", urgent:false, subsidyType:"cash",
+    needsMore:"障害の有無をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:200000, potentialLabel:"最大約20万円（3ヶ月分）",
+    match:(p)=>{
+      if(p.disability==="あり") return 85;
+      return 0;
+    },
+    reminderLabel:"毎年2月頃に広報みなとで募集。（特）みなと障がい者福祉事業団へ",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/service.html",
+  },
+  // ── 高校生向け追加 ──
+  {
+    id:"juken_challenge", gov:"東京都", icon:"📝", color:C.purple, tag:"教育",
+    title:"塾代・受験料を無利子で借りられる（高校3年生）",
+    officialName:"受験生チャレンジ支援貸付事業",
+    catch:"塾・予備校の受講料や受験料を無利子で貸付",
+    body:"東京都の制度。一定所得以下の世帯の中学3年生・高校3年生を対象に、学習塾等の受講料（上限20万円）や高校・大学等の受験料（上限7.5万円）を無利子で貸し付ける。合格すれば返済免除になる場合もあり。港区に住所がある方は港区立子ども家庭支援センターへ申請。令和8年度の港区申込期限は令和8年1月16日。",
+    deadline:"令和8年1月16日（港区窓口）", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:275000, potentialLabel:"受講料最大20万円＋受験料最大7.5万円",
+    match:(p)=>{
+      if(p.studentLevel==="高校生") return 80;
+      if(p.studentLevel==="中学生") return 75;
+      return 0;
+    },
+    reminderLabel:"港区立子ども家庭支援センターへ申請。1月中旬が期限",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kateisoudantan/challenge.html",
+  },
+  {
+    id:"shugaku_enjo", gov:"港区", icon:"🎒", color:C.blue, tag:"教育",
+    title:"経済的に苦しい家庭の子どもの学用品費を援助",
+    officialName:"就学援助費（港区）",
+    catch:"学用品費・給食費・校外学習費などを援助",
+    body:"港区立小・中学校に在学する児童・生徒の保護者で、生活保護受給中または経済的理由により就学困難な方に、学用品費・給食費・修学旅行費・校外学習費などを援助。所得基準あり。毎年度申請が必要。",
+    deadline:"毎年度4月頃（在籍校を通じて申請）", urgent:false, subsidyType:"savings",
+    needsMore:"収入状況・学校種別が必要",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:100000, potentialLabel:"年間数万〜10万円程度",
+    match:(p)=>{
+      if((p.studentLevel==="小学生"||p.studentLevel==="中学生")&&isLowIncome(p)) return 85;
+      if(p.studentLevel==="小学生"||p.studentLevel==="中学生") return 50;
+      if(p.hasKids==="いる（または予定あり）"&&kidsAgeUnder13(p)&&isLowIncome(p)) return 75;
+      return 0;
+    },
+    reminderLabel:"在籍する学校を通じて申請。毎年度更新が必要",
+    sourceUrl:"https://www.city.minato.tokyo.jp/gakkouuneishien/kodomo/gakko/shugakuenjo/shugakuenjohi.html",
+  },
+  // ── 新規追加6件（公式確認済み）──
+  {
+    id:"hitorioya_iryo", gov:"港区", icon:"🏥", color:C.blue, tag:"生活",
+    title:"ひとり親なら医療費がほぼ無料になる",
+    officialName:"ひとり親家庭等医療費助成制度（港区）",
+    catch:"離婚・死別などのひとり親家庭に医療証を交付",
+    body:"離婚・死別・婚姻によらない出生などでひとり親になった家庭に「ひとり親家庭等医療証」を交付。健康保険適用の医療費自己負担分の一部または全部を助成。子どもが18歳年度末まで対象（障害がある場合は20歳未満まで）。所得制限あり。",
+    deadline:"通年（随時申請）", urgent:false, subsidyType:"savings",
+    needsMore:"婚姻状況をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:100000, potentialLabel:"医療費自己負担分を大幅軽減",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(p.marital==="離婚・死別") return 85;
+      return 20;
+    },
+    reminderLabel:"総合支所区民課保健福祉係に申請。所得制限あり",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/iryo.html",
+  },
+  {
+    id:"jidofuyohand", gov:"港区", icon:"👨‍👧", color:C.blue, tag:"生活",
+    title:"ひとり親に毎月手当が支給される",
+    officialName:"児童扶養手当",
+    catch:"ひとり親家庭に月最大4.5万円",
+    body:"離婚・死別などでひとり親になり、18歳以下の子を養育している家庭に毎月手当を支給。全部支給：月45,500円（子1人）、一部支給：月10,740円〜。子どもが増えるごとに加算あり。所得制限あり。2ヶ月ごとに支給。",
+    deadline:"通年（随時申請）", urgent:false, subsidyType:"cash",
+    needsMore:"婚姻状況をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:0, potentialLabel:null,
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(p.marital==="離婚・死別") return 85;
+      return 15;
+    },
+    reminderLabel:"子ども若者支援課子ども給付係（03-3578-2432）へ申請",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/teate.html",
+  },
+  {
+    id:"jutaku_hojo", gov:"港区", icon:"🏡", color:C.blue, tag:"住まい",
+    title:"港区で家を買うなら、区から費用補助がある",
+    officialName:"港区子育て世帯向け住宅取得支援事業",
+    catch:"子あり・40歳未満夫婦の住宅購入に補助金",
+    body:"港区内に住宅を取得した子育て世帯（高校生以下の子あり）または若年夫婦世帯（夫婦どちらかが40歳未満）に、住宅購入手続きにかかる費用の一部を補助。所有権移転登記から1年以内に申請。令和9年3月まで経過措置あり。",
+    deadline:"所有権移転登記から1年以内（令和9年3月まで緩和中）", urgent:false, subsidyType:"cash",
+    needsMore:"住居形態・子どもの有無をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:200000, potentialLabel:"購入手続き費用の一部",
+    match:(p)=>{
+      const a=age(p);
+      if(p.hasKids==="いる（または予定あり）"&&a!==null&&a<=50) return 65;
+      if(a!==null&&a<40) return 55;
+      return 0;
+    },
+    reminderLabel:"街づくり支援部住宅課住宅支援係（03-3578-2459）へ",
+    sourceUrl:"https://www.city.minato.tokyo.jp/jutakushien/zyutakuhozyo.html",
+  },
+  {
+    id:"shinshin_teate", gov:"港区", icon:"♿", color:C.green, tag:"生活",
+    title:"障害がある人に区から毎月手当が出る",
+    officialName:"心身障害者福祉手当（港区）",
+    catch:"身体・知的・精神障害の手帳所持者に月額手当",
+    body:"港区に住む身体障害者手帳・愛の手帳（知的障害）・精神障害者保健福祉手帳の所持者に月額手当を支給。等級や手帳の種類によって金額が異なる。所得制限あり。東京都の重度心身障害者手当と国の障害基礎年金も別途あり。",
+    deadline:"通年（随時申請）", urgent:false, subsidyType:"cash",
+    needsMore:"障害の有無をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:60000, potentialLabel:"等級・手帳種別により異なる",
+    match:(p)=>{
+      if(p.disability==="あり") return 90;
+      if(p.disability==="なし"||p.disability==="回答しない") return 0;
+      return 0;
+    },
+    reminderLabel:"障害者福祉課または各総合支所保健福祉係へ相談",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/teate/hayamihyo.html",
+  },
+  {
+    id:"kodomo_dare_tsuen", gov:"港区", icon:"🎒", color:C.green, tag:"子育て",
+    title:"働いていなくても保育施設を月数時間利用できる",
+    officialName:"こども誰でも通園制度（港区）",
+    catch:"就労不問・生後6ヶ月〜3歳未満が対象",
+    body:"2025年度から港区が実施。就労しているかどうかに関わらず、生後6ヶ月〜3歳未満の子どもが月一定時間まで保育施設を利用できる。保育所に入れていない家庭の育児負担を軽減するための国の新制度を港区が実施。利用料は低額。",
+    deadline:"通年（事前登録制）", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>{
+      const a=age(p);
+      return p.hasKids==="いる（または予定あり）"&&a!==null&&a>=18&&a<=45;
+    },
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:50000, potentialLabel:"保育費の一部負担軽減",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      const a=age(p);
+      if(a!==null&&a>=18&&a<=45) return 80;
+      return 55;
+    },
+    reminderLabel:"港区子ども課に問い合わせ・事前登録が必要",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
+  },
+  {
+    id:"mutsumi_iryo", gov:"東京都", icon:"🩺", color:C.green, tag:"健康",
+    title:"重度の障害がある人の医療費が大幅に減る",
+    officialName:"重度心身障害者医療費助成制度（マル障）",
+    catch:"重度障害者の医療費自己負担をほぼゼロに",
+    body:"東京都の「マル障」制度。身体障害者手帳1〜3級、愛の手帳1〜2度、精神障害者保健福祉手帳1級などを持つ方の医療費自己負担分を助成。医療証を提示するだけで窓口負担が大幅に軽減される。所得制限あり。港区国保年金課給付係で申請。",
+    deadline:"通年（随時申請）", urgent:false, subsidyType:"savings",
+    needsMore:"障害の有無をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:200000, potentialLabel:"医療費自己負担分を大幅軽減",
+    match:(p)=>{
+      if(p.disability==="あり") return 85;
+      if(p.disability==="なし"||p.disability==="回答しない") return 0;
+      return 0;
+    },
+    reminderLabel:"国保年金課給付係（03-3578-2642）へ申請",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/iryo/iryohi.html",
+  },
+  // ── 広報東京都2026年より追加 ──
+  {
+    id:"tokyo_point", gov:"東京都", icon:"🎯", color:C.blue, tag:"生活",
+    title:"東京アプリに登録するだけで1.1万円相当のポイントがもらえる",
+    officialName:"東京アプリ生活応援事業（東京ポイント）",
+    catch:"マイナンバーカードを持つ15歳以上全員対象。登録するだけで11,000ポイント（1.1万円相当）付与",
+    body:"「東京アプリ」をダウンロードしてマイナンバーカードで本人確認をするだけで11,000ポイント（1万1千円相当）が付与される。貯まったポイントはau PAY・dポイント・メルカリポイント・楽天ペイ・Vポイントなどに交換可能（PayPay・WAONは準備中）。2027年4月1日まで実施中。",
+    deadline:"2027年4月1日まで", urgent:false, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>{ const a=age(p); return a!==null&&a>=15; },
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:11000, potentialLabel:"11,000ポイント（1.1万円相当）即付与",
+    match:(p)=>{ const a=age(p); return a!==null&&a>=15?80:0; },
+    reminderLabel:"「東京アプリ」をダウンロードしてマイナンバーカードで登録",
+    sourceUrl:"https://www.tokyo.lg.jp/tosei/tosei/",
+  },
+  {
+    id:"akachan_first", gov:"東京都", icon:"👶", color:C.blue, tag:"子育て",
+    title:"出産したら育児用品・サービスのギフトカードがもらえる",
+    officialName:"赤ちゃんファースト事業（東京都）",
+    catch:"令和7年4月以降に生まれた子の養育者に育児用品ギフトカードを提供",
+    body:"令和7年4月1日〜令和8年3月31日に生まれた子どもを養育する方に、育児用品や子育て支援サービスが利用できるギフトカードを提供。利用登録期限は令和8年8月31日まで。対象期間外の方は各区市町村の類似事業を確認。",
+    deadline:"令和8年8月31日（利用登録）", urgent:true, subsidyType:"cash",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）"&&kidsAgeUnder3(p),
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:50000, potentialLabel:"ギフトカード相当額",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(kidsAgeUnder3(p)) return 90;
+      if(!p.kidsAge) return 60;
+      return 0;
+    },
+    reminderLabel:"東京都の特設サイトから利用登録が必要",
+    sourceUrl:"https://www.akachan-first.metro.tokyo.lg.jp/",
+  },
+  {
+    id:"rs_vaccine", gov:"東京都", icon:"💉", color:C.green, tag:"健康",
+    title:"妊娠中にRSウイルスワクチンを無料（定期）接種できる",
+    officialName:"RSウイルス感染症定期予防接種",
+    catch:"妊娠28〜36週の妊婦が対象。赤ちゃんの重症化を予防",
+    body:"2025年度から定期接種に追加。妊娠28週0日〜妊娠36週6日の方が対象。母体へのワクチン接種により赤ちゃんへの母子免疫を付与し、生後のRSウイルス感染による重症化を予防。費用や接種場所の詳細は港区保健センターまたは各医療機関へ確認。",
+    deadline:"通年（妊娠28〜36週の間）", urgent:false, subsidyType:"savings",
+    needsMore:null,
+    certain:(p)=>p.hasKids==="いる（または予定あり）"&&kidsAgeUnder3(p)&&age(p)!==null&&age(p)<=45,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:20000, potentialLabel:"接種費用相当額（定期接種のため無料または低額）",
+    match:(p)=>{
+      if(p.hasKids!=="いる（または予定あり）") return 0;
+      if(kidsAgeUnder3(p)&&age(p)!==null&&age(p)<=45) return 85;
+      if(!p.kidsAge&&age(p)!==null&&age(p)<=40) return 55;
+      return 0;
+    },
+    reminderLabel:"妊娠28週になったらかかりつけ医または港区保健センターへ相談",
+    sourceUrl:"https://www.city.minato.tokyo.jp/kenko/kenko/",
+  },
+  {
+    id:"hitorioya_telework", gov:"東京都", icon:"💻", color:C.purple, tag:"キャリア",
+    title:"ひとり親がパソコンで在宅ワークを始められる支援",
+    officialName:"ひとり親家庭等在宅就業推進事業",
+    catch:"約10ヶ月間、在宅ワーク習得を無料サポート",
+    body:"都内在住のひとり親で、パソコンを使った在宅ワークで収入確保を目指す方を対象に、一人ひとりに合わせたプランで約10ヶ月間サポート（令和9年3月まで）。申込締切は5月29日17時（応募多数の場合は選考）。費用無料。",
+    deadline:"令和8年5月29日17時（申込締切）", urgent:true, subsidyType:"savings",
+    needsMore:"婚姻状況をプロフィールに追加",
+    certain:(p)=>false,
+    subsidy:(p)=>0, subsidyLabel:(p)=>null,
+    potentialSubsidy:0, potentialLabel:"在宅ワーク収入確保のスキル習得",
+    match:(p)=>{
+      if(p.marital==="離婚・死別"&&p.hasKids==="いる（または予定あり）") return 85;
+      return 0;
+    },
+    reminderLabel:"東京都ひとり親家庭等就業・生活支援センターへ申込",
+    sourceUrl:"https://www.tokyo-hitori.jp/",
+  },
+];
+
+/* ─── Festival DB ─── */
+// 繰り返し使える制度（利用済みにしても確認メッセージ表示）
+// ── かんたん表現マップ ──────────────────────
+const EASY_TITLES={
+  jidouteate:'子どもがいる家庭に毎月お金が振り込まれる制度',
+  shussan:'赤ちゃんが生まれたら50万円もらえる',
+  nenkin_men:'【学生限定】年金1.6万円/月を卒業まで後回しにする方法',
+  reskilling:'スキルアップの費用を国が最大8割負担してくれる',
+  scholarship:'返さなくていい奨学金（月最大7.5万円）',
+  hoiku_muryou:'2人目以降の保育料がゼロになる',
+  silver_pass:'70歳以上：都バス・地下鉄が乗り放題になる',
+  solar_tokyo:'太陽光パネル設置で都から最大36万円もらえる',
+  shiritsu_muryou:'年収910万円未満なら私立高校の授業料がタダになる',
+  chintai_hojo:'家賃が払えない時、国が最大9ヶ月分肩代わりする',
+  sports_free:'区のジムとプールが月2回タダで使える',
+  yoyou:'箱根・熱海に格安で泊まれる（港区民限定）',
+  iryo_free:'中学生以下の医療費が無料になる',
+  kenko_point:'健康診断を受けるとポイントがもらえる',
+  cancer_check:'がん検診が無料または格安で受けられる',
+  kougaku_ryoyo:'医療費が高額になっても上限で返ってくる制度',
+  ikuji_kyufu:'育休中も給与の約8割が支給される',
+  shogai_kyufu:'病気・ケガで働けない間も給与の2/3が入る',
+  hoiku_mosikomi:'保育所に入れたいなら11月が勝負',
+  babybirthday:'2歳の誕生月にプレゼントが届く（港区）',
+  shussan_minato:'港区で出産したら追加でお祝い金がもらえる',
+  doula_support:'妊娠中〜育児を格安（1時間1000円）でサポートしてもらえる',
+  ninshin_kenshin:'妊婦健診14回分が全部タダになる',
+  solar_minato:'太陽光パネルに区から最大40万円追加補助がもらえる',
+  smartphone_hojo:'初めてスマホを買う65歳以上に3万円もらえる',
+  kagakukan_free:'科学館とプラネタリウムが年4回タダで入れる',
+  tokyo_point:'東京アプリに登録するだけで1.1万円分ポイントがもらえる',
+  akachan_first:'出産後に育児グッズのギフトカードがもらえる',
+  hitorioya_iryo:'ひとり親なら医療費がほぼ無料になる',
+  jidofuyohand:'ひとり親に毎月手当が支給される',
+  kodomo_dare_tsuen:'働いていなくても保育施設を月数時間使える',
+  shugaku_enjo:'学用品費や給食費を区が援助してくれる',
+  tashi_musho:'子ども3人以上なら大学の授業料がタダになる',
+  flat35_kosodate:'子どもがいると住宅ローンの金利が下がる',
+};
+
+const REPEATABLE_IDS = new Set([
+  "sports_free","yoyou","kagakukan_free","kenko_point","cancer_check",
+  "kougaku_ryoyo","silver_pass",
+]);
+
+const FESTIVALS_DB = [
+  {id:"f01",type:"festival",name:"麻布十番納涼まつり",area:"麻布十番",date:"8/23〜24",lat:35.6566,lng:139.7368},
+  {id:"f02",type:"fireworks",name:"隅田川花火大会",area:"浅草・両国",date:"7/26",lat:35.7108,lng:139.8019},
+  {id:"f03",type:"festival",name:"愛宕神社例大祭",area:"愛宕・芝公園",date:"6/7〜8",lat:35.6588,lng:139.7492},
+  {id:"f04",type:"fireworks",name:"神宮外苑花火大会",area:"青山・信濃町",date:"8/9",lat:35.6717,lng:139.7178},
+  {id:"f05",type:"festival",name:"高輪台夏祭り",area:"高輪",date:"8/2",lat:35.6398,lng:139.7311},
+  {id:"f06",type:"festival",name:"芝大神宮大祭（だらだら祭り）",area:"芝・浜松町",date:"9/11〜21",lat:35.6544,lng:139.7503},
+  {id:"f07",type:"fireworks",name:"東京湾大華火祭",area:"港南・芝浦",date:"8/6",lat:35.6393,lng:139.7632},
+  {id:"f08",type:"festival",name:"六本木ヒルズ盆踊り",area:"六本木",date:"8/14〜15",lat:35.6604,lng:139.7292},
+  {id:"f09",type:"festival",name:"増上寺薪能",area:"芝公園",date:"10/4",lat:35.6562,lng:139.7493},
+  {id:"f10",type:"festival",name:"港南夏まつり",area:"港南・芝浦",date:"7/19",lat:35.6273,lng:139.7455},
+];
+
+/* ─── Town coords ─── */
+const TOWN_COORDS = [
+  {name:"麻布十番",lat:35.6566,lng:139.7368},{name:"青山",lat:35.6717,lng:139.7178},
+  {name:"赤坂",lat:35.6731,lng:139.7372},{name:"六本木",lat:35.6604,lng:139.7292},
+  {name:"西麻布",lat:35.6622,lng:139.7247},{name:"芝",lat:35.6507,lng:139.7503},
+  {name:"三田",lat:35.6479,lng:139.7403},{name:"高輪",lat:35.6398,lng:139.7311},
+  {name:"白金",lat:35.6419,lng:139.7197},{name:"白金台",lat:35.6368,lng:139.7197},
+  {name:"港南",lat:35.6273,lng:139.7455},{name:"芝浦",lat:35.6393,lng:139.7432},
+  {name:"虎ノ門",lat:35.6673,lng:139.7495},
+];
+
+/* ─── Utils ─── */
+const fmt = (n) => `${n.toLocaleString()}円`;
+const calcDist = (a1,o1,a2,o2) => {
+  const R=6371000,dLat=(a2-a1)*Math.PI/180,dLng=(o2-o1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(a1*Math.PI/180)*Math.cos(a2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+};
+const nearestTown = (lat,lng) => TOWN_COORDS.reduce((a,b) => calcDist(lat,lng,a.lat,a.lng)<calcDist(lat,lng,b.lat,b.lng)?a:b);
+const radiusLabel = (r) => r===999999?"区全域":r>=1000?`半径${r/1000}km以内`:`半径${r}m以内`;
+const calcBanner = (profile, items, done=[], hidden=[]) => {
+  let cash=0, savings=0, potential=0;
+  items.forEach(it=>{
+    // 申請済み（一度きり）または非表示は除外
+    if((done||[]).includes(it.id) || (hidden||[]).includes(it.id)) return;
+    try{
+      const el=ELIGIBILITY[it.id];
+      let isCertain=false;
+      if(el){
+        if(el.exclude&&el.exclude.some(fn=>fn(profile))) return;
+        isCertain=!!(el.certain&&el.certain.length>0&&el.certain.every(fn=>fn(profile)));
+      } else {
+        isCertain=it.certain(profile);
+      }
+      if(isCertain && it.subsidy(profile)>0){
+        if(it.subsidyType==="cash") cash+=it.subsidy(profile);
+        else if(it.subsidyType==="savings") savings+=it.subsidy(profile);
+      } else if(!isCertain && it.potentialSubsidy>0){
+        potential+=it.potentialSubsidy;
+      }
+    }catch(e){}
+  });
+  return {cash,savings,potential};
+};
+
+/* ─── Styles ─── */
+const S = {
+  get phone(){return{
+    width:"100%", maxWidth:430,
+    height:"100%", maxHeight:844,
+    background:C.bg1,
+    borderRadius:0,
+    overflow:"hidden",
+    position:"relative",
+    display:"flex",
+    flexDirection:"column",
+  }},
+  get card(){return{background:C.bg2,borderRadius:20,padding:"16px",marginBottom:"10px",border:`1px solid ${C.border}`,animation:"fadeUp .3s ease"}},
+  btn:(color,sm)=>{
+    // bg系の色（背景色）の場合はテキストをC.t1、それ以外は白
+    const isBg=color===C.bg3||color===C.bg2||color===C.bg1||color===C.bg0;
+    return{background:color,border:"none",borderRadius:sm?8:12,padding:sm?"6px 12px":"10px 18px",color:isBg?C.t1:"#fff",fontSize:sm?12:14,fontWeight:700,cursor:"pointer"};
+  },
+  tag:(color)=>({background:color+"22",color,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}),
+  get liveTag(){return{background:"#ff6b6b22",color:C.red,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",gap:4}},
+};
+
+/* ─── Claude API web search ─── */
+const OFFICIAL_SOURCES = {
+  jidouteate:"https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/jidoteate.html",
+  reskilling:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/",
+  scholarship:"https://www.jasso.go.jp/shogakukin/kyufu/",
+  nenkin_men:"https://www.nenkin.go.jp/service/kokunen/menjo/",
+  shussan:"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryouhoken/iryouhoken09/",
+  hoiku_muryou:"https://www.metro.tokyo.lg.jp/",
+  solar_tokyo:"https://www.tokyo-co2down.jp/subsidy/solar",
+  silver_pass:"https://www.kotsu.metro.tokyo.jp/other/silver/",
+  shiritsu_muryou:"https://www.metro.tokyo.lg.jp/",
+  chintai_hojo:"https://www.city.minato.tokyo.jp/jiritsusien/",
+  sports_free:"https://www.city.minato.tokyo.jp/sports/",
+  yoyou:"https://www.city.minato.tokyo.jp/sports/sports/hoyou/",
+  iryo_free:"https://www.city.minato.tokyo.jp/kodomokatei/",
+  hoiku_mosikomi:"https://www.city.minato.tokyo.jp/kodomokatei/kosodate/hoikusho/",
+  solar_minato:"https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
+  kenko_point:"https://www.city.minato.tokyo.jp/kenkouzukuri/",
+  cancer_check:"https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
+  babybirthday:"https://www.city.minato.tokyo.jp/kodomokatei/",
+};
+
+const fetchLiveInfo = async (item) => {
+  const today = new Date().toLocaleDateString("ja-JP");
+  const prompt = "以下の行政給付・補助制度について、2026年5月現在の最新情報を調べてください。\n\n"
+    + "制度名：" + item.title + "\n"
+    + "所管：" + item.gov + "\n"
+    + "公式URL参考：" + item.sourceUrl + "\n\n"
+    + "調査してほしい内容：\n"
+    + "1. 2025〜2026年度の最新の給付額・補助上限額\n"
+    + "2. 申請条件・対象者の変更点\n"
+    + "3. 申請期限・受付状況（現在受付中か）\n"
+    + "4. 前年度からの主な変更点（あれば）\n\n"
+    + "必ず以下のJSON形式のみで返答してください（前置きや説明文は不要）：\n"
+    + '{\n'
+    + '  "amount": "最新の金額・上限額（文字列）",\n'
+    + '  "conditions": "主な対象条件（1〜2文）",\n'
+    + '  "deadline": "申請期限・受付状況",\n'
+    + '  "changes": "前年度からの変更点（なければ変更なし）",\n'
+    + '  "sourceNote": "参照した情報源（サイト名）",\n'
+    + '  "fetchedAt": "' + today + '"\n'
+    + "}";
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514",
+      max_tokens:1000,
+      tools:[{type:"web_search_20250305",name:"web_search"}],
+      messages:[{role:"user",content:prompt}],
+    }),
+  });
+  const data = await resp.json();
+  const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("") || "";
+  try {
+    const clean = text.replace(/```json|```/g,"").trim();
+    const start = clean.indexOf("{"); const end = clean.lastIndexOf("}");
+    return JSON.parse(clean.slice(start, end+1));
+  } catch {
+    return {amount:"取得失敗",conditions:"—",deadline:"—",changes:"—",sourceNote:"—",fetchedAt:new Date().toLocaleDateString("ja-JP")};
+  }
+};
+
+/* ─── Components ─── */
+const style = document.createElement("style");
+style.textContent = FONT_INJECT;
+document.head.appendChild(style);
+
+function Splash({onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,2200);return()=>clearTimeout(t);},[]);
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:C.bg0,gap:16}}>
+      <div style={{fontSize:52,animation:"scaleIn .5s ease"}}>🏙️</div>
+      <div style={{color:C.t1,fontSize:22,fontWeight:700,animation:"fadeUp .6s ease .2s both",textAlign:"center",lineHeight:1.5}}>
+        君の代わりに<br/>全部やってあげるよアプリ
+      </div>
+      <div style={{color:C.t2,fontSize:13,animation:"fadeUp .6s ease .4s both"}}>あなたのための行政情報</div>
+      <div style={{marginTop:24,width:40,height:4,background:C.blue,borderRadius:2,animation:"pulse 1.2s ease infinite"}}/>
+    </div>
+  );
+}
+
+/* ─── RevealScreen: クイズ完了後の演出 ─── */
+function RevealScreen({profile, items, onEnter}){
+  const banner = calcBanner(profile, items);
+  const total = banner.cash + banner.savings;
+  const certainCount = items.filter(it=>{
+    const el=ELIGIBILITY[it.id];
+    return el ? calcEligibility(profile,el).certain : it.certain(profile);
+  }).length;
+  const maybeCount = items.filter(it=>{
+    const el=ELIGIBILITY[it.id];
+    const score = el ? calcEligibility(profile,el).matchScore : it.match(profile);
+    return score>0 && score<100;
+  }).length;
+
+  const [displayed, setDisplayed] = useState(0);
+  const [phase2, setPhase2] = useState(false);
+  const [phase3, setPhase3] = useState(false);
+  const [exiting, setExiting] = useState(false); // ← 退場アニメ用
+
+  useEffect(()=>{
+    if(total===0){ setPhase2(true); setTimeout(()=>setPhase3(true),600); return; }
+    let start = null;
+    const duration = 1800;
+    const ease = (t) => t<0.5 ? 2*t*t : -1+(4-2*t)*t;
+    const step = (ts) => {
+      if(!start) start=ts;
+      const progress = Math.min((ts-start)/duration, 1);
+      setDisplayed(Math.floor(ease(progress)*total));
+      if(progress<1){ requestAnimationFrame(step); }
+      else{
+        setDisplayed(total);
+        setTimeout(()=>setPhase2(true), 300);
+        setTimeout(()=>setPhase3(true), 900);
+      }
+    };
+    const raf = requestAnimationFrame(step);
+    return ()=>cancelAnimationFrame(raf);
+  },[]);
+
+  const handleEnter = () => {
+    setExiting(true);
+    setTimeout(onEnter, 480); // アニメ完了後に遷移
+  };
+
+  return (
+    <div style={{
+      flex:1, display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center",
+      background:C.bg0, padding:"32px 28px 48px", gap:0,
+      // 入場：下からフェードイン / 退場：拡大しながらフェードアウト
+      animation: exiting ? "none" : "fadeUp .4s ease",
+      opacity: exiting ? 0 : 1,
+      transform: exiting ? "scale(1.08)" : "scale(1)",
+      transition: exiting ? "opacity .45s cubic-bezier(.4,0,1,1), transform .45s cubic-bezier(.4,0,1,1)" : "none",
+    }}>
+      <div style={{color:C.t3, fontSize:12, letterSpacing:1, marginBottom:20, fontWeight:600}}>
+        診断完了 🎉
+      </div>
+
+      <div style={{textAlign:"center", marginBottom:8}}>
+        <div style={{color:C.t3, fontSize:12, marginBottom:8}}>あなたが受け取れる年間総額（確実分）</div>
+        <div style={{
+          color:C.blue, fontWeight:700,
+          fontSize: displayed >= 1000000 ? 42 : displayed >= 100000 ? 46 : 50,
+          letterSpacing:-1, lineHeight:1.1,
+          transition:"font-size .2s",
+          minHeight:60,
+        }}>
+          ¥{displayed.toLocaleString()}
+        </div>
+      </div>
+
+      <div style={{
+        display:"flex", gap:16, marginTop:20, marginBottom:24,
+        opacity:phase2?1:0, transform:phase2?"translateY(0)":"translateY(10px)",
+        transition:"opacity .5s ease, transform .5s ease",
+      }}>
+        <div style={{textAlign:"center", background:C.blue+"15", borderRadius:14, padding:"12px 20px"}}>
+          <div style={{color:C.t3, fontSize:10, marginBottom:4}}>💙 現金給付</div>
+          <div style={{color:C.blue, fontWeight:700, fontSize:18}}>{banner.cash.toLocaleString()}円</div>
+        </div>
+        <div style={{textAlign:"center", background:C.green+"15", borderRadius:14, padding:"12px 20px"}}>
+          <div style={{color:C.t3, fontSize:10, marginBottom:4}}>💚 節約・割引</div>
+          <div style={{color:C.green, fontWeight:700, fontSize:18}}>{banner.savings.toLocaleString()}円</div>
+        </div>
+      </div>
+
+      <div style={{
+        display:"flex", gap:10, marginBottom:36,
+        opacity:phase2?1:0, transition:"opacity .5s ease .2s",
+      }}>
+        <span style={{background:C.green+"22", color:C.green, borderRadius:8, padding:"4px 12px", fontSize:12, fontWeight:700}}>
+          ✅ 対象確実 {certainCount}件
+        </span>
+        <span style={{background:"#f0a03022", color:"#f0a030", borderRadius:8, padding:"4px 12px", fontSize:12, fontWeight:700}}>
+          🔶 可能性あり {maybeCount}件
+        </span>
+      </div>
+
+      <button
+        onClick={handleEnter}
+        style={{
+          width:"100%", maxWidth:320,
+          background:C.blue, color:"#fff",
+          border:"none", borderRadius:18,
+          padding:"18px", fontSize:17, fontWeight:700,
+          cursor:"pointer",
+          boxShadow:`0 6px 24px ${C.blue}55`,
+          opacity:phase3?1:0, transform:phase3?"translateY(0)":"translateY(12px)",
+          transition:"opacity .4s ease, transform .4s ease",
+          pointerEvents:phase3?"all":"none",
+        }}>
+        制度を見る →
+      </button>
+      {phase3 && (
+        <div style={{color:C.t3, fontSize:11, marginTop:12}}>
+          可能性額を含めると最大 {(banner.potential+total).toLocaleString()}円
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PreviewHome: クイズ前の空ホーム画面 ─── */
+function PreviewHome({items, onStart}){
+  // プレビュー用にランダムっぽく12件選ぶ（固定順）
+  const previewItems = items.slice(0, 12);
+  // ぼかしカードのダミー金額テキスト
+  const dummyAmounts = ["年 ¥120,000〜","年 ¥360,000","月 ¥45,500","¥110,000相当","最大 ¥700,000","年 ¥240,000","¥11,000即付与","年 ¥100,000相当","月 ¥30,000〜","¥50,000相当","最大 ¥200,000","年 ¥60,000〜"];
+
+  return (
+    <div style={{flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:C.bg0}}>
+      {/* ヘッダー */}
+      <div style={{padding:"52px 16px 10px", borderBottom:`1px solid ${C.border}`, flexShrink:0, background:C.bg1}}>
+        <div style={{color:C.t1, fontWeight:700, fontSize:13}}>🏙️ 君の代わりに全部やってあげるよアプリ</div>
+        <div style={{color:C.t3, fontSize:10, marginTop:1}}>港区</div>
+      </div>
+
+      {/* スクロールエリア */}
+      <div style={{flex:1, overflowY:"auto", padding:"12px 16px 160px"}}>
+
+        {/* バナー：金額???表示 */}
+        <div style={{background:`linear-gradient(135deg,${C.bg2},${C.bg3})`, borderRadius:16, padding:"12px 16px", marginBottom:12, border:`1px solid ${C.border}`}}>
+          <div style={{color:C.t3, fontSize:10, marginBottom:3}}>あなたが受け取れる年間総額</div>
+          <div style={{display:"flex", gap:16, alignItems:"center"}}>
+            <div style={{display:"flex", alignItems:"baseline", gap:4}}>
+              <span style={{color:C.t3, fontSize:10}}>給付</span>
+              <span style={{color:C.blue, fontWeight:700, fontSize:18, userSelect:"none"}}>???円</span>
+            </div>
+            <div style={{display:"flex", alignItems:"baseline", gap:4}}>
+              <span style={{color:C.t3, fontSize:10}}>節約</span>
+              <span style={{color:C.green, fontWeight:700, fontSize:18, userSelect:"none"}}>???円</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ラベル */}
+        <div style={{color:C.t2, fontSize:11, fontWeight:600, marginBottom:8}}>
+          🔒 {items.length}件の制度があなたを待っています
+        </div>
+
+        {/* ぼかしカード一覧 — opacity薄め、モザイク弱め */}
+        {previewItems.map((it, i)=>(
+          <div key={it.id} style={{
+            background:C.bg2, borderRadius:16, padding:"12px 14px", marginBottom:8,
+            border:`1px solid ${C.border}`,
+            position:"relative", overflow:"hidden",
+            opacity: 0.45,           // ← リスト全体を薄く
+          }}>
+            {/* ロックオーバーレイ：背景色なし・blur弱め */}
+            <div style={{
+              position:"absolute", inset:0,
+              backdropFilter:"blur(1.5px)",          // ← モザイク弱く
+              WebkitBackdropFilter:"blur(1.5px)",
+              borderRadius:16,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              zIndex:2,
+            }}>
+              <span style={{fontSize:16, opacity:0.6}}>🔒</span>
+            </div>
+            {/* カード本体 */}
+            <div style={{display:"flex", alignItems:"center", gap:10}}>
+              <div style={{fontSize:26, flexShrink:0}}>{it.icon}</div>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{display:"flex", gap:5, marginBottom:3, flexWrap:"wrap"}}>
+                  <span style={{background:it.color+"22", color:it.color, borderRadius:6, padding:"2px 7px", fontSize:10, fontWeight:700}}>{it.gov}</span>
+                  <span style={{background:C.green+"22", color:C.green, borderRadius:6, padding:"2px 7px", fontSize:10, fontWeight:700}}>🔒 情報入力で解除</span>
+                </div>
+                <div style={{color:C.t1, fontWeight:700, fontSize:13}}>{it.officialName||it.title}</div>
+                <div style={{color:C.blue, fontWeight:700, fontSize:13, marginTop:2, filter:"blur(4px)", userSelect:"none"}}>
+                  💙 {dummyAmounts[i % dummyAmounts.length]}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {items.length > 12 && (
+          <div style={{textAlign:"center", color:C.t3, fontSize:12, padding:"8px 0 4px", opacity:0.45}}>
+            他 {items.length - 12}件の制度も確認できます
+          </div>
+        )}
+      </div>
+
+      {/* 固定CTA — スクロールエリアの外に独立して配置（backdropFilterの影響なし）*/}
+      <div style={{
+        flexShrink:0,
+        background:`linear-gradient(to top, ${C.bg1} 65%, transparent)`,
+        padding:"20px 24px 40px",
+        display:"flex", flexDirection:"column", alignItems:"center", gap:10,
+      }}>
+        <div style={{color:C.t2, fontSize:12, textAlign:"center"}}>
+          いくつ対象か、まだわかりません
+        </div>
+        <button
+          onClick={onStart}
+          style={{
+            width:"100%", maxWidth:320,
+            background:C.blue, color:"#fff",
+            border:"none", borderRadius:16,
+            padding:"16px", fontSize:16, fontWeight:700,
+            cursor:"pointer",
+            boxShadow:`0 4px 20px ${C.blue}66`,
+            animation:"pulse 2s ease infinite",
+          }}>
+          ✨ あなたの制度を調べる
+        </button>
+        <div style={{color:C.t3, fontSize:11}}>約1分で完了・無料</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Quiz: 4問 + GPS ─── */
+const AREA_OPTS=["麻布・元麻布・麻布十番","青山・赤坂","六本木・西麻布","芝・三田","高輪・白金","港南・芝浦","その他（港区内）"];
+
+const QUIZ_STEPS=[
+  {key:"stage",   q:"ライフステージは？", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"]},
+  {key:"hasKids", q:"18歳未満のお子さんはいますか？",   opts:["いる（または予定あり）","いない（または18歳以上のみ）"]},
+  {key:"housing", q:"住まいの形態は？",   opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
+];
+
+// 分岐質問
+const BRANCH_STEPS={
+  studentLevel:{q:"学校の種別は？", opts:["小学生","中学生","高校生","大学生・専門学生"]},
+  kidsAge:{q:"お子さんの年齢は？（最年少）", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
+};
+
+// 次のステップを返す関数（分岐込み）
+function getNextStep(currentKey, val, ans){
+  if(currentKey==="stage"&&val==="学生") return "studentLevel";
+  if(currentKey==="studentLevel") return "hasKids";
+  if(currentKey==="hasKids"&&val==="いる（または予定あり）") return "kidsAge";
+  if(currentKey==="kidsAge") return "housing";
+  // 通常のQUIZ_STEPSの次へ
+  const idx=QUIZ_STEPS.findIndex(s=>s.key===currentKey);
+  if(idx>=0&&idx+1<QUIZ_STEPS.length) return QUIZ_STEPS[idx+1].key;
+  return "gps";
+}
+
+function Quiz({onDone}){
+  const [currentKey,setCurrentKey]=useState("age"); // age → stage → (studentLevel?) → hasKids → (kidsAge?) → housing → gps
+  const [ans,setAns]=useState({});
+  const [ageInput,setAgeInput]=useState("");
+  const [ageError,setAgeError]=useState("");
+  const [history,setHistory]=useState([]); // 戻る用
+  const [gpsPhase,setGpsPhase]=useState("idle");
+  const [gpsResult,setGpsResult]=useState(null);
+  const [displayedTotal,setDisplayedTotal]=useState(0);
+  const rafRef=useRef(null);
+  const ageNumRef=useRef(null);
+
+  const allKeys=["age","stage","studentLevel","hasKids","kidsAge","housing","gps"];
+  const progress=(allKeys.indexOf(currentKey)/allKeys.length)*100;
+
+  const handleAgeSubmit=()=>{
+    const n=parseInt(ageInput,10);
+    if(isNaN(n)||n<1||n>110){setAgeError("1〜110の数字を入力してください");return;}
+    ageNumRef.current=n;
+    setAns(a=>({...a,ageNum:n}));
+    setHistory(h=>[...h,"age"]);
+    setCurrentKey("stage");
+  };
+
+  const handleOpt=(key,val)=>{
+    const next={...ans,[key]:val,ageNum:ageNumRef.current};
+    setAns(next);
+    setHistory(h=>[...h,key]);
+    const nextKey=getNextStep(key,val,next);
+    if(nextKey==="gps") setCurrentKey("gps");
+    else setCurrentKey(nextKey);
+  };
+
+  const handleBack=()=>{
+    if(history.length===0) return;
+    const prev=history[history.length-1];
+    setHistory(h=>h.slice(0,-1));
+    setCurrentKey(prev);
+  };
+
+  // リアルタイム金額計算（その時点で確定している制度のみ）
+  const calcLiveAmount=(currentAns)=>{
+    const p={...currentAns};
+    let cash=0, savings=0, count=0;
+    const allItems=typeof ITEMS_BASE!=="undefined"?ITEMS_BASE:[];
+    allItems.forEach(it=>{
+      try{
+        const el=ELIGIBILITY[it.id];
+        if(!el) return;
+        // ELIGIBILITYのexcludeで除外される場合は絶対に含めない
+        if(el.exclude&&el.exclude.some(fn=>fn(p))) return;
+        // certainの全条件を満たす場合のみ確定
+        if(!el.certain||el.certain.length===0) return;
+        if(!el.certain.every(fn=>fn(p))) return;
+        const sub=it.subsidy(p);
+        if(sub>0){
+          if(it.subsidyType==="cash") cash+=sub;
+          else savings+=sub;
+        }
+        count++;
+      }catch(e){}
+    });
+    return{cash,savings,count};
+  };
+
+  const liveAmt=calcLiveAmount(ans);
+
+  // 金額が変わるたびにカウントアップ
+  useEffect(()=>{
+    const target=liveAmt.cash+liveAmt.savings;
+    if(target===0){ setDisplayedTotal(0); return; }
+    if(rafRef.current) cancelAnimationFrame(rafRef.current);
+    const start=displayedTotal;
+    const diff=target-start;
+    const duration=600;
+    let startTime=null;
+    const step=(ts)=>{
+      if(!startTime) startTime=ts;
+      const p=Math.min((ts-startTime)/duration,1);
+      const eased=1-Math.pow(1-p,3); // ease-out cubic
+      setDisplayedTotal(Math.round(start+diff*eased));
+      if(p<1){ rafRef.current=requestAnimationFrame(step); }
+      else{ setDisplayedTotal(target); }
+    };
+    rafRef.current=requestAnimationFrame(step);
+    return()=>{ if(rafRef.current) cancelAnimationFrame(rafRef.current); };
+  },[liveAmt.cash,liveAmt.savings]);
+
+  // 金額バナー（クイズ中）- 常に上部に固定表示
+  const LiveBanner=()=>{
+    const hasAmount = liveAmt.count > 0;
+    return(
+      <div style={{
+        background: hasAmount ? C.blue+"11" : C.bg2,
+        border:`1px solid ${hasAmount ? C.blue+"33" : C.border}`,
+        borderRadius:14, padding:"10px 16px",
+        transition:"background .4s ease, border-color .4s ease",
+        flexShrink:0,
+      }}>
+        <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+          <div style={{color:C.t3, fontSize:10}}>✨ いま確定している受給額</div>
+          {hasAmount && <div style={{color:C.t3,fontSize:10}}>{liveAmt.count}件確定</div>}
+        </div>
+        <div style={{
+          color: hasAmount ? C.blue : C.t3,
+          fontWeight:700, fontSize:22, marginTop:4,
+          transition:"color .4s ease",
+          letterSpacing:-0.5,
+        }}>
+          {hasAmount ? `${displayedTotal.toLocaleString()}円` : "回答するほど確定していきます"}
+        </div>
+      </div>
+    );
+  };
+
+  const startGps=()=>{
+    setGpsPhase("loading");
+    if(!navigator.geolocation){
+      setGpsPhase("fallback");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos)=>{
+        const lat=pos.coords.latitude;
+        const lng=pos.coords.longitude;
+        const town=nearestTown(lat,lng);
+        const dist=calcDist(lat,lng,town.lat,town.lng);
+        // 港区の最寄りエリアから3km以上離れていたら港区外とみなす
+        if(dist>3000){
+          setGpsPhase("fallback");
+          return;
+        }
+        setGpsResult({lat,lng,town});
+        setGpsPhase("confirm");
+      },
+      ()=>{ setGpsPhase("fallback"); }, // 拒否・エラー時
+      {timeout:10000,enableHighAccuracy:true}
+    );
+  };
+
+  const finishGps=(confirmed,manualTown=null)=>{
+    const coords=confirmed&&gpsResult?{lat:gpsResult.lat,lng:gpsResult.lng}:null;
+    const town=confirmed&&gpsResult?gpsResult.town:{name:manualTown||"麻布十番"};
+    onDone({...ans,ageNum:ageNumRef.current,coords,town:town.name,festivalCoords:coords,festivalTown:town});
+  };
+
+  const BackBtn=()=>history.length>0?(
+    <button style={{background:"none",border:"none",color:C.blue,fontSize:14,cursor:"pointer",padding:"4px 0",fontWeight:600}} onClick={handleBack}>← 戻る</button>
+  ):<div/>;
+
+  // GPS画面
+  if(currentKey==="gps"){
+    return (
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {/* 上部固定エリア */}
+        <div style={{padding:"16px 24px 12px",flexShrink:0,display:"flex",flexDirection:"column",gap:10}}>
+          <LiveBanner/>
+          <div style={{height:4,background:C.bg3,borderRadius:2}}><div style={{height:4,background:C.blue,borderRadius:2,width:"95%",transition:"width .3s"}}/></div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <BackBtn/>
+            <div style={{color:C.t2,fontSize:12}}>最後のステップ</div>
+            <div style={{width:40}}/>
+          </div>
+        </div>
+        {/* スクロールコンテンツ */}
+        <div style={{flex:1,padding:"0 24px 24px",display:"flex",flexDirection:"column",gap:16,overflowY:"auto"}}>
+          {gpsPhase==="idle"&&<>
+            <div style={{color:C.t1,fontSize:18,fontWeight:700,marginTop:8}}>📍 現在地を教えてください</div>
+            <div style={{color:C.t2,fontSize:13}}>近くのお祭り・花火情報をお届けするために使います</div>
+            <button style={{...S.btn(C.blue),marginTop:16}} onClick={startGps}>📍 現在地を取得する</button>
+            <button style={{...S.btn(C.bg3),border:`1px solid ${C.border}`}} onClick={()=>setGpsPhase("fallback")}>許可しない</button>
+          </>}
+          {gpsPhase==="loading"&&<>
+            <div style={{color:C.t1,fontSize:18,fontWeight:700,marginTop:8}}>📍 取得中…</div>
+            <div style={{width:40,height:40,border:`3px solid ${C.blue}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"24px auto"}}/>
+          </>}
+          {gpsPhase==="confirm"&&gpsResult&&<>
+            <div style={{color:C.t1,fontSize:18,fontWeight:700,marginTop:8}}>📍 {gpsResult.town.name}付近ですね？</div>
+            <button style={{...S.btn(C.blue),marginTop:8}} onClick={()=>finishGps(true)}>✓ はい</button>
+            <button style={{...S.btn(C.bg3),border:`1px solid ${C.border}`}} onClick={()=>setGpsPhase("fallback")}>違う</button>
+          </>}
+          {gpsPhase==="fallback"&&<>
+            <div style={{color:C.t1,fontSize:18,fontWeight:700,marginTop:8}}>お住まいのエリアは？</div>
+            {AREA_OPTS.map(a=>(
+              <button key={a} style={{...S.btn(C.bg3),border:`1px solid ${C.border}`,textAlign:"left",marginBottom:4}} onClick={()=>finishGps(false,a)}>{a}</button>
+            ))}
+          </>}
+        </div>
+      </div>
+    );
+  }
+
+  // 年齢入力
+  if(currentKey==="age") return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* 上部固定エリア */}
+      <div style={{padding:"16px 24px 12px",flexShrink:0,display:"flex",flexDirection:"column",gap:10}}>
+        <LiveBanner/>
+        <div style={{height:4,background:C.bg3,borderRadius:2}}>
+          <div style={{height:4,background:C.blue,borderRadius:2,width:`${progress}%`}}/>
+        </div>
+      </div>
+      {/* スクロールコンテンツ */}
+      <div style={{flex:1,padding:"8px 24px 24px",display:"flex",flexDirection:"column",gap:16,overflowY:"auto"}}>
+        <div style={{color:C.t1,fontSize:20,fontWeight:700,marginTop:8}}>何歳ですか？</div>
+        <div style={{color:C.t2,fontSize:13}}>年齢によって受けられる制度が変わります</div>
+        <input
+          type="number" inputMode="numeric" min="1" max="110"
+          value={ageInput}
+          onChange={e=>{setAgeInput(e.target.value);setAgeError("");}}
+          onKeyDown={e=>e.key==="Enter"&&handleAgeSubmit()}
+          placeholder="例：34"
+          style={{background:C.bg3,border:`2px solid ${ageError?C.red:C.blue}`,borderRadius:14,padding:"14px 18px",color:C.t1,fontSize:28,fontWeight:700,textAlign:"center",outline:"none",width:"100%"}}
+          autoFocus
+        />
+        {ageError&&<div style={{color:C.red,fontSize:12}}>{ageError}</div>}
+        <button style={{...S.btn(C.blue),marginTop:4,fontSize:16}} onClick={handleAgeSubmit}>次へ →</button>
+      </div>
+    </div>
+  );
+
+  // 選択肢ステップ（QUIZ_STEPS + BRANCH_STEPS）
+  const stepDef=QUIZ_STEPS.find(s=>s.key===currentKey)||
+    (BRANCH_STEPS[currentKey]?{key:currentKey,...BRANCH_STEPS[currentKey]}:null);
+
+  if(!stepDef) return null;
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* 上部固定エリア */}
+      <div style={{padding:"16px 24px 12px",flexShrink:0,display:"flex",flexDirection:"column",gap:10}}>
+        <LiveBanner/>
+        <div style={{height:4,background:C.bg3,borderRadius:2}}>
+          <div style={{height:4,background:C.blue,borderRadius:2,width:`${progress}%`,transition:"width .3s"}}/>
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <BackBtn/>
+          <div style={{width:40}}/>
+        </div>
+      </div>
+      {/* スクロールコンテンツ */}
+      <div style={{flex:1,padding:"0 24px 24px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
+        <div style={{color:C.t1,fontSize:18,fontWeight:700,animation:"fadeUp .3s ease"}}>{stepDef.q}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:4}}>
+          {stepDef.opts.map(v=>(
+            <button key={v}
+              style={{...S.btn(ans[currentKey]===v?C.blue:C.bg3),border:`1px solid ${ans[currentKey]===v?C.blue:C.border}`,textAlign:"left"}}
+              onClick={()=>handleOpt(currentKey,v)}>
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Toast({msg,visible}){
+  return visible?(
+    <div style={{position:"absolute",bottom:90,left:"50%",transform:"translateX(-50%)",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 18px",color:C.t1,fontSize:13,zIndex:200,animation:"toastIn .3s ease",whiteSpace:"nowrap"}}>
+      {msg}
+    </div>
+  ):null;
+}
+
+function LiveBadge(){
+  return <span style={S.liveTag}><span style={{width:6,height:6,background:C.red,borderRadius:"50%",animation:"pulse 1s ease infinite"}}/>LIVE</span>;
+}
+
+/* ── getConfidence: 4問の情報だけで「確実」と言えるかのみ判定
+   certain  = クイズ4問だけで対象と断言できる
+   needs_profile = 年収・住居などプロフィール追加が必要
+   none     = 明らかに対象外
+──*/
+function getConfidence(item, profile){
+  const el = ELIGIBILITY[item.id];
+  if(!el) {
+    // エンジン未定義の場合は旧ロジックにフォールバック
+    if(item.certain(profile)) return "certain";
+    if(item.match(profile)===0) return "none";
+    return "needs_profile";
+  }
+  const {certain, matchScore} = calcEligibility(profile, el);
+  if(certain) return "certain";
+  if(matchScore===0) return "none";
+  return "needs_profile";
+}
+
+function InfoCard({item,profile,liked,reminded,hidden,onLike,onRemind,onHide,onClick,liveData,conf}){
+  if(hidden.includes(item.id)) return null;
+  const isCertain = conf==="certain";
+  const amount = item.subsidy(profile);
+  const isLiked = liked.includes(item.id);
+  const isReminded = reminded.includes(item.id);
+  const hasLive = !!liveData;
+
+  const confBadge = isCertain
+    ? {label:"✅ 対象確実",  bg:C.green+"22", color:C.green,  border:C.green+"44"}
+    : {label:"🔶 関係あるかも", bg:"#f0a03022", color:"#f0a030", border:"#f0a03044"};
+
+  return (
+    <div style={{...S.card, border:`1px solid ${confBadge.border}`}} onClick={onClick}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+        <div style={{fontSize:28,flexShrink:0}}>{item.icon}</div>
+        <div style={{flex:1,minWidth:0}}>
+          {/* tag row */}
+          <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginBottom:5}}>
+            <span style={S.tag(item.color)}>{item.gov}</span>
+            <span style={S.tag(C.t2)}>{item.tag}</span>
+            <span style={{background:confBadge.bg,color:confBadge.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+              {confBadge.label}
+            </span>
+            {hasLive&&<LiveBadge/>}
+            {item.urgent&&<span style={S.tag(C.red)}>⚠️ 期限注意</span>}
+          </div>
+
+          <div style={{color:C.t1,fontWeight:700,fontSize:14,marginBottom:2}}>{item.title}</div>
+          <div style={{color:C.t2,fontSize:12,marginBottom:6}}>{easy?(item["catchText"]||item["catch"]):item.officialName}</div>
+
+          {/* amount */}
+          {isCertain&&amount>0&&(
+            <div style={{color:item.subsidyType==="cash"?C.blue:C.green,fontWeight:700,fontSize:16}}>
+              {item.subsidyType==="savings"?"💚 ":"💙 "}{item.subsidyLabel(profile)}
+            </div>
+          )}
+          {isCertain&&item.subsidyType==="info"&&(
+            <div style={{color:C.t2,fontSize:13}}>📋 手続き情報</div>
+          )}
+          {!isCertain&&item.potentialSubsidy>0&&(
+            <div style={{color:"#f0a030",fontWeight:600,fontSize:14}}>
+              最大 {fmt(item.potentialSubsidy)}
+              <span style={{color:C.t3,fontSize:11,fontWeight:400,marginLeft:4}}>（条件次第）</span>
+            </div>
+          )}
+          {!isCertain&&item.needsMore&&(
+            <div style={{color:C.t3,fontSize:11,marginTop:4}}>🔑 {item.needsMore}</div>
+          )}
+
+          {/* live strip */}
+          {hasLive&&(
+            <div style={{marginTop:6,padding:"6px 8px",background:C.bg3,borderRadius:8,border:`1px solid ${C.red}22`}}>
+              <div style={{color:C.red,fontSize:10,fontWeight:700,marginBottom:2}}>🔴 最新情報 ({liveData.fetchedAt})</div>
+              <div style={{color:C.t1,fontSize:12}}>{liveData.amount}</div>
+              {liveData.changes&&liveData.changes!=="変更なし"&&
+                <div style={{color:C.t2,fontSize:11,marginTop:2}}>📌 {liveData.changes}</div>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginTop:12,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
+        <button style={{flex:1,...S.btn(isLiked?C.red+"33":C.bg3,true),border:`1px solid ${isLiked?C.red:C.border}`,animation:isLiked?"popIn .3s ease":"none"}}
+          onClick={e=>{e.stopPropagation();onLike(item.id);}}>
+          {isLiked?"❤️ いいね":"🤍 いいね"}
+        </button>
+        <button style={{flex:1,...S.btn(isReminded?C.blue+"33":C.bg3,true),border:`1px solid ${isReminded?C.blue:C.border}`}}
+          onClick={e=>{e.stopPropagation();onRemind(item.id);}}>
+          {isReminded?"🔔 済":"🔕 リマインド"}
+        </button>
+        <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`}}
+          onClick={e=>{e.stopPropagation();onHide(item.id);}}>
+          🙅 関係ない
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── 不足フィールド特定 ───────────────────────────────
+   ELIGIBILITYの certain 条件から、profileに何が足りないかを返す
+   [{key, label, opts}] の配列
+──────────────────────────────────────── */
+const PROFILE_QUESTIONS = [
+  {key:"housing", label:"住居形態", opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
+  {key:"income",  label:"世帯年収", opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
+  {key:"kidsAge", label:"お子さんの年齢（最年少）", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
+];
+
+
+/* ─── 各制度に必要な情報・除外理由のメタデータ ─────────────
+   ELIGIBILITYのfn.toString()に頼らず明示的に定義する
+──────────────────────────────────────── */
+const ITEM_META = {
+  // key: 制度ID
+  // missingKeys: 不足している場合に質問するフィールド
+  // excludeReasons: 除外された場合の理由文
+  // hints: 将来対象になる可能性のヒント
+  solar_tokyo:    { missingKeys:["housing"], excludeReasons:{housing:"持ち家でない場合は対象外です"}, hints:{housing:"持ち家に引っ越した場合は対象になります"} },
+  solar_minato:   { missingKeys:["housing"], excludeReasons:{housing:"持ち家でない場合は対象外です"}, hints:{housing:"持ち家に引っ越した場合は対象になります"} },
+  chintai_hojo:   { missingKeys:["housing","income"], excludeReasons:{income:"世帯年収が一定以上の場合は対象外です",housing:"持ち家の場合は対象外です"}, hints:{income:"離職・休業で収入が下がった場合は対象になる可能性があります"} },
+  scholarship:    { missingKeys:["income"], excludeReasons:{income:"世帯年収が高い場合は対象外です（目安：400万円超）"}, hints:{income:"世帯収入が減った場合は対象になる可能性があります"} },
+  shiritsu_muryou:{ missingKeys:["income"], excludeReasons:{income:"世帯年収910万円以上の場合は対象外です"}, hints:{income:"所得制限は年々緩和される傾向があります"} },
+  teishotoku_kyufu:{ missingKeys:["income"], excludeReasons:{income:"住民税課税世帯は対象外です"}, hints:{income:"離職等で住民税非課税になった場合は対象になります"} },
+  flat35_kosodate:{ missingKeys:["housing"], excludeReasons:{housing:"住宅ローン利用予定でない場合は対象外です"}, hints:{} },
+  shogai_kyufu:   { missingKeys:["stage"], excludeReasons:{stage:"会社員・育休中の方（健康保険加入者）が対象です"}, hints:{stage:"就職して健康保険に加入した場合は対象になります"} },
+  hoiku_muryou:   { missingKeys:["kidsAge"], excludeReasons:{kidsAge:"0〜2歳のお子さんがいる場合に主に対象となります"}, hints:{kidsAge:"次のお子さんが生まれた際に対象になります"} },
+};
+
+function getMissingQuestions(item, profile){
+  const meta = ITEM_META[item.id];
+  if(!meta) return [];
+  return meta.missingKeys
+    .filter(key=>!profile[key])
+    .map(key=>PROFILE_QUESTIONS.find(q=>q.key===key))
+    .filter(Boolean);
+}
+
+function getExclusionReason(item, profile){
+  const el = ELIGIBILITY[item.id];
+  const meta = ITEM_META[item.id];
+  if(!el||!el.exclude) return "現在の条件では対象外です";
+  var excluded = el.exclude.filter(function(fn){ return fn(profile); });
+  if(excluded.length===0) return "現在の条件では対象外です";
+  if(!meta||!meta.excludeReasons) return "現在の条件では対象外です";
+  var keys = Object.keys(meta.excludeReasons);
+  for(var i=0;i<keys.length;i++){
+    var key=keys[i];
+    if(profile[key]) return meta.excludeReasons[key];
+  }
+  return "現在の条件では対象外です";
+}
+
+function getEligibilityHint(item, profile){
+  var meta = ITEM_META[item.id];
+  if(!meta||!meta.hints) return null;
+  var keys = Object.keys(meta.hints);
+  if(keys.length===0) return null;
+  return meta.hints[keys[0]];
+}
+
+function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked,reminded,onLike,onRemind,done,onDone,easy,setEasy}){
+  const [miniQuiz,setMiniQuiz]=useState(false);
+  const [hideConfirmed,setHideConfirmed]=useState(false);
+  const [showRepeatConfirm,setShowRepeatConfirm]=useState(false);
+  const [fetchedUrl,setFetchedUrl]=useState(null);
+  const [fetching,setFetching]=useState(true);
+  const [localEasy,setLocalEasy]=useState(easy); // モーダル内独自トグル
+  const missingQ=getMissingQuestions(item,profile);
+  const isNeeds=conf==="needs_profile";
+
+  const hasOfficialBody=!!(item.officialBody);
+  const bodyText = localEasy ? item.body : (item.officialBody||item.body);
+
+  const [miniAnswers,setMiniAnswers]=useState({});
+
+  // ミニクイズ回答後の判定（ローカルstateで管理）
+  const mergedProfile = {...profile, ...miniAnswers};
+  const currentMissingQ = getMissingQuestions(item, mergedProfile);
+  const allAnswered = miniQuiz && currentMissingQ.length === 0;
+  const nowExcluded = allAnswered && (()=>{
+    const el=ELIGIBILITY[item.id];
+    return el&&el.exclude&&el.exclude.some(fn=>fn(mergedProfile));
+  })();
+  const nowCertain = allAnswered && !nowExcluded && getConfidence(item,mergedProfile)==="certain";
+
+  // モーダルが開いた瞬間にバックグラウンドでURL検索
+  useEffect(()=>{
+    let cancelled=false;
+    // AI検索なし：即座にフォールバックURLを設定
+    setFetchedUrl(null);
+    setFetching(false);
+    return ()=>{};
+  },[item.id]);
+
+  // フォールバックURL（方法A）
+  const fallbackUrl="https://www.google.com/search?q="+encodeURIComponent(
+    item.title.replace(/（拡充版）|（港区独自）|（厚生労働省）|（文部科学省）|（国土交通省）/g,"")
+    +" "+(item.gov==="港区"?"港区 申請":item.gov==="東京都"?"東京都 申請":"申請 公式")
+  );
+
+  const targetUrl=fetchedUrl||fallbackUrl;
+
+  return (
+    <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",zIndex:120,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"80%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <div style={{fontSize:36}}>{item.icon}</div>
+          <div>
+            <div style={{color:C.t1,fontWeight:700,fontSize:16}}>{easy?(item.title):(item.officialName||item.title)}</div>
+            {item.officialName&&easy&&(
+              <div style={{color:C.t3,fontSize:10,marginTop:2}}>正式名称：{item.officialName}</div>
+            )}
+            <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
+              <span style={S.tag(item.color)}>{item.gov}</span>
+              <span style={S.tag(C.t2)}>{item.tag}</span>
+              {liveData&&<LiveBadge/>}
+            </div>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          {/* かんたん/行政トグル（officialBodyがある場合のみ） */}
+          {hasOfficialBody&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <button
+                onClick={e=>{e.stopPropagation();setLocalEasy(true);}}
+                style={{flex:1,padding:"6px 0",borderRadius:10,border:`1.5px solid ${localEasy?C.green:C.border}`,background:localEasy?C.green+"22":"transparent",color:localEasy?C.green:C.t3,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                💬 かんたん
+              </button>
+              <button
+                onClick={e=>{e.stopPropagation();setLocalEasy(false);}}
+                style={{flex:1,padding:"6px 0",borderRadius:10,border:`1.5px solid ${!localEasy?C.blue:C.border}`,background:!localEasy?C.blue+"22":"transparent",color:!localEasy?C.blue:C.t3,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                🏛️ 行政語
+              </button>
+            </div>
+          )}
+          <div style={{color:C.t2,fontSize:13,lineHeight:1.7,transition:"opacity .2s"}}>{bodyText}</div>
+        </div>
+
+        {liveData&&(
+          <div style={{background:C.bg2,borderRadius:12,padding:12,border:`1px solid ${C.red}33`,marginBottom:12}}>
+            <div style={{color:C.red,fontWeight:700,fontSize:12,marginBottom:8}}>🔴 AIによる最新情報（{liveData.fetchedAt}取得）</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <div><span style={{color:C.t2,fontSize:11}}>最新の金額・上限：</span><span style={{color:C.t1,fontSize:13,fontWeight:600}}>{liveData.amount}</span></div>
+              <div><span style={{color:C.t2,fontSize:11}}>対象条件：</span><span style={{color:C.t1,fontSize:12}}>{liveData.conditions}</span></div>
+              <div><span style={{color:C.t2,fontSize:11}}>申請期限：</span><span style={{color:C.t1,fontSize:12}}>{liveData.deadline}</span></div>
+              {liveData.changes&&liveData.changes!=="変更なし"&&(
+                <div><span style={{color:C.t2,fontSize:11}}>変更点：</span><span style={{color:C.green,fontSize:12}}>{liveData.changes}</span></div>
+              )}
+              <div style={{color:C.t3,fontSize:10,marginTop:4}}>参照：{liveData.sourceNote}</div>
+            </div>
+          </div>
+        )}
+
+        <div style={{background:C.bg2,borderRadius:12,padding:12,marginBottom:12}}>
+          <div style={{color:C.t2,fontSize:12,marginBottom:4}}>📅 申請期限</div>
+          <div style={{color:C.t1,fontSize:14,fontWeight:600}}>{item.deadline}</div>
+        </div>
+        <div style={{background:C.bg2,borderRadius:12,padding:12,marginBottom:16}}>
+          <div style={{color:C.t2,fontSize:12,marginBottom:4}}>🔔 リマインド</div>
+          <div style={{color:C.t1,fontSize:13}}>{item.reminderLabel}</div>
+        </div>
+
+        {/* 対象確認ミニクイズ（関係あるかも の場合のみ） */}
+        {isNeeds&&currentMissingQ.length>0&&!miniQuiz&&(
+          <button
+            style={{width:"100%",background:"#f0a03022",border:"2px solid #f0a030",borderRadius:12,padding:"12px 16px",marginBottom:12,cursor:"pointer",textAlign:"left"}}
+            onClick={e=>{e.stopPropagation();setMiniQuiz(true);}}>
+            <div style={{color:"#f0a030",fontWeight:700,fontSize:13,marginBottom:4}}>🔍 対象か確認する</div>
+            <div style={{color:C.t2,fontSize:12}}>あと{currentMissingQ.length}問答えると対象かどうかわかります</div>
+          </button>
+        )}
+        {isNeeds&&miniQuiz&&(
+          <div style={{background:C.bg2,borderRadius:12,padding:14,marginBottom:12,border:`2px solid #f0a030`}}>
+            <div style={{color:"#f0a030",fontWeight:700,fontSize:13,marginBottom:10}}>🔍 対象か確認する</div>
+            {currentMissingQ.map(q=>(
+              <div key={q.key} style={{marginBottom:12}}>
+                <div style={{color:C.t1,fontSize:13,fontWeight:600,marginBottom:6}}>{q.label}は？</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {q.opts.map(v=>(
+                    <button key={v}
+                      style={{...S.btn(miniAnswers[q.key]===v?C.blue:C.bg3,true),border:`1px solid ${miniAnswers[q.key]===v?C.blue:C.border}`,fontSize:12}}
+                      onClick={e=>{e.stopPropagation();setMiniAnswers(a=>({...a,[q.key]:v}));}}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {allAnswered&&nowCertain&&(
+              <div style={{background:C.green+"22",borderRadius:10,padding:12,border:`1px solid ${C.green}44`,marginTop:4}}>
+                <div style={{color:C.green,fontWeight:700,fontSize:14,marginBottom:4}}>✅ 対象です！</div>
+                <div style={{color:C.t2,fontSize:12,marginBottom:8}}>この制度はあなたが対象です。</div>
+                <button style={{width:"100%",...S.btn(C.green,true),fontSize:12,fontWeight:700}}
+                  onClick={e=>{e.stopPropagation();setProfile(p=>({...p,...miniAnswers}));}}>
+                  ✓ プロフィールに反映する
+                </button>
+              </div>
+            )}
+            {allAnswered&&nowExcluded&&(
+              <div style={{background:C.red+"22",borderRadius:10,padding:12,border:`1px solid ${C.red}44`,marginTop:4}}>
+                <div style={{color:C.red,fontWeight:700,fontSize:14,marginBottom:4}}>❌ 対象外です</div>
+                <div style={{color:C.t1,fontSize:13,marginBottom:6}}>{getExclusionReason(item,mergedProfile)}</div>
+                {getEligibilityHint(item,mergedProfile)&&(
+                  <div style={{color:C.t2,fontSize:12,marginBottom:8,lineHeight:1.5}}>💡 {getEligibilityHint(item,mergedProfile)}</div>
+                )}
+                <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,marginBottom:6}}
+                  onClick={e=>{e.stopPropagation();setProfile(p=>({...p,...miniAnswers}));}}>
+                  ✓ プロフィールに反映する
+                </button>
+                <div style={{display:"flex",gap:8}}>
+                  <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12}} onClick={e=>e.stopPropagation()}>表示を残す</button>
+                  <button style={{flex:1,...S.btn(C.red,true),fontSize:12}} onClick={e=>{e.stopPropagation();setProfile(p=>({...p,...miniAnswers}));onHide&&onHide(item.id);onClose();}}>非表示にする</button>
+                </div>
+              </div>
+            )}
+            {allAnswered&&!nowCertain&&!nowExcluded&&(
+              <div style={{background:C.bg3,borderRadius:10,padding:12,marginTop:4}}>
+                <div style={{color:"#f0a030",fontWeight:700,fontSize:13,marginBottom:4}}>🔶 引き続き関係あるかもしれません</div>
+                <div style={{color:C.t2,fontSize:12,marginBottom:8}}>他の条件によって変わります。公式サイトでご確認ください。</div>
+                <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12}}
+                  onClick={e=>{e.stopPropagation();setProfile(p=>({...p,...miniAnswers}));}}>
+                  ✓ プロフィールに反映する
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {isNeeds&&!miniQuiz&&currentMissingQ.length===0&&(
+          <div style={{background:C.bg2,borderRadius:12,padding:12,marginBottom:12,border:`1px solid ${C.green}44`}}>
+            <div style={{color:C.green,fontSize:12,fontWeight:700}}>✅ プロフィール情報は十分です。ホームの表示を確認してください。</div>
+          </div>
+        )}
+
+
+        <a
+          href={targetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={e=>e.stopPropagation()}
+          style={{
+            display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+            width:"100%",
+            background:fetching?C.bg3:C.blue,
+            color:"#fff",
+            padding:"14px",borderRadius:12,fontWeight:700,fontSize:15,
+            marginBottom:10,textDecoration:"none",
+            pointerEvents:fetching?"none":"auto",
+            opacity:fetching?0.6:1,
+            transition:"background .3s,opacity .3s",
+          }}>
+          {fetching?(
+            <><div style={{width:14,height:14,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+            最新ページを検索中…</>
+          ):(
+            fetchedUrl
+              ? <>🔗 公式ページを開く</>
+              : <>🔍 公式ページを検索する</>
+          )}
+        </a>
+        {!fetching&&(
+          <div style={{color:C.t3,fontSize:10,textAlign:"center",marginBottom:12}}>
+            {fetchedUrl?"✓ AIが最新URLを取得しました":"公式サイト内を検索します"}
+          </div>
+        )}
+        {/* いいね・リマインドボタン */}
+        {onLike&&onRemind&&(
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <button
+              style={{flex:1,...S.btn(liked&&liked.includes(item.id)?C.red+"33":C.bg3,true),border:`1px solid ${liked&&liked.includes(item.id)?C.red:C.border}`,padding:"10px"}}
+              onClick={e=>{e.stopPropagation();onLike(item.id);}}>
+              {liked&&liked.includes(item.id)?"❤️ いいね済み":"🤍 いいね"}
+            </button>
+            <button
+              style={{flex:1,...S.btn(reminded&&reminded.includes(item.id)?C.blue+"33":C.bg3,true),border:`1px solid ${reminded&&reminded.includes(item.id)?C.blue:C.border}`,padding:"10px"}}
+              onClick={e=>{e.stopPropagation();onRemind(item.id);}}>
+              {reminded&&reminded.includes(item.id)?"🔔 リマインド済":"🔕 リマインド"}
+            </button>
+          </div>
+        )}
+        {/* 申請済み・利用済みボタン */}
+        {onDone&&(
+          done&&done.includes(item.id)?(
+            <div style={{background:C.green+"22",borderRadius:12,padding:"10px 14px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{color:C.green,fontWeight:700,fontSize:13}}>✅ 申請済み・利用済み</span>
+              <button style={{background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer"}} onClick={e=>{e.stopPropagation();onDone(item.id,"undo");}}>取消</button>
+            </div>
+          ):(
+            <>
+              <button
+                style={{width:"100%",background:C.bg3,border:`1px solid ${C.green}66`,borderRadius:12,padding:"12px",marginBottom:showRepeatConfirm?6:10,cursor:"pointer",color:C.green,fontWeight:700,fontSize:13}}
+                onClick={e=>{e.stopPropagation();REPEATABLE_IDS.has(item.id)?setShowRepeatConfirm(true):onDone(item.id,"done");}}>
+                ✅ 申請済み・利用済みにする
+              </button>
+              {showRepeatConfirm&&(
+                <div style={{background:C.bg2,borderRadius:12,padding:12,marginBottom:10,border:`1px solid ${C.green}44`}}>
+                  <div style={{color:C.t1,fontSize:13,marginBottom:8}}>🔄 この制度は複数回使えます。利用済みとして非表示にしますか？</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button style={{flex:1,...S.btn(C.green,true),fontSize:12}} onClick={e=>{e.stopPropagation();onDone(item.id,"done");onClose();}}>非表示にする</button>
+                    <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12}} onClick={e=>{e.stopPropagation();onDone(item.id,"keep");setShowRepeatConfirm(false);}}>表示を残す</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        )}
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button style={{...S.btn(C.bg3),flex:1,border:`1px solid ${C.border}`}} onClick={onClose}>閉じる</button>
+          <button style={{background:"none",border:`1px solid ${C.t3}44`,borderRadius:10,padding:"10px 14px",cursor:"pointer",color:C.t3,fontSize:12,whiteSpace:"nowrap",flexShrink:0}}
+            onClick={e=>{e.stopPropagation();onHide&&onHide(item.id);onClose();}}>
+            関係ない
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BannerModal({banner,onClose}){
+  return (
+    <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",zIndex:120,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"70%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+        <div style={{color:C.t1,fontWeight:700,fontSize:16,marginBottom:16}}>💰 あなたが得られる金額の内訳</div>
+        <div style={{display:"flex",gap:12,marginBottom:16}}>
+          <div style={{flex:1,background:C.blue+"22",borderRadius:12,padding:12,textAlign:"center"}}>
+            <div style={{color:C.t2,fontSize:11}}>現金給付（確実）</div>
+            <div style={{color:C.blue,fontWeight:700,fontSize:18,marginTop:4}}>{fmt(banner.cash)}</div>
+          </div>
+          <div style={{flex:1,background:C.green+"22",borderRadius:12,padding:12,textAlign:"center"}}>
+            <div style={{color:C.t2,fontSize:11}}>節約（確実）</div>
+            <div style={{color:C.green,fontWeight:700,fontSize:18,marginTop:4}}>{fmt(banner.savings)}</div>
+          </div>
+        </div>
+        <div style={{background:C.bg2,borderRadius:12,padding:12,marginBottom:16}}>
+          <div style={{color:C.t2,fontSize:12,marginBottom:4}}>条件次第の可能性額</div>
+          <div style={{color:C.purple,fontWeight:700,fontSize:18}}>{fmt(banner.potential)}</div>
+          <div style={{color:C.t3,fontSize:11,marginTop:4}}>プロフィールを充実させるとあなたが実際に得られる額がわかります</div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button style={{...S.btn(C.bg3),flex:1,border:`1px solid ${C.border}`}} onClick={onClose}>閉じる</button>
+          <button style={{background:"none",border:`1px solid ${C.t3}44`,borderRadius:10,padding:"10px 14px",cursor:"pointer",color:C.t3,fontSize:12,whiteSpace:"nowrap",flexShrink:0}}
+            onClick={e=>{e.stopPropagation();onHide&&onHide(item.id);onClose();}}>
+            関係ない
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── TutorialOverlay: かんたん/行政モード体験 ─── */
+function TutorialOverlay({onSwitch, onClose, item}){
+  const [isEasy, setIsEasy] = useState(false);
+  const [fading, setFading] = useState(false);
+
+  const adminText = item?.officialBody || item?.body || "";
+  const easyText  = item?.body || "";
+
+  const handleToggle = () => {
+    setFading(true);
+    setTimeout(()=>{
+      setIsEasy(e => !e);
+      setFading(false);
+    }, 200);
+  };
+
+  const handleDone = () => {
+    onSwitch(isEasy);
+    onClose();
+  };
+
+  return (
+    <div style={{
+      position:"absolute", inset:0, zIndex:300,
+      background:"rgba(0,0,0,.78)",
+      display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"flex-end",
+      animation:"fadeIn .3s ease",
+    }}>
+      <div style={{
+        background:C.bg1, borderRadius:"24px 24px 0 0",
+        padding:"24px 24px 40px", width:"100%",
+        animation:"slideUp .35s cubic-bezier(.22,1,.36,1)",
+      }}>
+        {/* ヘッダー */}
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:4}}>
+          <div>
+            <div style={{color:C.t1, fontWeight:700, fontSize:17, marginBottom:4}}>
+              {isEasy ? "💬 同じ制度が、こう読めます" : "🏛️ これが行政の文章です"}
+            </div>
+            <div style={{color:C.t3, fontSize:12}}>
+              {isEasy ? "AIが行政語をわかりやすく翻訳しています" : "難しい…と思いませんか？"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.t3,fontSize:22,cursor:"pointer",lineHeight:1,flexShrink:0}}>×</button>
+        </div>
+
+        {/* トグル */}
+        <div style={{display:"flex", alignItems:"center", gap:10, margin:"16px 0 12px"}}>
+          <span style={{fontSize:11, color:isEasy?C.t3:C.blue, fontWeight:700}}>行政語</span>
+          <div
+            onClick={handleToggle}
+            style={{
+              width:48, height:26, borderRadius:13,
+              background: isEasy ? C.green : C.blue,
+              cursor:"pointer", position:"relative",
+              transition:"background .3s",
+              flexShrink:0,
+              boxShadow:`0 0 0 3px ${isEasy?C.green:C.blue}44`,
+            }}>
+            <div style={{
+              position:"absolute", top:3,
+              left: isEasy ? 25 : 3,
+              width:20, height:20, borderRadius:10,
+              background:"#fff",
+              transition:"left .3s cubic-bezier(.22,1,.36,1)",
+              boxShadow:"0 1px 4px rgba(0,0,0,.3)",
+            }}/>
+          </div>
+          <span style={{fontSize:11, color:isEasy?C.green:C.t3, fontWeight:700}}>かんたん</span>
+          {!isEasy && <span style={{fontSize:11, color:"#f0a030", marginLeft:4, animation:"pulse 1.5s ease infinite"}}>← 試してみて！</span>}
+        </div>
+
+        {/* 本文 */}
+        <div style={{
+          background:C.bg2, borderRadius:14, padding:"14px 16px", marginBottom:20,
+          color: isEasy ? C.t1 : C.t2,
+          fontSize:13, lineHeight:1.7,
+          height:160, overflowY:"auto",
+          border:`2px solid ${isEasy ? C.green+"66" : C.blue+"33"}`,
+          opacity: fading ? 0 : 1,
+          transition:"opacity .2s ease, border-color .4s, color .3s",
+          wordBreak:"break-all",
+        }}>
+          {isEasy ? easyText : adminText}
+        </div>
+
+        {/* CTAボタン */}
+        <button
+          onClick={handleDone}
+          style={{
+            width:"100%",
+            background: isEasy ? C.green : C.bg3,
+            color: isEasy ? "#fff" : C.t3,
+            border:`2px solid ${isEasy ? C.green : C.border}`,
+            borderRadius:16, padding:"16px",
+            fontSize:15, fontWeight:700, cursor:"pointer",
+            transition:"background .3s, color .3s, border-color .3s",
+            boxShadow: isEasy ? `0 4px 16px ${C.green}44` : "none",
+          }}>
+          {isEasy ? "✨ このモードでホームを見る →" : "このまま行政語で続ける"}
+        </button>
+
+        <div style={{color:C.t3, fontSize:11, textAlign:"center", marginTop:12}}>
+          あとから右上のスイッチでいつでも切り替えできます
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,onDone,done,items,liveData,easy,onGoProfile,revealMode}){
+  const [detail,setDetail]=useState(null);
+  const [showBanner,setShowBanner]=useState(false);
+  const [hideConfirm,setHideConfirm]=useState(null);
+  const [repeatConfirmItem,setRepeatConfirmItem]=useState(null);
+  const [expanded,setExpanded]=useState(false);
+  const [revealed,setRevealed]=useState(!revealMode); // revealModeならfalseスタート
+  const banner=calcBanner(profile,items,done,hidden);
+
+  // revealMode時：マウント後すぐにtrueにしてアニメ開始、expandedは必ずfalse
+  useEffect(()=>{
+    if(revealMode){
+      setExpanded(false);
+      const t=setTimeout(()=>setRevealed(true),80);
+      return()=>clearTimeout(t);
+    }
+  },[]);
+
+  const getScore=(it)=>{
+    const el=ELIGIBILITY[it.id];
+    const baseScore=el?calcEligibility(profile,el).matchScore:it.match(profile);
+    // certainな場合でも属性の関連度でさらに差をつける
+    if(getConfidence(it,profile)==="certain"){
+      // 金額が大きいほど上位
+      const cashVal=it.subsidy(profile)||0;
+      const potVal=it.potentialSubsidy||0;
+      const moneyScore=Math.min((cashVal+potVal)/10000,50); // 最大50点
+      // ライフステージに直結する制度を優遇
+      let relevance=0;
+      if(it.tag==="子育て"&&profile.hasKids==="いる（または予定あり）") relevance+=20;
+      if(it.tag==="キャリア"&&(profile.stage==="社会人（会社員）"||profile.stage==="育休・産休中")) relevance+=15;
+      if(it.tag==="教育"&&profile.stage==="学生") relevance+=20;
+      if(it.tag==="健康"&&age(profile)!==null&&age(profile)>=60) relevance+=15;
+      if(it.tag==="住まい"&&isOwner(profile)) relevance+=15;
+      return 100+moneyScore+relevance;
+    }
+    return baseScore;
+  };
+  const allVisible=items
+    .filter(it=>!hidden.includes(it.id)&&getConfidence(it,profile)!=="none")
+    .sort((a,b)=>{
+      // 利用済みは最下位
+      const da=done.includes(a.id)?1:0;
+      const db=done.includes(b.id)?1:0;
+      if(da!==db) return da-db;
+      const ca=getConfidence(a,profile)==="certain"?0:1;
+      const cb=getConfidence(b,profile)==="certain"?0:1;
+      if(ca!==cb) return ca-cb;
+      return getScore(b)-getScore(a);
+    });
+
+  const featured=allVisible.slice(0,3);
+  const rest=allVisible.slice(3);
+
+  const CardItem=({it, index=0, animate=true})=>{
+    const conf=getConfidence(it,profile);
+    const isCertain=conf==="certain";
+    const amount=it.subsidy(profile);
+    const isDone=done&&done.includes(it.id);
+    const isLiked=liked&&liked.includes(it.id);
+    // revealMode: featuredのみアニメ（animate=trueのとき）
+    const delay = (revealMode && animate) ? `${index * 80}ms` : "0ms";
+    const cardAnim = (revealMode && animate)
+      ? { opacity: revealed ? 1 : 0, transform: revealed ? "translateY(0)" : "translateY(-28px)", transition: `opacity .45s ease ${delay}, transform .45s cubic-bezier(.22,1,.36,1) ${delay}` }
+      : {};
+    return (
+      <div style={{background:isDone?C.bg2+"88":C.bg2,borderRadius:16,padding:"12px 14px",marginBottom:8,border:`1px solid ${isDone?"#ffffff11":isCertain?C.green+"44":"#f0a03033"}`,cursor:"pointer",opacity:isDone?0.6:1,...cardAnim}} onClick={()=>setDetail(it)}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:26,flexShrink:0,filter:isDone?"grayscale(1)":"none"}}>{it.icon}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",gap:5,marginBottom:3,flexWrap:"wrap"}}>
+              {isDone&&<span style={{background:"#ffffff11",color:C.t3,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>✅ 済み</span>}
+              {!isDone&&<span style={S.tag(it.color)}>{it.gov}</span>}
+              {!isDone&&<span style={{background:isCertain?C.green+"22":"#f0a03022",color:isCertain?C.green:"#f0a030",borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                {isCertain?"✅ 対象確実":"🔶 関係あるかも"}
+              </span>}
+            </div>
+            <div style={{color:isDone?C.t3:C.t1,fontWeight:700,fontSize:13}}>{easy?(it.title):(it.officialName||it.title)}</div>
+            {!isDone&&isCertain&&amount>0&&<div style={{color:it.subsidyType==="cash"?C.blue:C.green,fontWeight:700,fontSize:13,marginTop:2}}>{it.subsidyType==="savings"?"💚 ":"💙 "}{it.subsidyLabel(profile)}</div>}
+            {!isDone&&!isCertain&&it.potentialSubsidy>0&&<div style={{color:"#f0a030",fontSize:12,marginTop:2}}>最大 {fmt(it.potentialSubsidy)}</div>}
+          </div>
+          {/* いいね・利用済みボタン */}
+          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}} onClick={e=>e.stopPropagation()}>
+            <button
+              style={{background:isLiked?C.red+"22":"none",border:`1px solid ${isLiked?C.red:C.border}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:14,lineHeight:1}}
+              onClick={()=>onLike(it.id)}>
+              {isLiked?"❤️":"🤍"}
+            </button>
+            <button
+              style={{background:isDone?C.green+"22":"none",border:`1px solid ${isDone?C.green:C.border}`,borderRadius:8,padding:"4px 6px",cursor:"pointer",fontSize:10,color:isDone?C.green:C.t3,lineHeight:1.3,fontWeight:600,whiteSpace:"nowrap"}}
+              onClick={()=>{
+                if(isDone){ onDone(it.id,"undo"); }
+                else if(REPEATABLE_IDS.has(it.id)){ setRepeatConfirmItem(it); }
+                else{ onDone(it.id,"done"); }
+              }}>
+              {isDone?"✅ 済み":"申請済\nにする"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+      {/* バナー */}
+      <div style={{background:`linear-gradient(135deg,${C.bg2},${C.bg3})`,borderRadius:16,padding:"12px 16px",marginBottom:12,border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>setShowBanner(true)}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{color:C.t3,fontSize:10,marginBottom:3}}>あなたが受け取れる年間総額（確実分）</div>
+            <div style={{display:"flex",gap:16,alignItems:"center"}}>
+              <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+                <span style={{color:C.t3,fontSize:10}}>給付</span>
+                <span style={{color:C.blue,fontWeight:700,fontSize:18}}>{fmt(banner.cash)}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+                <span style={{color:C.t3,fontSize:10}}>節約</span>
+                <span style={{color:C.green,fontWeight:700,fontSize:18}}>{fmt(banner.savings)}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{color:C.t3,fontSize:20}}>›</div>
+        </div>
+      </div>
+
+      {/* おすすめ3件 */}
+      <div style={{color:C.t2,fontSize:11,fontWeight:600,marginBottom:8}}>✨ あなたへのおすすめ</div>
+      {featured.map((it,i)=><CardItem key={it.id} it={it} index={i}/>)}
+
+      {/* 展開ボタン or 展開後のリスト */}
+      {rest.length>0&&!expanded&&(
+        <button
+          style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"11px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:4}}
+          onClick={()=>setExpanded(true)}>
+          <span style={{color:C.t2,fontSize:13,fontWeight:600}}>他 {rest.length}件の制度を見る</span>
+          <span style={{color:C.t3,fontSize:13}}>↓</span>
+        </button>
+      )}
+      {expanded&&<>
+        <button
+          style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:11,cursor:"pointer",padding:"4px",marginBottom:4,textAlign:"center"}}
+          onClick={()=>setExpanded(false)}>
+          ↑ 折りたたむ
+        </button>
+        <div style={{color:C.t3,fontSize:11,fontWeight:600,marginBottom:8}}>その他の制度</div>
+        {rest.map((it,i)=><CardItem key={it.id} it={it} index={i+3} animate={false}/>)}
+        <button
+          style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer",padding:"8px",marginTop:4}}
+          onClick={()=>setExpanded(false)}>
+          ↑ 折りたたむ
+        </button>
+      </>}
+
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy}/>}
+
+      {/* 繰り返し使える制度の確認ポップ */}
+      {repeatConfirmItem&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setRepeatConfirmItem(null)}>
+          <div style={{background:C.bg1,borderRadius:20,padding:20,width:"100%",maxWidth:380}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:32,textAlign:"center",marginBottom:8}}>{repeatConfirmItem.icon}</div>
+            <div style={{color:C.t1,fontWeight:700,fontSize:15,textAlign:"center",marginBottom:6}}>{repeatConfirmItem.title}</div>
+            <div style={{color:C.t2,fontSize:13,textAlign:"center",marginBottom:16,lineHeight:1.6}}>
+              🔄 この制度は複数回使えます。<br/>利用済みとして非表示にしますか？
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button style={{flex:1,...S.btn(C.green),fontSize:13,fontWeight:700}}
+                onClick={()=>{onDone(repeatConfirmItem.id,"done");setRepeatConfirmItem(null);}}>
+                非表示にする
+              </button>
+              <button style={{flex:1,...S.btn(C.bg3),border:`1px solid ${C.border}`,fontSize:13}}
+                onClick={()=>{onDone(repeatConfirmItem.id,"keep");setRepeatConfirmItem(null);}}>
+                表示を残す
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showBanner&&<BannerModal banner={banner} onClose={()=>setShowBanner(false)}/>}
+      {hideConfirm&&(
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)",zIndex:130,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{background:C.bg1,borderRadius:20,padding:20,width:"100%"}}>
+            <div style={{color:C.t1,fontWeight:700,marginBottom:8}}>この情報を非表示にしますか？</div>
+            <div style={{color:C.t2,fontSize:13,marginBottom:16}}>「プロフィール」タブから復元できます</div>
+            <div style={{display:"flex",gap:8}}>
+              <button style={{flex:1,...S.btn(C.red)}} onClick={()=>{onHide(hideConfirm);setHideConfirm(null);}}>非表示にする</button>
+              <button style={{flex:1,...S.btn(C.bg3),border:`1px solid ${C.border}`}} onClick={()=>setHideConfirm(null)}>キャンセル</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotifTab({liked,reminded,done,onLike,onRemind,onUndone,onDone,items,liveData,profile,setProfile,onHide}){
+  const [seg,setSeg]=useState("liked");
+  const [detail,setDetail]=useState(null);
+  const likedItems=items.filter(it=>liked.includes(it.id));
+  const remItems=items.filter(it=>reminded.includes(it.id));
+  const doneItems=items.filter(it=>done.includes(it.id));
+
+  const ItemRow=({it,showRemind})=>(
+    <div style={{...S.card,cursor:"pointer"}} onClick={()=>setDetail(it)}>
+      <div style={{display:"flex",gap:12,alignItems:"center"}}>
+        <div style={{fontSize:24,flexShrink:0}}>{it.icon}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:C.t1,fontWeight:700,fontSize:13}}>{it.title}</div>
+          <div style={{color:C.t2,fontSize:12,marginTop:2}}>{it["catchText"]||it["catch"]}</div>
+          {showRemind&&<>
+            <div style={{color:C.blue,fontSize:11,marginTop:2}}>📅 {it.deadline}</div>
+            <div style={{color:C.t2,fontSize:11,marginTop:1}}>💡 {it.reminderLabel}</div>
+          </>}
+          {liveData[it.id]&&<div style={{color:C.red,fontSize:11,marginTop:4}}>🔴 {liveData[it.id].amount}</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+          <button style={{...S.btn(liked.includes(it.id)?C.red+"33":C.bg3,true),border:`1px solid ${liked.includes(it.id)?C.red:C.border}`,fontSize:16,padding:"4px 8px"}}
+            onClick={e=>{e.stopPropagation();onLike(it.id);}}>
+            {liked.includes(it.id)?"❤️":"🤍"}
+          </button>
+          <button style={{...S.btn(reminded.includes(it.id)?C.blue+"33":C.bg3,true),border:`1px solid ${reminded.includes(it.id)?C.blue:C.border}`,fontSize:16,padding:"4px 8px"}}
+            onClick={e=>{e.stopPropagation();onRemind(it.id);}}>
+            {reminded.includes(it.id)?"🔔":"🔕"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{display:"flex",gap:6,padding:"12px 16px 0",flexShrink:0}}>
+        {[["liked",`❤️ ${likedItems.length}`],["remind",`🔔 ${remItems.length}`],["done",`✅ ${doneItems.length}`]].map(([v,l])=>(
+          <button key={v} style={{flex:1,...S.btn(seg===v?C.blue:C.bg3,true),border:`1px solid ${seg===v?C.blue:C.border}`,fontSize:12}} onClick={()=>setSeg(v)}>{l}</button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"12px 16px 16px"}}>
+        {seg==="liked"&&<>
+          {likedItems.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:40}}>まだいいねした制度がありません</div>}
+          {likedItems.map(it=><ItemRow key={it.id} it={it} showRemind={false}/>)}
+        </>}
+        {seg==="remind"&&<>
+          {remItems.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:40}}>リマインドした制度がありません</div>}
+          {remItems.map(it=><ItemRow key={it.id} it={it} showRemind={true}/>)}
+        </>}
+        {seg==="done"&&<>
+          {doneItems.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:40}}>申請済み・利用済みの制度がありません</div>}
+          {doneItems.map(it=>(
+            <div key={it.id} style={{...S.card}}>
+              <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                <div style={{fontSize:24,flexShrink:0}}>{it.icon}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>{it.title}</div>
+                  <div style={{color:C.green,fontSize:12,marginTop:2}}>✅ 申請済み・利用済み</div>
+                  {REPEATABLE_IDS.has(it.id)&&<div style={{color:C.t3,fontSize:11,marginTop:2}}>🔄 繰り返し利用可能</div>}
+                </div>
+                <button style={{...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:11,color:C.t3,flexShrink:0,padding:"6px 10px"}}
+                  onClick={e=>{e.stopPropagation();onUndone(it.id);}}>
+                  取消
+                </button>
+              </div>
+            </div>
+          ))}
+        </>}
+      </div>
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide&&onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={false}/>}
+    </div>
+  );
+}
+
+
+
+const FESTIVAL_RADIUS_OPTS=[1200,3000,999999];
+const FIREWORKS_RADIUS_OPTS=[3000,5000,10000];
+
+function FestivalTab({festivalSettings,onChangeRadius,festivalNotified,onToggleNotify}){
+  const [filter,setFilter]=useState("all");
+  const [sort,setSort]=useState("date");
+  const [detail,setDetail]=useState(null);
+  const [showReminded,setShowReminded]=useState(false);
+  const [showSortPop,setShowSortPop]=useState(null);
+  if(!festivalSettings) return <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.t3}}>設定情報がありません</div>;
+
+  const {coords,town,radius,fireworksRadius}=festivalSettings;
+  const curRadius=filter==="fireworks"?fireworksRadius:radius;
+  const radiusOpts=filter==="fireworks"?FIREWORKS_RADIUS_OPTS:FESTIVAL_RADIUS_OPTS;
+
+  const baseCoords = coords || (() => {
+    const townName = typeof town==="object" ? town.name : town;
+    const found = TOWN_COORDS.find(t=>townName&&townName.includes(t.name));
+    return found ? {lat:found.lat,lng:found.lng} : null;
+  })();
+
+  // 月/日を数値化してソート（例: "8/23〜24" → 823）
+  const dateNum=(d)=>{ const m=d.match(/(\d+)\/(\d+)/); return m?parseInt(m[1])*100+parseInt(m[2]):9999; };
+
+  const filtered=[...FESTIVALS_DB]
+    .filter(f=>{
+      if(filter==="festival"&&f.type!=="festival") return false;
+      if(filter==="fireworks"&&f.type!=="fireworks") return false;
+      if(curRadius===999999) return true;
+      if(!baseCoords) return true;
+      return calcDist(baseCoords.lat,baseCoords.lng,f.lat,f.lng)<=curRadius;
+    })
+    .sort((a,b)=>{
+      if(sort==="dist"&&baseCoords){
+        return calcDist(baseCoords.lat,baseCoords.lng,a.lat,a.lng)
+             - calcDist(baseCoords.lat,baseCoords.lng,b.lat,b.lng);
+      }
+      return dateNum(a.date)-dateNum(b.date);
+    });
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+      <div style={{background:C.bg2,borderRadius:14,padding:12,marginBottom:12,border:`1px solid ${C.border}`}}>
+        <div style={{color:C.t2,fontSize:11}}>📍 エリア：{typeof town==="object"?town.name:town} · {radiusLabel(curRadius)}</div>
+      </div>
+
+      {/* リマインド済み一覧ページ */}
+      {showReminded&&(
+        <div style={{position:"fixed",inset:0,background:C.bg0,zIndex:200,display:"flex",flexDirection:"column"}}>
+          <div style={{padding:"52px 16px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+            <button style={{background:"none",border:"none",color:C.blue,fontSize:14,cursor:"pointer",fontWeight:700}} onClick={()=>setShowReminded(false)}>← 戻る</button>
+            <span style={{color:C.t1,fontWeight:700,fontSize:15}}>🔔 リマインド済み（{festivalNotified.length}件）</span>
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}>
+            {festivalNotified.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:40}}>リマインドしたお祭り・花火がありません</div>}
+            {FESTIVALS_DB.filter(f=>festivalNotified.includes(f.id)).map(f=>(
+              <div key={f.id}
+                style={{background:C.bg2,borderRadius:14,padding:"12px 14px",marginBottom:8,border:`1px solid ${C.blue}44`,display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}
+                onClick={()=>{setShowReminded(false);setDetail(f);}}>
+                <div style={{fontSize:24,flexShrink:0}}>{f.type==="fireworks"?"🎆":"🎪"}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>{f.name}</div>
+                  <div style={{color:C.t2,fontSize:11,marginTop:2}}>{f.area} · {f.date}</div>
+                </div>
+                <button
+                  style={{background:C.blue+"22",border:`1px solid ${C.blue}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",color:C.blue,fontSize:11,flexShrink:0}}
+                  onClick={e=>{e.stopPropagation();onToggleNotify(f.id);}}>
+                  解除
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 並び順ポップ */}
+      {showSortPop==="sort"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}} onClick={()=>setShowSortPop(null)}>
+          <div style={{background:C.bg1,borderRadius:"20px 20px 0 0",padding:"20px 20px 36px",width:"100%"}} onClick={e=>e.stopPropagation()}>
+            <div style={{color:C.t1,fontWeight:700,fontSize:14,marginBottom:14}}>並び順</div>
+            <div style={{display:"flex",gap:8}}>
+              {[["date","📅 日付順"],["dist","📍 距離順"]].map(([v,l])=>(
+                <button key={v} style={{flex:1,...S.btn(sort===v?C.blue:C.bg3,true),border:`1px solid ${sort===v?C.blue:C.border}`}} onClick={()=>{setSort(v);setShowSortPop(null);}}>{l}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 表示範囲ポップ（お祭り・花火それぞれ） */}
+      {showSortPop==="radius"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}} onClick={()=>setShowSortPop(null)}>
+          <div style={{background:C.bg1,borderRadius:"20px 20px 0 0",padding:"20px 20px 36px",width:"100%"}} onClick={e=>e.stopPropagation()}>
+            <div style={{color:C.t1,fontWeight:700,fontSize:14,marginBottom:16}}>表示範囲</div>
+            <div style={{color:C.t3,fontSize:11,marginBottom:6}}>🎪 お祭り</div>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              {FESTIVAL_RADIUS_OPTS.map(r=>(
+                <button key={r} style={{flex:1,...S.btn(radius===r?C.green:C.bg3,true),border:`1px solid ${radius===r?C.green:C.border}`,fontSize:12}}
+                  onClick={()=>onChangeRadius("radius",r)}>{radiusLabel(r)}</button>
+              ))}
+            </div>
+            <div style={{color:C.t3,fontSize:11,marginBottom:6}}>🎆 花火</div>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              {FIREWORKS_RADIUS_OPTS.map(r=>(
+                <button key={r} style={{flex:1,...S.btn(fireworksRadius===r?C.purple:C.bg3,true),border:`1px solid ${fireworksRadius===r?C.purple:C.border}`,fontSize:12}}
+                  onClick={()=>onChangeRadius("fireworksRadius",r)}>{radiusLabel(r)}</button>
+              ))}
+            </div>
+            <button style={{width:"100%",...S.btn(C.blue),fontWeight:700}} onClick={()=>setShowSortPop(null)}>完了</button>
+          </div>
+        </div>
+      )}
+
+      {/* 1段目：フィルター＋🔔 */}
+      <div style={{display:"flex",gap:6,marginBottom:6}}>
+        {[["all","全て"],["festival","🎪 お祭り"],["fireworks","🎆 花火"]].map(([v,l])=>(
+          <button key={v} style={{flex:1,...S.btn(filter===v?C.blue:C.bg3,true),border:`1px solid ${filter===v?C.blue:C.border}`,fontSize:12}} onClick={()=>setFilter(v)}>{l}</button>
+        ))}
+        <button
+          style={{...S.btn(festivalNotified.length>0?C.blue+"22":C.bg3,true),border:`1px solid ${festivalNotified.length>0?C.blue:C.border}`,padding:"6px 10px",flexShrink:0,position:"relative"}}
+          onClick={()=>setShowReminded(true)}>
+          🔔{festivalNotified.length>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",borderRadius:8,fontSize:9,padding:"1px 4px",fontWeight:700}}>{festivalNotified.length}</span>}
+        </button>
+      </div>
+
+      {/* 2段目：表示範囲・並び順 */}
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        <button style={{flex:3,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12}} onClick={()=>setShowSortPop("radius")}>
+          📍 表示範囲：{radiusLabel(curRadius)}
+        </button>
+        <button style={{flex:2,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12}} onClick={()=>setShowSortPop("sort")}>
+          {sort==="date"?"📅 日付順":"📍 距離順"}
+        </button>
+      </div>
+
+      {filtered.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:32}}>条件に合うイベントがありません</div>}
+      {filtered.map(f=>{
+        const dist=baseCoords?Math.round(calcDist(baseCoords.lat,baseCoords.lng,f.lat,f.lng)):null;
+        const notified=festivalNotified.includes(f.id);
+        return (
+          <div key={f.id} style={{...S.card,cursor:"pointer"}} onClick={()=>setDetail(f)}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",gap:6,marginBottom:4}}>
+                  <span style={S.tag(f.type==="festival"?C.purple:C.red)}>{f.type==="festival"?"🎪 お祭り":"🎆 花火"}</span>
+                </div>
+                <div style={{color:C.t1,fontWeight:700,fontSize:14}}>{f.name}</div>
+                <div style={{color:C.t2,fontSize:12,marginTop:2}}>📅 {f.date} · {f.area}</div>
+                {dist!==null&&<div style={{color:C.t3,fontSize:11,marginTop:2}}>📍 約{dist<1000?`${dist}m`:`${(dist/1000).toFixed(1)}km`}</div>}
+              </div>
+              <button style={{...S.btn(notified?C.blue:C.bg3,true),border:`1px solid ${notified?C.blue:C.border}`,flexShrink:0}}
+                onClick={e=>{e.stopPropagation();onToggleNotify(f.id);}}>
+                {notified?"🔔":"🔕"}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* 詳細シート - position:fixedで確実にボトムナビの上に表示 */}
+      {detail&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:500,display:"flex",alignItems:"flex-end"}} onClick={()=>setDetail(null)}>
+          <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:40,textAlign:"center",marginBottom:8}}>{detail.type==="festival"?"🎪":"🎆"}</div>
+            <div style={{color:C.t1,fontWeight:700,fontSize:18,textAlign:"center",marginBottom:4}}>{detail.name}</div>
+            <div style={{color:C.t2,fontSize:13,textAlign:"center",marginBottom:16}}>📅 {detail.date} · {detail.area}</div>
+            {baseCoords&&(
+              <div style={{background:C.bg2,borderRadius:12,padding:12,marginBottom:12,textAlign:"center"}}>
+                <div style={{color:C.t2,fontSize:12}}>現在地からの距離</div>
+                <div style={{color:C.t1,fontWeight:700,fontSize:18,marginTop:4}}>
+                  {(()=>{const d=Math.round(calcDist(baseCoords.lat,baseCoords.lng,detail.lat,detail.lng));return d<1000?`約${d}m`:`約${(d/1000).toFixed(1)}km`;})()}
+                </div>
+              </div>
+            )}
+            <a
+              href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(detail.name+" "+detail.area+" 東京")}
+              target="_blank" rel="noreferrer"
+              onClick={e=>e.stopPropagation()}
+              style={{display:"block",background:C.blue,color:"#fff",textAlign:"center",padding:"12px",borderRadius:12,fontWeight:700,fontSize:14,marginBottom:8,textDecoration:"none"}}>
+              🗺️ Google Mapsで開く
+            </a>
+            <a
+              href={"https://www.google.com/search?q="+encodeURIComponent(detail.name+" "+detail.date+" "+detail.area)}
+              target="_blank" rel="noreferrer"
+              onClick={e=>e.stopPropagation()}
+              style={{display:"block",background:C.bg2,color:C.t1,textAlign:"center",padding:"12px",borderRadius:12,fontWeight:700,fontSize:14,marginBottom:10,textDecoration:"none",border:`1px solid ${C.border}`}}>
+              🔍 Google で検索
+            </a>
+            <button style={{...S.btn(C.bg3),width:"100%",border:`1px solid ${C.border}`}} onClick={()=>setDetail(null)}>閉じる</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PROFILE_FIELDS=[
+  {key:"ageNum",  label:"年齢",           emoji:"🎂", inputType:"number"},
+  {key:"stage",   label:"ライフステージ", emoji:"💼", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"]},
+  {key:"studentLevel", label:"学校種別（学生のみ）", emoji:"🎒", studentOnly:true, opts:["小学生","中学生","高校生","大学生・専門学生"]},
+  {key:"hasKids", label:"子どもの有無",   emoji:"👶", opts:["いる（または予定あり）","いない"]},
+  {key:"town",    label:"居住エリア",     emoji:"📍", opts:["麻布・元麻布・麻布十番","青山・赤坂","六本木・西麻布","芝・三田","高輪・白金","港南・芝浦","その他（港区内）"]},
+  {key:"housing", label:"住居形態",       emoji:"🏠", opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
+  {key:"income",  label:"世帯年収",       emoji:"💰", opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
+  {key:"kidsAge", label:"子の年齢（最年少）", emoji:"🧒", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
+  {key:"gender",  label:"性別",           emoji:"🪪", opts:["男性","女性","その他・回答しない"]},
+  {key:"marital", label:"婚姻状況",       emoji:"💍", opts:["未婚","既婚","離婚・死別"]},
+  {key:"disability", label:"障がいの有無",emoji:"♿", opts:["あり","なし","回答しない"]},
+];
+
+function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,darkMode,setDarkMode}){
+  const [showHiddenList,setShowHiddenList]=useState(false);
+  const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
+  // 申請済み（done）で消えたものはプロフィールの非表示欄に出さない
+  const trueHidden=(hidden||[]).filter(id=>!(done||[]).includes(id));
+  const [sheet,setSheet]=useState(null);
+  const [numInput,setNumInput]=useState("");
+  const [numError,setNumError]=useState("");
+
+  const visible=PROFILE_FIELDS.filter(f=>!f.studentOnly||profile.stage==="学生");
+  const filled=visible.filter(f=>profile[f.key]!==undefined&&profile[f.key]!==null&&profile[f.key]!=="").length;
+  const pct=Math.round((filled/visible.length)*100);
+
+  const openSheet=(f)=>{ setSheet(f); setNumInput(f.key==="ageNum"&&profile.ageNum?String(profile.ageNum):""); setNumError(""); };
+
+  const displayValue=(f)=>{
+    const v=profile[f.key];
+    if(v===undefined||v===null||v==="") return "未設定";
+    if(f.key==="ageNum") return `${v}歳`;
+    return String(v);
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+      <div style={{background:C.bg2,borderRadius:14,padding:12,marginBottom:12,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{color:C.t1,fontWeight:700,fontSize:14}}>プロフィール完成度</span>
+          <span style={{color:C.blue,fontWeight:700}}>{pct}%</span>
+        </div>
+        <div style={{background:C.bg3,borderRadius:4,height:6}}>
+          <div style={{background:C.blue,height:6,borderRadius:4,width:`${pct}%`,transition:"width .4s"}}/>
+        </div>
+      </div>
+      {/* 非表示一覧ページ */}
+      {showHiddenList&&(
+        <div style={{position:"fixed",inset:0,background:C.bg0,zIndex:200,display:"flex",flexDirection:"column"}}>
+          <div style={{padding:"16px 16px 8px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+            <button style={{background:"none",border:"none",color:C.blue,fontSize:14,cursor:"pointer",fontWeight:700}} onClick={()=>setShowHiddenList(false)}>← 戻る</button>
+            <span style={{color:C.t1,fontWeight:700,fontSize:15}}>非表示にした制度（{trueHidden.length}件）</span>
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}>
+            {trueHidden.map(id=>{
+              const it=allItems&&allItems.find(x=>x.id===id);
+              if(!it) return null;
+              return (
+                <div key={id} style={{background:C.bg2,borderRadius:14,padding:"12px 14px",marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{fontSize:24,flexShrink:0,filter:"grayscale(1)"}}>{it.icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{color:C.t2,fontSize:11}}>{it.gov}</div>
+                    <div style={{color:C.t1,fontSize:13,fontWeight:600}}>{it.title}</div>
+                  </div>
+                  <button
+                    style={{...S.btn(C.blue,true),fontSize:12,flexShrink:0}}
+                    onClick={()=>onRestoreOne(id)}>
+                    復元
+                  </button>
+                </div>
+              );
+            })}
+            {trueHidden.length===0&&<div style={{color:C.t3,textAlign:"center",marginTop:40}}>非表示にした制度はありません</div>}
+          </div>
+        <div style={{padding:"12px 16px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+          <button style={{width:"100%",...S.btn(C.bg3),border:`1px solid ${C.border}`,color:C.t2}}
+            onClick={()=>setShowRestoreConfirm(true)}>
+            すべて復元する（{trueHidden.length}件）
+          </button>
+        </div>
+
+        {/* 確認ポップ */}
+        {showRestoreConfirm&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowRestoreConfirm(false)}>
+            <div style={{background:C.bg1,borderRadius:20,padding:20,width:"100%",maxWidth:380}} onClick={e=>e.stopPropagation()}>
+              <div style={{color:C.t1,fontWeight:700,fontSize:15,marginBottom:8,textAlign:"center"}}>すべて復元しますか？</div>
+              <div style={{color:C.t2,fontSize:13,textAlign:"center",marginBottom:16,lineHeight:1.6}}>
+                非表示にした{trueHidden.length}件の制度を<br/>ホームに戻します
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button style={{flex:1,...S.btn(C.blue),fontSize:13,fontWeight:700}}
+                  onClick={()=>{onRestoreAll();setShowHiddenList(false);setShowRestoreConfirm(false);}}>
+                  復元する
+                </button>
+                <button style={{flex:1,...S.btn(C.bg3),border:`1px solid ${C.border}`,fontSize:13}}
+                  onClick={()=>setShowRestoreConfirm(false)}>
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+      )}
+      {visible.map(f=>(
+        <div key={f.key} style={{...S.card,cursor:"pointer"}} onClick={()=>openSheet(f)}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{color:C.t2,fontSize:11}}>{f.emoji} {f.label}</div>
+              <div style={{color:profile[f.key]?C.t1:C.t3,fontSize:14,marginTop:2,fontWeight:profile[f.key]?600:400}}>
+                {displayValue(f)}
+              </div>
+            </div>
+            <div style={{color:C.t3,fontSize:18}}>›</div>
+          </div>
+        </div>
+      ))}
+
+      {/* ボトムシート */}
+      {sheet&&(
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",zIndex:120,display:"flex",alignItems:"flex-end"}} onClick={()=>setSheet(null)}>
+          <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"70%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+            <div style={{color:C.t1,fontWeight:700,fontSize:16,marginBottom:16}}>{sheet.emoji} {sheet.label}</div>
+
+            {/* 数値入力（ageNum） */}
+            {sheet.inputType==="number"&&<>
+              <input
+                type="number" inputMode="numeric" min="1" max="110"
+                value={numInput}
+                onChange={e=>{setNumInput(e.target.value);setNumError("");}}
+                placeholder="例：34"
+                style={{background:C.bg3,border:`2px solid ${numError?C.red:C.blue}`,borderRadius:14,padding:"14px 18px",color:C.t1,fontSize:28,fontWeight:700,textAlign:"center",outline:"none",width:"100%",marginBottom:8}}
+                autoFocus
+              />
+              {numError&&<div style={{color:C.red,fontSize:12,marginBottom:8}}>{numError}</div>}
+              <button style={{...S.btn(C.blue),width:"100%"}} onClick={()=>{
+                const n=parseInt(numInput,10);
+                if(isNaN(n)||n<1||n>110){setNumError("1〜110の数字を入力してください");return;}
+                setProfile({...profile,[sheet.key]:n});
+                setSheet(null);
+              }}>保存</button>
+            </>}
+
+            {/* 選択肢（opts） */}
+            {sheet.opts&&sheet.opts.map(v=>(
+              <button key={v} style={{...S.btn(profile[sheet.key]===v?C.blue:C.bg3),border:`1px solid ${profile[sheet.key]===v?C.blue:C.border}`,width:"100%",marginBottom:8,textAlign:"left"}}
+                onClick={()=>{
+                  const next={...profile,[sheet.key]:v};
+                  if(sheet.key==="stage"&&v!=="学生") delete next.studentLevel;
+                  setProfile(next);
+                  setSheet(null);
+                }}>
+                {v}
+              </button>
+            ))}
+
+            {/* テキスト入力フォールバック（opts・inputType両方ない項目） */}
+            {!sheet.opts&&!sheet.inputType&&(
+              <div style={{color:C.t2,fontSize:13,marginBottom:12}}>
+                現在：{profile[sheet.key]||"未設定"}<br/>
+                <span style={{fontSize:11,color:C.t3}}>クイズから設定されます</span>
+              </div>
+            )}
+
+            <button style={{...S.btn(C.bg3),width:"100%",border:`1px solid ${C.border}`,marginTop:4}} onClick={()=>setSheet(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      <div style={{marginTop:8,paddingTop:12,borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8}}>
+        {/* 非表示にした制度の復元 */}
+        {trueHidden.length>0&&(
+          <div style={{background:C.bg2,borderRadius:14,padding:12,border:`1px solid ${C.border}`}}>
+            <div style={{color:C.t2,fontSize:12,marginBottom:8}}>非表示にした制度：{trueHidden.length}件</div>
+            <button style={{width:"100%",...S.btn(C.blue,true),fontSize:12}} onClick={()=>setShowHiddenList(true)}>一覧を見る・選んで復元</button>
+          </div>
+        )}
+        {/* ダークモード切り替え */}
+        <div style={{background:C.bg2,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{color:C.t1,fontWeight:600,fontSize:13}}>{darkMode?"🌙 ダークモード":"☀️ ライトモード"}</div>
+            <div style={{color:C.t3,fontSize:11,marginTop:2}}>タップで切り替え</div>
+          </div>
+          <div onClick={()=>setDarkMode(d=>!d)} style={{width:44,height:26,borderRadius:13,background:darkMode?C.blue:C.t3,cursor:"pointer",position:"relative",transition:"background .25s",flexShrink:0}}>
+            <div style={{position:"absolute",top:3,left:darkMode?21:3,width:20,height:20,borderRadius:10,background:"#fff",transition:"left .25s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
+          </div>
+        </div>
+        <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t2,fontSize:13}} onClick={onResetQuiz}>
+          🔄 最初の質問からやり直す
+        </button>
+        <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t3,fontSize:12}} onClick={onShowAdmin}>
+          ⚙️ 制度を追加・管理する
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── 動的制度アイテムのmatch/certain変換 ───
+   AIが返す条件テキスト（例："子あり", "40歳以上"）を
+   profile オブジェクトに対して評価する関数に変換する
+──*/
+function buildDynamicItem(raw){
+  // conditions: 文字列の配列 ["子あり", "40歳以上", "学生"] など
+  const conditions = raw.conditions || [];
+
+  const certain = (p) => {
+    return conditions.every(c => {
+      if(c==="子あり") return p.hasKids==="いる（または予定あり）";
+      if(c==="全員") return true;
+      if(c.includes("歳以上")){
+        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
+        return a!==null && a>=n;
+      }
+      if(c.includes("歳未満")){
+        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
+        return a!==null && a<n;
+      }
+      if(c==="学生") return p.stage==="学生";
+      if(c==="社会人") return p.stage==="社会人（会社員）"||p.stage==="社会人（フリーランス・自営）";
+      if(c==="賃貸") return p.housing==="賃貸";
+      if(c==="持ち家") return p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）";
+      if(c==="年金生活者") return p.stage==="年金生活者";
+      return false; // 不明な条件は確実判定しない
+    });
+  };
+
+  const match = (p) => {
+    if(conditions.includes("全員")) return 70;
+    let score = 0;
+    conditions.forEach(c => {
+      if(c==="子あり"){ score += p.hasKids==="いる（または予定あり）"?40:0; }
+      else if(c.includes("歳以上")){
+        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
+        score += (a!==null&&a>=n)?40:0;
+      }
+      else if(c.includes("歳未満")){
+        const n=parseInt(c); const a=p.ageNum?Number(p.ageNum):null;
+        score += (a!==null&&a<n)?30:0;
+      }
+      else if(c==="学生"){ score += p.stage==="学生"?40:0; }
+      else if(c==="社会人"){ score += (p.stage==="社会人（会社員）"||p.stage==="社会人（フリーランス・自営）")?35:0; }
+      else if(c==="賃貸"){ score += p.housing==="賃貸"?40:0; }
+      else if(c==="持ち家"){ score += (p.housing==="持ち家（戸建て）"||p.housing==="持ち家（マンション）")?40:0; }
+      else if(c==="年金生活者"){ score += p.stage==="年金生活者"?40:0; }
+      else { score += 20; } // 不明条件は低めのスコア
+    });
+    // 条件が複数あるほど絞り込まれる
+    const base = conditions.length > 0 ? Math.min(score, 90) : 50;
+    return certain(p) ? 95 : base > 0 ? base : 0;
+  };
+
+  return {
+    ...raw,
+    id: raw.id || `dynamic_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    certain,
+    subsidy: (p) => certain(p) ? (raw.subsidyAmount||0) : 0,
+    subsidyLabel: (p) => certain(p) ? raw.subsidyLabel : null,
+    match,
+    needsMore: raw.needsMore || null,
+    dynamic: true, // 動的追加フラグ
+  };
+}
+
+/* ─── AdminTab: URL/PDFテキスト → AI抽出 → 確認 → 追加 ─── */
+function AdminTab({onAddItem, existingIds}){
+  const [input,setInput]=useState("");
+  const [inputType,setInputType]=useState("url"); // "url" | "text"
+  const [loading,setLoading]=useState(false);
+  const [proposals,setProposals]=useState([]);
+  const [error,setError]=useState("");
+
+  const CONDITION_OPTIONS=["全員","子あり","学生","社会人","賃貸","持ち家","40歳以上","60歳以上","65歳以上","70歳以上","20歳未満","年金生活者"];
+
+  const extract = async () => {
+    if(!input.trim()){setError("URLまたはテキストを入力してください");return;}
+    setLoading(true); setError(""); setProposals([]);
+
+    const sourceDesc = inputType==="url"
+      ? "対象URL: "+input
+      : "テキスト内容:\n"+input;
+    const inputTypeLabel = inputType==="url" ? "URL（Web検索して内容を取得）" : "テキスト";
+
+    const prompt = "あなたは港区民向け行政情報アプリの制度データ抽出AIです。\n\n"
+      + "以下の"+inputTypeLabel+"から、港区民が受け取れる給付金・補助金・減免・手当・無料サービスの情報のみを抽出し、JSON配列で返してください。\n\n"
+      + "【抽出する情報】給付金・補助金・手当・助成金・医療費助成・保育料減免・無料施設利用など、区民が金銭的または実質的メリットを受けられる制度\n\n"
+      + "【抽出しない情報】講座・イベント・セミナーの参加募集、求人・委員募集、工事・道路閉鎖のお知らせ、選挙・投票のお知らせ、施設の休館・変更案内\n\n"
+      + sourceDesc + "\n\n"
+      + "以下のJSON形式で、見つかった制度を全て列挙してください。条件は必ず下記リストから選んでください：\n"
+      + '条件の選択肢: "全員", "子あり", "学生", "社会人", "賃貸", "持ち家", "40歳以上", "60歳以上", "65歳以上", "70歳以上", "20歳未満", "年金生活者"\n\n'
+      + "返すJSONの形式（配列、前置き・後置き・コードブロック不要）:\n"
+      + '[\n  {\n'
+      + '    "title": "制度名（簡潔に）",\n'
+      + '    "gov": "国" または "東京都" または "港区",\n'
+      + '    "tag": "子育て" または "住まい" または "健康" または "キャリア" または "教育" または "生活",\n'
+      + '    "icon": "絵文字1文字",\n'
+      + '    "catch": "一言でわかるキャッチコピー（20文字以内）",\n'
+      + '    "body": "制度の詳細説明（150文字以内）",\n'
+      + '    "subsidyType": "cash" または "savings" または "info",\n'
+      + '    "subsidyAmount": 給付額（数値・円単位、不明なら0）,\n'
+      + '    "subsidyLabel": "金額の表示文字列（例：年12万円）",\n'
+      + '    "potentialSubsidy": 最大可能性額（数値・円単位）,\n'
+      + '    "conditions": ["条件1", "条件2"],\n'
+      + '    "needsMore": "確定に必要な追加情報または null",\n'
+      + '    "deadline": "申請期限",\n'
+      + '    "urgent": false,\n'
+      + '    "reminderLabel": "リマインドすべき行動（1文）",\n'
+      + '    "sourceUrl": "公式URL"\n'
+      + '  }\n]\n\n'
+      + "制度が見つからない場合は空配列 [] を返してください。JSONのみ返してください。";
+
+    try {
+      const tools = inputType==="url" ? [{type:"web_search_20250305",name:"web_search"}] : undefined;
+      const resp = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:4000,
+          ...(tools?{tools}:{}),
+          messages:[{role:"user",content:prompt}],
+        }),
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const clean = text.replace(/```json|```/g,"").trim();
+      const start = clean.indexOf("["); const end = clean.lastIndexOf("]");
+      if(start===-1) throw new Error("制度情報が見つかりませんでした");
+      const parsed = JSON.parse(clean.slice(start,end+1));
+      // 既存IDと重複チェック
+      const filtered = parsed.filter(p=>!existingIds.includes(p.id));
+      setProposals(filtered.map(p=>({...p,_accepted:false,_editing:false})));
+      if(filtered.length===0) setError("新しい制度は見つかりませんでした（すでに登録済みの可能性）");
+    } catch(e){
+      setError("抽出に失敗しました: "+e.message);
+    }
+    setLoading(false);
+  };
+
+  const toggleAccept=(i)=>setProposals(ps=>ps.map((p,j)=>j===i?{...p,_accepted:!p._accepted}:p));
+  const addAccepted=()=>{
+    const accepted=proposals.filter(p=>p._accepted);
+    accepted.forEach(p=>{
+      const {_accepted,_editing,...raw}=p;
+      onAddItem(buildDynamicItem(raw));
+    });
+    setProposals(ps=>ps.filter(p=>!p._accepted));
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+      <div style={{color:C.t1,fontWeight:700,fontSize:15,marginBottom:4}}>⚙️ 制度を自動追加</div>
+      <div style={{color:C.t2,fontSize:12,marginBottom:14}}>URLか広報テキストを貼るとAIが制度を抽出します</div>
+
+      {/* 入力タイプ切替 */}
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        {[["url","🔗 URL"],["text","📄 テキスト"]].map(([v,l])=>(
+          <button key={v} style={{flex:1,...S.btn(inputType===v?C.blue:C.bg3,true),border:`1px solid ${inputType===v?C.blue:C.border}`}} onClick={()=>setInputType(v)}>{l}</button>
+        ))}
+      </div>
+
+      {inputType==="url"?(
+        <input
+          value={input} onChange={e=>setInput(e.target.value)}
+          placeholder="例: https://www.city.minato.tokyo.jp/..."
+          style={{width:"100%",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 14px",color:C.t1,fontSize:13,outline:"none",marginBottom:10}}
+        />
+      ):(
+        <textarea
+          value={input} onChange={e=>setInput(e.target.value)}
+          placeholder="広報みなとのPDFテキストや制度説明文をここに貼り付け..."
+          rows={6}
+          style={{width:"100%",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 14px",color:C.t1,fontSize:12,outline:"none",marginBottom:10,resize:"vertical",fontFamily:"inherit"}}
+        />
+      )}
+
+      <button style={{...S.btn(C.blue),width:"100%",marginBottom:12,opacity:loading?0.6:1}} onClick={extract} disabled={loading}>
+        {loading?"🔍 AIが抽出中...":"🔍 制度を抽出する"}
+      </button>
+
+      {loading&&(
+        <div style={{textAlign:"center",marginBottom:12}}>
+          <div style={{width:32,height:32,border:`3px solid ${C.blue}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto 8px"}}/>
+          <div style={{color:C.t2,fontSize:12}}>公式サイトを読んで制度を整理しています…</div>
+        </div>
+      )}
+      {error&&<div style={{color:C.red,fontSize:12,marginBottom:10}}>{error}</div>}
+
+      {/* 抽出結果 */}
+      {proposals.length>0&&<>
+        <div style={{color:C.t1,fontWeight:700,fontSize:13,marginBottom:8}}>{proposals.length}件の制度が見つかりました</div>
+        {proposals.map((p,i)=>(
+          <div key={i} style={{...S.card,border:`1px solid ${p._accepted?C.green+"66":C.border}`,marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <div style={{fontSize:24,flexShrink:0}}>{p.icon||"📋"}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",gap:6,marginBottom:4,flexWrap:"wrap"}}>
+                  <span style={S.tag(C.blue)}>{p.gov}</span>
+                  <span style={S.tag(C.t2)}>{p.tag}</span>
+                  {p.conditions&&p.conditions.map(c=><span key={c} style={S.tag(C.purple)}>{c}</span>)}
+                </div>
+                <div style={{color:C.t1,fontWeight:700,fontSize:13,marginBottom:2}}>{p.title}</div>
+                <div style={{color:C.t2,fontSize:11,marginBottom:4}}>{p["catchText"]||p["catch"]}</div>
+                <div style={{color:C.t2,fontSize:11,lineHeight:1.5}}>{p.body}</div>
+                {p.subsidyAmount>0&&<div style={{color:C.blue,fontWeight:700,fontSize:13,marginTop:4}}>💙 {p.subsidyLabel||fmt(p.subsidyAmount)}</div>}
+                <div style={{color:C.t3,fontSize:10,marginTop:4}}>📅 {p.deadline}</div>
+                {p.needsMore&&<div style={{color:C.t3,fontSize:10,marginTop:2}}>🔑 {p.needsMore}</div>}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:10,borderTop:`1px solid ${C.border}`,paddingTop:8}}>
+              <button style={{flex:1,...S.btn(p._accepted?C.green:C.bg3,true),border:`1px solid ${p._accepted?C.green:C.border}`}} onClick={()=>toggleAccept(i)}>
+                {p._accepted?"✅ 追加する":"追加する"}
+              </button>
+              <button style={{...S.btn(C.bg3,true),border:`1px solid ${C.border}`}} onClick={()=>setProposals(ps=>ps.filter((_,j)=>j!==i))}>
+                🗑 却下
+              </button>
+            </div>
+          </div>
+        ))}
+        {proposals.some(p=>p._accepted)&&(
+          <button style={{...S.btn(C.green),width:"100%",marginTop:4,fontWeight:700}} onClick={addAccepted}>
+            ✅ 選択した制度をアプリに追加
+          </button>
+        )}
+      </>}
+    </div>
+  );
+}
+
+/* ─── AI相談窓口タブ ─── */
+function ConsultTab(){
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:32,display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+      <div style={{fontSize:48,marginTop:16}}>💬</div>
+      <div style={{color:C.t1,fontWeight:700,fontSize:18}}>AI相談窓口</div>
+      <div style={{color:C.t2,fontSize:13,textAlign:"center",lineHeight:1.7}}>
+        港区・東京都・国の制度について<br/>AIに相談できる機能です。<br/>近日公開予定です。
+      </div>
+      <div style={{background:C.bg2,borderRadius:14,padding:16,border:`1px solid ${C.border}`,width:"100%",marginTop:8}}>
+        <div style={{color:C.t2,fontSize:12,marginBottom:8}}>今すぐ相談したい場合</div>
+        <a href="https://www.google.com/search?q=港区+相談窓口+site:city.minato.tokyo.jp" target="_blank" rel="noopener noreferrer"
+          style={{display:"block",background:C.blue,color:"#fff",textAlign:"center",padding:"12px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",marginBottom:8}}>
+          🔍 港区の相談窓口を検索する
+        </a>
+        <a href="https://www.city.minato.tokyo.jp/fukushimadoguchitan/fukushisougoumadoguchi.html" target="_blank" rel="noopener noreferrer"
+          style={{display:"block",background:C.bg3,color:C.t1,textAlign:"center",padding:"12px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",border:`1px solid ${C.border}`,marginBottom:8}}>
+          🤝 福祉総合窓口（高齢・障害・子育て等）
+        </a>
+        <a href="https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html" target="_blank" rel="noopener noreferrer"
+          style={{display:"block",background:C.bg3,color:C.t1,textAlign:"center",padding:"12px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",border:`1px solid ${C.border}`}}>
+          👶 子育て支援相談窓口
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Gateway: クイズ完了→メイン移行前の全画面サマリー ─── */
+function Gateway({profile, items, onEnter}){
+  const [detail,setDetail]=useState(null);
+
+  const allVisible=items
+    .filter(it=>{ const el=ELIGIBILITY[it.id]; if(!el) return it.match(profile)>0; const res=calcEligibility(profile,el); return res.matchScore>0; })
+    .sort((a,b)=>{
+      const ca=getConfidence(a,profile)==="certain"?0:1;
+      const cb=getConfidence(b,profile)==="certain"?0:1;
+      return ca-cb;
+    });
+
+  const top3=allVisible.slice(0,3);
+  const certainCount=allVisible.filter(it=>getConfidence(it,profile)==="certain").length;
+  const banner=calcBanner(profile,items);
+
+  return (
+    <div style={{position:"fixed",inset:0,background:C.bg0,display:"flex",flexDirection:"column",padding:"32px 24px 24px",zIndex:200,overflowY:"auto"}}>
+      <div style={{textAlign:"center",marginBottom:24,flexShrink:0}}>
+        <div style={{color:C.t3,fontSize:11,marginBottom:8,letterSpacing:1}}>あなたが受け取れる年間総額</div>
+        <div style={{display:"flex",gap:20,justifyContent:"center"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{color:C.blue,fontWeight:700,fontSize:26}}>💙 {fmt(banner.cash)}</div>
+            <div style={{color:C.t3,fontSize:10,marginTop:2}}>現金給付</div>
+          </div>
+          <div style={{color:C.bg3,fontSize:26,lineHeight:"38px"}}>|</div>
+          <div style={{textAlign:"center"}}>
+            <div style={{color:C.green,fontWeight:700,fontSize:26}}>💚 {fmt(banner.savings)}</div>
+            <div style={{color:C.t3,fontSize:10,marginTop:2}}>節約・優待</div>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,flex:1}}>
+        {top3.map(it=>{
+          const isCertain=getConfidence(it,profile)==="certain";
+          const amount=it.subsidy(profile);
+          return (
+            <div key={it.id}
+              style={{background:C.bg2,borderRadius:20,padding:"14px 16px",border:`1.5px solid ${isCertain?C.green+"66":"#f0a03044"}`,cursor:"pointer",display:"flex",alignItems:"center",gap:12,animation:"fadeUp .4s ease"}}
+              onClick={()=>setDetail(it)}>
+              <div style={{fontSize:32,flexShrink:0}}>{it.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",gap:5,marginBottom:4,flexWrap:"wrap"}}>
+                  <span style={S.tag(it.color)}>{it.gov}</span>
+                  <span style={{background:isCertain?C.green+"22":"#f0a03022",color:isCertain?C.green:"#f0a030",borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                    {isCertain?"✅ 対象確実":"🔶 関係あるかも"}
+                  </span>
+                </div>
+                <div style={{color:C.t1,fontWeight:700,fontSize:14,lineHeight:1.3}}>{it.title}</div>
+                {isCertain&&amount>0&&(
+                  <div style={{color:it.subsidyType==="cash"?C.blue:C.green,fontWeight:700,fontSize:14,marginTop:4}}>
+                    {it.subsidyType==="savings"?"💚 ":"💙 "}{it.subsidyLabel(profile)}
+                  </div>
+                )}
+                {!isCertain&&it.potentialSubsidy>0&&(
+                  <div style={{color:"#f0a030",fontSize:13,marginTop:4}}>最大 {fmt(it.potentialSubsidy)}</div>
+                )}
+              </div>
+              <div style={{color:C.t3,fontSize:18,flexShrink:0}}>›</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop:16,flexShrink:0}}>
+        <button
+          style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}
+          onClick={onEnter}>
+          <span style={{color:C.t2,fontSize:13,fontWeight:600}}>他 {allVisible.length - top3.length}件の制度をすべて見る</span>
+          <span style={{color:C.t3,fontSize:14}}>→</span>
+        </button>
+      </div>
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={null} conf={getConfidence(detail,profile)} profile={profile} setProfile={()=>{}} onHide={()=>{}} liked={[]} reminded={[]} onLike={()=>{}} onRemind={()=>{}} done={[]} onDone={()=>{}} easy={false}/>}
+    </div>
+  );
+}
+
+
+function BottomNav({tab,setTab,notifCount,festivalCount}){
+  const tabs=[
+    {id:"home",    icon:"🏠", label:"ホーム"},
+    {id:"consult", icon:"💬", label:"相談"},
+    {id:"notif",   icon:"🔔", label:"通知", badge:notifCount},
+    {id:"festival",icon:"🎪", label:"お祭り", badge:festivalCount},
+    {id:"profile", icon:"👤", label:"プロフィール"},
+  ];
+  return (
+    <div style={{
+      display:"flex",
+      background:C.bg1,
+      borderTop:`1px solid ${C.border}`,
+      flexShrink:0,
+      paddingBottom:"env(safe-area-inset-bottom, 16px)",
+    }}>
+      {tabs.map(t=>(
+        <button key={t.id}
+          style={{flex:1,background:"none",border:"none",padding:"10px 0 4px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,position:"relative",WebkitTapHighlightColor:"transparent"}}
+          onClick={()=>setTab(t.id)}>
+          <div style={{fontSize:22,opacity:tab===t.id?1:.45,transition:"opacity .15s"}}>{t.icon}</div>
+          <div style={{color:tab===t.id?C.blue:C.t3,fontSize:9,fontWeight:tab===t.id?700:400,letterSpacing:.3}}>{t.label}</div>
+          {t.badge>0&&<div style={{position:"absolute",top:6,right:"50%",transform:"translateX(60%)",background:C.red,color:"#fff",borderRadius:10,fontSize:9,padding:"1px 5px",fontWeight:700,minWidth:16,textAlign:"center"}}>{t.badge}</div>}
+          {tab===t.id&&<div style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:20,height:2,background:C.blue,borderRadius:1}}/>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── App ─── */
+function App(){
+  const [phase,setPhase]=useState("splash");
+  const [profile,setProfile]=useState({});
+  const [tab,setTab]=useState("home");
+  const [easy,setEasy]=useState(false);
+  const [darkMode,setDarkMode]=useState(false);
+  const [,forceUpdate]=useState(0);
+
+  // CをdarkModeに応じて更新（全コンポーネントに即反映）
+  Object.assign(C, darkMode ? THEMES.dark : THEMES.light);
+
+  // body背景を動的に変更
+  if(typeof document !== "undefined") document.body.style.background = C.bg0;
+
+  const toggleDark=(v)=>{setDarkMode(v);forceUpdate(n=>n+1);};
+  const [liked,setLiked]=useState([]);
+  const [reminded,setReminded]=useState([]);
+  const [done,setDone]=useState([]); // 申請済・利用済
+  const [hidden,setHidden]=useState([]);
+  const [toast,setToast]=useState({msg:"",visible:false});
+  const [festivalSettings,setFestivalSettings]=useState(null);
+  const [festivalNotified,setFestivalNotified]=useState([]);
+  const [dynamicItems,setDynamicItems]=useState([]);
+  const [showAdmin,setShowAdmin]=useState(false);
+  const allItems=[...ITEMS_BASE,...dynamicItems];
+  const [liveData,setLiveData]=useState({});
+  const [updating,setUpdating]=useState(false);
+  const [updateProgress,setUpdateProgress]=useState(0);
+
+  const showToast=(msg)=>{
+    setToast({msg,visible:true});
+    setTimeout(()=>setToast({msg:"",visible:false}),2200);
+  };
+
+  const [revealMode, setRevealMode] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  const handleQuizDone=(ans)=>{
+    setProfile(ans);
+    setFestivalSettings({
+      coords:ans.festivalCoords||null,
+      town:ans.festivalTown||{name:ans.town||"麻布十番"},
+      radius:3000,
+      fireworksRadius:5000,
+    });
+    setPhase("reveal");
+  };
+
+  const handleRevealEnter=()=>{
+    setRevealMode(true);
+    setPhase("main");
+    setTimeout(()=>setShowTutorial(true), 900); // カード降下完了後に表示
+  };
+
+  const handleUpdate=async()=>{
+    setUpdating(true);
+    setUpdateProgress(0);
+    const result={};
+    for(let i=0;i<allItems.length;i++){
+      const item=allItems[i];
+      try {
+        const data=await fetchLiveInfo(item);
+        result[item.id]=data;
+      } catch(e){
+        result[item.id]={amount:"取得失敗",conditions:"—",deadline:"—",changes:"—",sourceNote:"—",fetchedAt:new Date().toLocaleDateString("ja-JP")};
+      }
+      setUpdateProgress(i+1);
+      setLiveData({...result});
+    }
+    setUpdating(false);
+    showToast(`✅ ${allItems.length}件の最新情報を取得しました`);
+  };
+
+  const handleChangeRadius=(key,val)=>{
+    setFestivalSettings(prev=>({...prev,[key]:val}));
+  };
+
+  return (
+    <div style={{
+      position:"fixed", inset:0,
+      background:C.bg0,
+      display:"flex", alignItems:"center", justifyContent:"center",
+    }}>
+      <div style={{
+        width:"100%", maxWidth:430,
+        height:"100%",
+        background:C.bg1,
+        display:"flex", flexDirection:"column",
+        overflow:"hidden", position:"relative",
+      }}>
+        {phase==="splash"&&<Splash onDone={()=>setPhase("preview")}/>}
+        {phase==="preview"&&<PreviewHome items={allItems} onStart={()=>setPhase("quiz")}/>}
+        {phase==="quiz"&&<Quiz onDone={handleQuizDone}/>}
+        {phase==="reveal"&&<RevealScreen profile={profile} items={allItems} onEnter={handleRevealEnter}/>}
+        {phase==="main"&&
+          <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,overflow:"hidden"}}>
+            {/* Header */}
+            <div style={{padding:"52px 16px 6px",borderBottom:`1px solid ${C.border}`,flexShrink:0,background:C.bg1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>🏙️ 君の代わりに全部やってあげるよアプリ</div>
+                  <div style={{color:C.t3,fontSize:10,marginTop:1}}>{profile.town||""}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:9,color:easy?C.t3:C.blue,fontWeight:600}}>行政用語</span>
+                  <div onClick={()=>setEasy(e=>!e)} style={{width:36,height:20,borderRadius:10,background:easy?C.green:C.t3,cursor:"pointer",position:"relative",transition:"background .25s",flexShrink:0}}>
+                    <div style={{position:"absolute",top:2,left:easy?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .25s"}}/>
+                  </div>
+                  <span style={{fontSize:9,color:easy?C.green:C.t3,fontWeight:600}}>かんたん</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Tab content */}
+            {tab==="home"&&<Home profile={profile} setProfile={setProfile} liked={liked} reminded={reminded} hidden={hidden}
+              onLike={(id)=>{setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id]);showToast(liked.includes(id)?"いいね解除":"❤️ いいね！");}}
+              onRemind={(id)=>{setReminded(r=>r.includes(id)?r.filter(x=>x!==id):[...r,id]);showToast(reminded.includes(id)?"リマインド解除":"🔔 リマインドしました");}}
+              onHide={(id)=>{setHidden(h=>[...h,id]);showToast("非表示にしました");}}
+              done={done}
+              onDone={(id,action)=>{
+                if(action==="undo"){
+                  setDone(d=>d.filter(x=>x!==id));
+                  setHidden(h=>h.filter(x=>x!==id));
+                  showToast("申請済みを取消しました");
+                } else if(action==="done"){
+                  setDone(d=>d.includes(id)?d:[...d,id]);
+                  if(!REPEATABLE_IDS.has(id)) setHidden(h=>h.includes(id)?h:[...h,id]);
+                  showToast("✅ 申請済みとして記録しました");
+                }
+              }}
+              items={allItems} liveData={liveData} easy={easy}
+              revealMode={revealMode}
+              onUpdate={handleUpdate} updating={updating} updateProgress={updateProgress}
+              onGoProfile={()=>setTab("profile")}
+            />}
+            {tab==="consult"&&<ConsultTab profile={profile}/>}
+            {tab==="notif"&&<NotifTab liked={liked} reminded={reminded}
+              onLike={(id)=>{setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id]);showToast(liked.includes(id)?"いいね解除":"❤️ いいね！");}}
+              onRemind={(id)=>{setReminded(r=>r.includes(id)?r.filter(x=>x!==id):[...r,id]);showToast(reminded.includes(id)?"リマインド解除":"🔔 リマインドしました");}}
+              items={allItems} liveData={liveData} profile={profile} setProfile={setProfile}
+              onHide={(id)=>{setHidden(h=>[...h,id]);showToast("非表示にしました");}}
+              done={done}
+              onUndone={(id)=>{setDone(d=>d.filter(x=>x!==id));setHidden(h=>h.filter(x=>x!==id));}}
+              onDone={(id,action)=>{
+                if(action==="undo"){
+                  setDone(d=>d.filter(x=>x!==id));
+                  setHidden(h=>h.filter(x=>x!==id));
+                  showToast("申請済みを取消しました");
+                } else if(action==="keep"){
+                } else{
+                  setDone(d=>d.includes(id)?d:[...d,id]);
+                  if(!REPEATABLE_IDS.has(id)) setHidden(h=>h.includes(id)?h:[...h,id]);
+                  showToast("✅ 申請済みとして記録しました");
+                }
+              }}/>}
+            {tab==="festival"&&<FestivalTab festivalSettings={festivalSettings} onChangeRadius={handleChangeRadius}
+              festivalNotified={festivalNotified} onToggleNotify={(id)=>setFestivalNotified(n=>n.includes(id)?n.filter(x=>x!==id):[...n,id])}/>}
+            {tab==="profile"&&<ProfileTab profile={profile} setProfile={setProfile}
+              hidden={hidden} done={done} allItems={allItems}
+              onRestoreAll={()=>{setHidden([]);showToast("✅ 全件復元しました");}}
+              onRestoreOne={(id)=>{setHidden(h=>h.filter(x=>x!==id));showToast("✅ 復元しました");}}
+              onShowAdmin={()=>setShowAdmin(true)}
+              onResetQuiz={()=>{setProfile({});setLiked([]);setReminded([]);setHidden([]);setPhase("quiz");}}
+              darkMode={darkMode} setDarkMode={toggleDark}/>}
+
+            {/* 管理モーダル */}
+            {showAdmin&&(
+              <div style={{position:"absolute",inset:0,background:C.bg1,zIndex:160,display:"flex",flexDirection:"column"}}>
+                <div style={{padding:"16px 20px 8px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",alignItems:"center",gap:12}}>
+                  <button style={{background:"none",border:"none",color:C.blue,fontSize:14,cursor:"pointer"}} onClick={()=>setShowAdmin(false)}>← 戻る</button>
+                  <span style={{color:C.t1,fontWeight:700,fontSize:15}}>制度を追加</span>
+                </div>
+                <AdminTab
+                  onAddItem={(item)=>{setDynamicItems(d=>[...d,item]);showToast(`✅「${item.title}」を追加しました`);}}
+                  existingIds={allItems.map(it=>it.id)}
+                />
+              </div>
+            )}
+
+            <BottomNav tab={tab} setTab={setTab}
+              notifCount={liked.length+reminded.length} festivalCount={festivalNotified.length}/>
+            <Toast msg={toast.msg} visible={toast.visible}/>
+
+            {/* チュートリアル：かんたん/行政モード体験 */}
+            {showTutorial&&(
+              <TutorialOverlay
+                onSwitch={(isEasy)=>setEasy(isEasy)}
+                onClose={()=>setShowTutorial(false)}
+                item={allItems.find(it=>it.officialBody)||allItems[0]}
+              />
+            )}
+          </div>
+        }
+      </div>
+    </div>
+  );
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+  </script>
+</body>
+</html>
