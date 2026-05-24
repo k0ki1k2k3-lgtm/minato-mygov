@@ -243,8 +243,13 @@ async function loadItemsDB() {
     const seenIds     = JSON.parse(localStorage.getItem(LS_SEEN_IDS) || "[]");
     const allIds      = (db.items || []).map(it => it.id);
 
-    if (dbUpdatedAt && dbUpdatedAt !== lastSeenAt) {
-      // 未見のIDを新着として記録
+    if (!lastSeenAt) {
+      // 初回アクセス → 全IDを既読として記録、通知なし
+      NEW_ITEMS_SINCE_LAST = [];
+      localStorage.setItem(LS_SEEN_IDS, JSON.stringify(allIds));
+      localStorage.setItem(LS_LAST_SEEN_AT, dbUpdatedAt);
+    } else if (dbUpdatedAt && dbUpdatedAt !== lastSeenAt) {
+      // 2回目以降 かつ DB更新あり → 未見IDのみ新着
       NEW_ITEMS_SINCE_LAST = allIds.filter(id => !seenIds.includes(id));
     } else {
       NEW_ITEMS_SINCE_LAST = [];
@@ -2124,6 +2129,44 @@ const DETAIL_DISPLAY_MAP = {
   welfareStatus:     {"receiving":"受給中","not":"非受給"},
 };
 
+/* ── 通知許可ボタン ── */
+function NotificationButton() {
+  const [status, setStatus] = React.useState(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
+  const [loading, setLoading] = React.useState(false);
+
+  const handleClick = async () => {
+    if (status === "granted") return;
+    setLoading(true);
+    const ok = await window.requestPushPermission();
+    setStatus(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+    setLoading(false);
+    if (ok) alert("✅ 通知を許可しました！新着制度があるとお知らせします。");
+  };
+
+  if (status === "unsupported") return null;
+
+  const label = status === "granted"
+    ? "🔔 通知オン（設定済み）"
+    : status === "denied"
+    ? "🔕 通知がブロックされています（設定から変更してください）"
+    : loading ? "設定中…" : "🔔 新着制度の通知を受け取る";
+
+  const bg = status === "granted" ? C.green+"22" : status === "denied" ? C.red+"11" : C.blue+"22";
+  const color = status === "granted" ? C.green : status === "denied" ? C.red : C.blue;
+  const border = status === "granted" ? C.green+"44" : status === "denied" ? C.red+"33" : C.blue+"44";
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={status === "granted" || status === "denied" || loading}
+      style={{width:"100%",background:bg,color,border:`1px solid ${border}`,borderRadius:12,padding:"13px",fontWeight:700,fontSize:14,cursor:status==="granted"||status==="denied"?"default":"pointer",marginBottom:8}}>
+      {label}
+    </button>
+  );
+}
+
 function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,darkMode,setDarkMode}){
   const [showHiddenList,setShowHiddenList]=useState(false);
   const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
@@ -2389,6 +2432,8 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
             <div style={{position:"absolute",top:3,left:darkMode?21:3,width:20,height:20,borderRadius:10,background:"#fff",transition:"left .25s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
           </div>
         </div>
+        {/* 通知許可ボタン */}
+        <NotificationButton />
         <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t2,fontSize:13}} onClick={onResetQuiz}>
           🔄 最初の質問からやり直す
         </button>
@@ -2824,6 +2869,8 @@ function App(){
     const allIds = ITEMS_BASE.map(it => it.id);
     localStorage.setItem(LS_SEEN_IDS, JSON.stringify(allIds));
     localStorage.setItem(LS_LAST_SEEN_AT, dbUpdatedAt);
+    // IndexedDB にも保存（Service Worker と共有）
+    if (window.saveSeenToIDB) window.saveSeenToIDB(allIds, dbUpdatedAt);
     setShowNewPop(false);
     setNewItems([]);
   };
@@ -3121,31 +3168,50 @@ async function subscribePush(sw, type = "user") {
 }
 
 // Service Worker 初期化
+// SW登録（許可は求めない）
 async function initSW() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    console.warn("このブラウザはWeb Pushに対応していません");
-    return;
-  }
+  if (!("serviceWorker" in navigator)) return;
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
-    console.log("✅ Service Worker登録完了");
+    // パスを正しく解決（GitHub Pagesのサブディレクトリ対応）
+    const swPath = window.location.pathname.replace(/\/[^/]*$/, "/") + "sw.js";
+    const reg = await navigator.serviceWorker.register(swPath);
+    console.log("✅ Service Worker登録完了:", swPath);
+    window._swReg = reg;
 
-    // 通知許可を求める
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      // 管理者かどうか（adminページから来た場合は管理者として登録）
-      const isAdmin = window.location.pathname.includes("admin");
-      await subscribePush(reg, isAdmin ? "admin" : "user");
+    // 既に許可済みなら即座に購読
+    if (Notification.permission === "granted") {
+      await subscribePush(reg, "user");
     }
   } catch (e) {
     console.warn("Service Worker初期化失敗:", e.message);
   }
 }
 
-// アプリ起動後に初期化
-window.addEventListener("load", () => {
-  setTimeout(initSW, 3000); // 起動から3秒後に通知許可を求める
-});
+// ユーザー操作で通知許可を求める（iOS対応）
+window.requestPushPermission = async () => {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("このブラウザはWeb Push通知に対応していません。\nホーム画面に追加してから再度お試しください。");
+    return false;
+  }
+  try {
+    const reg = window._swReg || await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      await subscribePush(reg, "user");
+      console.log("✅ Push通知登録完了");
+      return true;
+    } else {
+      console.warn("通知が拒否されました");
+      return false;
+    }
+  } catch (e) {
+    console.warn("Push通知登録失敗:", e.message);
+    return false;
+  }
+};
+
+// SW登録はページ読み込み時に実行（許可は求めない）
+window.addEventListener("load", initSW);
 </script>
 </body>
 </html>
