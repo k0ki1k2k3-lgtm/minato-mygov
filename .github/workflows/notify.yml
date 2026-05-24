@@ -31,3 +31,20 @@ jobs:
               "body": "港区の新しい給付制度を確認してください",
               "updatedAt": "${{ steps.check.outputs.updated_at }}"
             }'
+notify-admin:
+    name: "🔔 管理者に草稿通知"
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: needs.analyze.outputs.has_drafts == 'true'
+
+    steps:
+      - name: 管理者にPush通知を送信
+        run: |
+          curl -X POST "${{ secrets.PUSH_WORKER_URL }}/notify/admin" \
+            -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "title": "📥 新しい草稿が届きました",
+              "body": "${{ needs.analyze.outputs.draft_count }}件の新制度候補があります",
+              "count": "${{ needs.analyze.outputs.draft_count }}"
+            }'
