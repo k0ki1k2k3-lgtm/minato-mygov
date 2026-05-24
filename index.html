@@ -776,10 +776,10 @@ function Quiz({onDone}){
         const el=it.eligibility;
         if(!el) return;
         // ELIGIBILITYのexcludeで除外される場合は絶対に含めない
-        if(el.exclude&&el.exclude.some(fn=>fn(p))) return;
+        if(el.exclude&&el.exclude.some(c=>evalCondition(c,p))) return;
         // certainの全条件を満たす場合のみ確定
         if(!el.certain||el.certain.length===0) return;
-        if(!el.certain.every(fn=>fn(p))) return;
+        if(!evalCondArray(el.certain,p,"and")) return;
         const sub=it.subsidy(p);
         if(sub>0){
           if(it.subsidyType==="cash") cash+=sub;
@@ -1110,7 +1110,7 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
   const allAnswered = miniQuiz && currentMissingQ.length === 0;
   const nowExcluded = allAnswered && (()=>{
     const el=item.eligibility;
-    return el&&el.exclude&&el.exclude.some(fn=>fn(mergedProfile));
+    return el&&el.exclude&&el.exclude.some(c=>evalCondition(c,mergedProfile));
   })();
   const nowCertain = allAnswered && !nowExcluded && getConfidence(item,mergedProfile)==="certain";
 
