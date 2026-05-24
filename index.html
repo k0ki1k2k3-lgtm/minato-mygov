@@ -3173,8 +3173,11 @@ async function initSW() {
   if (!("serviceWorker" in navigator)) return;
   try {
     // パスを正しく解決（GitHub Pagesのサブディレクトリ対応）
-    const swPath = window.location.pathname.replace(/\/[^/]*$/, "/") + "sw.js";
-    const reg = await navigator.serviceWorker.register(swPath);
+    // GitHub Pagesのサブディレクトリに対応したSWパス
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, "/");
+    const swPath = basePath + "sw.js";
+    const reg = await navigator.serviceWorker.register(swPath, { scope: basePath });
+    console.log("✅ Service Worker登録完了:", swPath, "scope:", basePath);
     console.log("✅ Service Worker登録完了:", swPath);
     window._swReg = reg;
 
