@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>minato-mygov 管理画面 v1.3</title>
+  <title>minato-mygov 管理画面 v1.4</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -12,6 +12,7 @@
     body { background:#f0f4f8; min-height:100vh; }
     .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1a2332; color:#fff; padding:10px 20px; border-radius:10px; font-size:14px; z-index:9999; animation:fadeIn .3s ease; }
     @keyframes fadeIn { from{opacity:0;transform:translate(-50%,10px)} to{opacity:1;transform:translate(-50%,0)} }
+    @keyframes spin { to{transform:rotate(360deg)} }
   </style>
 </head>
 <body>
@@ -26,8 +27,51 @@ const C = {
   t1:"#1a2332", t2:"#4a5568", t3:"#8896a8",
 };
 
-/* ── DB_PATH: items-db.json の相対パス ── */
+/* ── GitHub API設定 ── */
+const GITHUB_OWNER = "k0ki1k2k3-lgtm";
+const GITHUB_REPO_MAIN = "minato-mygov";
+const GITHUB_REPO_CRAWLER = "minato-mygov-crawler";
+const GITHUB_DB_PATH = "items-db.json";
+const GITHUB_DRAFTS_PATH = "data/drafts.json";
+const ADMIN_PASSWORD = "minato-admin-2024"; // 必要に応じて変更
+
+/* ── DB_PATH: items-db.json の相対パス（ローカル参照用） ── */
 const DB_PATH = "../items-db.json";
+
+/* ── GitHub API ヘルパー ── */
+async function githubGet(repo, path, token) {
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repo}/contents/${path}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    }
+  });
+  if (!res.ok) throw new Error(`GitHub GET失敗: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function githubPut(repo, path, token, content, sha, message) {
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repo}/contents/${path}`, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    body: JSON.stringify({
+      message,
+      content: btoa(unescape(encodeURIComponent(content))),
+      sha,
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(`GitHub PUT失敗: ${res.status} ${err.message || res.statusText}`);
+  }
+  return res.json();
+}
 
 /* ── Anthropic API 呼び出し ── */
 async function callClaude(prompt, useWebSearch = false) {
@@ -69,28 +113,152 @@ function emptyItem() {
    メインApp
    ════════════════════════════════════════════════════════ */
 function App() {
+  // ── 認証状態 ──
+  const [authed, setAuthed] = useState(() => sessionStorage.getItem("mgov_authed") === "1");
+  const [githubToken, setGithubToken] = useState(() => sessionStorage.getItem("mgov_token") || "");
+  const [loginPw, setLoginPw] = useState("");
+  const [loginToken, setLoginToken] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // ── データ状態 ──
   const [db, setDb] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [tab, setTab] = useState("list"); // list | add | extract | settings
+  const [tab, setTab] = useState("list"); // list | add | extract | drafts | settings
   const [editItem, setEditItem] = useState(null);
   const [toast, setToast] = useState("");
   const [search, setSearch] = useState("");
+  const [drafts, setDrafts] = useState([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
-  // ── DB読み込み ──
+  // ── DB読み込み（GitHub API経由） ──
   useEffect(() => {
-    fetch(DB_PATH + "?" + Date.now())
-      .then(r => r.json())
-      .then(data => { setDb(data); setLoading(false); })
-      .catch(e => { setLoadError("items-db.json の読み込みに失敗しました: " + e.message); setLoading(false); });
-  }, []);
+    if (!authed || !githubToken) return;
+    loadFromGitHub();
+  }, [authed, githubToken]);
+
+  const loadFromGitHub = async () => {
+    setLoading(true); setLoadError("");
+    try {
+      const fileInfo = await githubGet(GITHUB_REPO_MAIN, GITHUB_DB_PATH, githubToken);
+      const content = decodeURIComponent(escape(atob(fileInfo.content.replace(/\n/g, ""))));
+      const data = JSON.parse(content);
+      setDb(data);
+      setLoading(false);
+    } catch(e) {
+      // フォールバック: ローカルfetch
+      try {
+        const r = await fetch(DB_PATH + "?" + Date.now());
+        const data = await r.json();
+        setDb(data);
+        setLoading(false);
+        showToast("⚠️ GitHub APIが使えないためローカルから読み込みました");
+      } catch(e2) {
+        setLoadError("items-db.json の読み込みに失敗しました: " + e.message);
+        setLoading(false);
+      }
+    }
+  };
+
+  // ── drafts.json 読み込み ──
+  const loadDrafts = async () => {
+    if (!githubToken) return;
+    setDraftsLoading(true);
+    try {
+      const fileInfo = await githubGet(GITHUB_REPO_CRAWLER, GITHUB_DRAFTS_PATH, githubToken);
+      const content = decodeURIComponent(escape(atob(fileInfo.content.replace(/\n/g, ""))));
+      const data = JSON.parse(content);
+      setDrafts(Array.isArray(data) ? data : (data.drafts || []));
+    } catch(e) {
+      showToast("⚠️ drafts.json の読み込みに失敗: " + e.message);
+      setDrafts([]);
+    }
+    setDraftsLoading(false);
+  };
+
+  // ── GitHub へ publish ──
+  const publishToGitHub = async (newDb) => {
+    if (!githubToken) { showToast("⚠️ GitHub Tokenが未設定です"); return false; }
+    setPublishing(true);
+    try {
+      // 現在のSHAを取得
+      const fileInfo = await githubGet(GITHUB_REPO_MAIN, GITHUB_DB_PATH, githubToken);
+      const sha = fileInfo.sha;
+      const now = new Date().toISOString();
+      const updatedDb = {
+        ...newDb,
+        _meta: { ...newDb._meta, updatedAt: now, version: "1.4" }
+      };
+      const content = JSON.stringify(updatedDb, null, 2);
+      await githubPut(
+        GITHUB_REPO_MAIN,
+        GITHUB_DB_PATH,
+        githubToken,
+        content,
+        sha,
+        `🤖 制度DB更新 (${now.slice(0,10)}) via 管理画面`
+      );
+      setDb(updatedDb);
+      showToast("✅ GitHubにpushしました！Netlifyが自動デプロイします");
+      setPublishing(false);
+      return true;
+    } catch(e) {
+      showToast("❌ GitHub push失敗: " + e.message);
+      setPublishing(false);
+      return false;
+    }
+  };
+
+  // ── 草稿を承認してitems-db.jsonに追加 ──
+  const approveDraft = async (draft) => {
+    if (!db) return;
+    const { _draft_meta, ...item } = draft;
+    const updated = {...db, items: [...db.items, item]};
+    updated._meta.totalItems = updated.items.length;
+    const ok = await publishToGitHub(updated);
+    if (ok) {
+      setDrafts(ds => ds.filter(d => d.id !== draft.id));
+      showToast(`✅「${item.title}」を承認・公開しました 🚀`);
+    }
+  };
+
+  // ── ログイン処理 ──
+  const handleLogin = async () => {
+    setLoginLoading(true); setLoginError("");
+    if (loginPw !== ADMIN_PASSWORD) {
+      setLoginError("パスワードが違います");
+      setLoginLoading(false);
+      return;
+    }
+    if (!loginToken.trim()) {
+      setLoginError("GitHub Tokenを入力してください");
+      setLoginLoading(false);
+      return;
+    }
+    // Token疎通確認
+    try {
+      const res = await fetch("https://api.github.com/repos/k0ki1k2k3-lgtm/minato-mygov", {
+        headers: { "Authorization": `Bearer ${loginToken.trim()}`, "Accept": "application/vnd.github+json" }
+      });
+      if (!res.ok) throw new Error("Token認証失敗 (status: " + res.status + ")");
+      sessionStorage.setItem("mgov_authed", "1");
+      sessionStorage.setItem("mgov_token", loginToken.trim());
+      setGithubToken(loginToken.trim());
+      setAuthed(true);
+    } catch(e) {
+      setLoginError("GitHub Token認証エラー: " + e.message);
+    }
+    setLoginLoading(false);
+  };
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
   };
 
-  // ── DB をダウンロード ──
+  // ── DB をダウンロード（バックアップ用） ──
   const downloadDb = () => {
     const blob = new Blob([JSON.stringify(db, null, 2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
@@ -100,38 +268,96 @@ function App() {
     showToast("✅ items-db.json をダウンロードしました");
   };
 
-  // ── 制度を保存（新規 or 更新） ──
-  const saveItem = (item) => {
+  // ── 制度を保存してGitHubへpush ──
+  const saveItem = async (item) => {
     const updated = {...db};
     const idx = updated.items.findIndex(x => x.id === item.id);
+    const isNew = idx < 0;
     if (idx >= 0) {
       updated.items[idx] = item;
-      showToast(`✅「${item.title}」を更新しました`);
     } else {
       updated.items.push(item);
       updated._meta.totalItems = updated.items.length;
-      showToast(`✅「${item.title}」を追加しました`);
     }
-    updated._meta.updatedAt = new Date().toISOString().slice(0,10);
-    setDb(updated);
+    await publishToGitHub(updated);
     setEditItem(null);
     setTab("list");
   };
 
-  // ── 制度を削除 ──
-  const deleteItem = (id, title) => {
-    if (!window.confirm(`「${title}」を削除してよいですか？`)) return;
+  // ── 制度を削除してGitHubへpush ──
+  const deleteItem = async (id, title) => {
+    if (!window.confirm(`「${title}」を削除してよいですか？\nGitHubに即pushされます。`)) return;
     const updated = {...db, items: db.items.filter(x => x.id !== id)};
     updated._meta.totalItems = updated.items.length;
-    updated._meta.updatedAt = new Date().toISOString().slice(0,10);
-    setDb(updated);
-    showToast(`🗑 「${title}」を削除しました`);
+    await publishToGitHub(updated);
   };
+
+  // ── ログアウト ──
+  const handleLogout = () => {
+    sessionStorage.removeItem("mgov_authed");
+    sessionStorage.removeItem("mgov_token");
+    setAuthed(false);
+    setGithubToken("");
+    setDb(null);
+  };
+
+  // ── ログイン画面 ──
+  if (!authed) return (
+    <div style={{minHeight:"100vh",background:C.bg0,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{background:C.bg1,borderRadius:20,padding:40,width:"100%",maxWidth:420,border:`1px solid ${C.border}`,boxShadow:"0 8px 32px rgba(0,0,0,0.08)"}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:48,marginBottom:12}}>🏙️</div>
+          <div style={{fontWeight:700,fontSize:22,color:C.t1}}>minato-mygov</div>
+          <div style={{color:C.t3,fontSize:13,marginTop:4}}>管理画面 v1.4</div>
+        </div>
+        <div style={{marginBottom:16}}>
+          <div style={{color:C.t2,fontSize:12,fontWeight:700,marginBottom:6}}>🔐 管理パスワード</div>
+          <input
+            type="password"
+            value={loginPw}
+            onChange={e=>setLoginPw(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+            placeholder="パスワードを入力"
+            style={{width:"100%",border:`1px solid ${loginError?C.red:C.border}`,borderRadius:10,padding:"11px 14px",fontSize:15,color:C.t1,outline:"none",background:C.bg2}}
+          />
+        </div>
+        <div style={{marginBottom:24}}>
+          <div style={{color:C.t2,fontSize:12,fontWeight:700,marginBottom:6}}>
+            🔑 GitHub Personal Access Token
+            <a href="https://github.com/settings/tokens?type=beta" target="_blank"
+              style={{color:C.blue,fontSize:11,marginLeft:8,textDecoration:"none"}}>取得 →</a>
+          </div>
+          <input
+            type="password"
+            value={loginToken}
+            onChange={e=>setLoginToken(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+            placeholder="github_pat_..."
+            style={{width:"100%",border:`1px solid ${loginError?C.red:C.border}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:C.t1,outline:"none",background:C.bg2,fontFamily:"monospace"}}
+          />
+          <div style={{color:C.t3,fontSize:11,marginTop:6}}>
+            ※ セッション中のみ保持。タブを閉じると消えます。
+          </div>
+        </div>
+        {loginError && (
+          <div style={{background:C.red+"11",border:`1px solid ${C.red}33`,borderRadius:10,padding:"10px 14px",color:C.red,fontSize:13,marginBottom:16}}>
+            ⚠️ {loginError}
+          </div>
+        )}
+        <button
+          onClick={handleLogin}
+          disabled={loginLoading}
+          style={{width:"100%",background:loginLoading?C.t3:C.blue,color:"#fff",border:"none",borderRadius:10,padding:"14px",fontWeight:700,fontSize:16,cursor:loginLoading?"not-allowed":"pointer"}}>
+          {loginLoading ? "認証中…" : "🔓 ログイン"}
+        </button>
+      </div>
+    </div>
+  );
 
   if (loading) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16}}>
       <div style={{fontSize:32}}>⏳</div>
-      <div style={{color:C.t2}}>items-db.json を読み込み中…</div>
+      <div style={{color:C.t2}}>GitHub から items-db.json を読み込み中…</div>
     </div>
   );
 
@@ -164,14 +390,22 @@ function App() {
               v{db._meta.version} · {db.items.length}件 · 最終更新：{db._meta.updatedAt}
             </div>
           </div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
             <NavBtn id="list"   current={tab} setTab={setTab}>📋 制度一覧</NavBtn>
             <NavBtn id="add"    current={tab} setTab={()=>{setEditItem(null);setTab("add");}}>➕ 新規追加</NavBtn>
+            <NavBtn id="drafts" current={tab} setTab={()=>{setTab("drafts");loadDrafts();}}>
+              📥 草稿{drafts.length>0?` (${drafts.length})`:""}
+            </NavBtn>
             <NavBtn id="extract" current={tab} setTab={setTab}>🤖 AI抽出</NavBtn>
             <button
               onClick={downloadDb}
-              style={{background:C.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              style={{background:"none",color:C.t2,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
               ⬇ DL
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{background:C.red+"11",color:C.red,border:`1px solid ${C.red}33`,borderRadius:8,padding:"8px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              🔓 ログアウト
             </button>
           </div>
         </div>
@@ -200,6 +434,19 @@ function App() {
           />
         )}
 
+        {/* 草稿レビュータブ */}
+        {tab === "drafts" && (
+          <DraftsTab
+            drafts={drafts}
+            loading={draftsLoading}
+            publishing={publishing}
+            existingIds={db.items.map(x=>x.id)}
+            onApprove={approveDraft}
+            onReload={loadDrafts}
+            showToast={showToast}
+          />
+        )}
+
         {/* AI抽出タブ */}
         {tab === "extract" && (
           <ExtractTab
@@ -210,6 +457,15 @@ function App() {
         )}
       </div>
 
+      {publishing && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:C.bg1,borderRadius:16,padding:32,textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+            <div style={{fontSize:40,marginBottom:12}}>🚀</div>
+            <div style={{fontWeight:700,fontSize:16,color:C.t1,marginBottom:6}}>GitHubにpush中…</div>
+            <div style={{color:C.t2,fontSize:13}}>Netlifyが自動デプロイを開始します</div>
+          </div>
+        </div>
+      )}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
@@ -1041,6 +1297,123 @@ function SubsidyRulesEditor({rules, labelRules, onChange}) {
 }
 
 /* EligibilityPreview → EligibilityBuilder に統合 */
+
+/* ════════════════════════════════════════════════════════
+   草稿レビュータブ（crawlerのdrafts.jsonから読み込み・承認）
+   ════════════════════════════════════════════════════════ */
+function DraftsTab({drafts, loading, publishing, existingIds, onApprove, onReload, showToast}) {
+  const [detail, setDetail] = useState(null);
+
+  if (loading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,flexDirection:"column",gap:12}}>
+      <div style={{width:32,height:32,border:`3px solid ${C.blue}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
+      <div style={{color:C.t2,fontSize:13}}>drafts.json を読み込み中…</div>
+    </div>
+  );
+
+  const govColors = {"国":C.blue,"東京都":C.green,"港区":C.purple};
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div>
+          <h2 style={{color:C.t1,fontSize:18,fontWeight:700}}>📥 自動収集された草稿</h2>
+          <div style={{color:C.t3,fontSize:12,marginTop:4}}>
+            minato-mygov-crawler の data/drafts.json から取得
+          </div>
+        </div>
+        <button onClick={onReload}
+          style={{background:C.bg2,color:C.t2,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+          🔄 再読み込み
+        </button>
+      </div>
+
+      {drafts.length === 0 ? (
+        <div style={{background:C.bg1,borderRadius:16,padding:40,textAlign:"center",border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:40,marginBottom:12}}>📭</div>
+          <div style={{color:C.t1,fontWeight:700,fontSize:16,marginBottom:8}}>草稿はありません</div>
+          <div style={{color:C.t3,fontSize:13}}>クローラーが新しい制度を検出すると、ここに表示されます</div>
+        </div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {drafts.map((draft, i) => {
+            const alreadyExists = existingIds.includes(draft.id);
+            return (
+              <div key={draft.id || i}
+                style={{background:C.bg1,borderRadius:14,padding:20,border:`2px solid ${alreadyExists?C.t3+"33":C.blue+"33"}`,position:"relative"}}>
+                {alreadyExists && (
+                  <div style={{position:"absolute",top:12,right:12,background:C.t3+"22",color:C.t3,borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:700}}>
+                    ⚠️ ID重複
+                  </div>
+                )}
+                <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                  <div style={{fontSize:32,flexShrink:0}}>{draft.icon||"📋"}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+                      <span style={{background:(govColors[draft.gov]||C.blue)+"22",color:govColors[draft.gov]||C.blue,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{draft.gov||"—"}</span>
+                      <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{draft.tag||"—"}</span>
+                      <code style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{draft.id||"(id未設定)"}</code>
+                      {draft._draft_meta?.source && (
+                        <span style={{background:C.purple+"11",color:C.purple,borderRadius:6,padding:"2px 8px",fontSize:11}}>
+                          📡 {draft._draft_meta.source}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{fontWeight:700,fontSize:16,color:C.t1,marginBottom:4}}>{draft.title||"(タイトルなし)"}</div>
+                    <div style={{color:C.t2,fontSize:13,marginBottom:6}}>{draft.catch||""}</div>
+                    <div style={{color:C.t3,fontSize:12,lineHeight:1.6}}>{draft.body||""}</div>
+                    {draft._draft_meta?.detectedAt && (
+                      <div style={{color:C.t3,fontSize:11,marginTop:8}}>
+                        🕐 収集日時: {new Date(draft._draft_meta.detectedAt).toLocaleDateString("ja-JP")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{display:"flex",gap:8,marginTop:16,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+                  <button
+                    onClick={()=>setDetail(draft)}
+                    style={{flex:1,background:C.bg2,color:C.t2,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                    🔍 詳細を確認
+                  </button>
+                  {!alreadyExists && (
+                    <button
+                      onClick={()=>onApprove(draft)}
+                      disabled={publishing}
+                      style={{flex:1.5,background:publishing?C.t3:C.green,color:"#fff",border:"none",borderRadius:8,padding:"9px",fontWeight:700,fontSize:14,cursor:publishing?"not-allowed":"pointer"}}>
+                      {publishing ? "🚀 push中…" : "✅ 承認・公開する"}
+                    </button>
+                  )}
+                  {alreadyExists && (
+                    <div style={{flex:1.5,background:C.t3+"11",color:C.t3,borderRadius:8,padding:"9px",fontWeight:700,fontSize:13,textAlign:"center"}}>
+                      ID重複のため承認不可
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 詳細モーダル */}
+      {detail && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:C.bg1,borderRadius:16,width:"100%",maxWidth:600,maxHeight:"80vh",overflow:"auto",padding:28}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h3 style={{color:C.t1,fontWeight:700,fontSize:18}}>{detail.title}</h3>
+              <button onClick={()=>setDetail(null)}
+                style={{background:"none",border:"none",color:C.t3,fontSize:24,cursor:"pointer",lineHeight:1}}>×</button>
+            </div>
+            <pre style={{background:C.bg0,borderRadius:10,padding:16,fontSize:11,color:C.t2,overflow:"auto",lineHeight:1.6,fontFamily:"monospace",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>
+              {JSON.stringify(detail, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ════════════════════════════════════════════════════════
    AI抽出タブ
