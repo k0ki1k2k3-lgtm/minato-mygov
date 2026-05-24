@@ -85,7 +85,9 @@ async function handleUserPush(data) {
     if (data.updatedAt && data.updatedAt === lastSeenAt) return;
 
     // items-db.jsonを取得
-    const res = await fetch("/items-db.json?" + Date.now());
+    // SW scopeからitems-db.jsonのパスを解決
+    const dbUrl = self.registration.scope + "items-db.json?" + Date.now();
+    const res = await fetch(dbUrl);
     const db = await res.json();
     const allItems = db.items || [];
     const allIds = allItems.map(it => it.id);
