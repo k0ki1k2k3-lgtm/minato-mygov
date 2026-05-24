@@ -1,1 +1,33 @@
+name: 🔔 Push通知送信
 
+on:
+  push:
+    branches: [main]
+    paths:
+      - "items-db.json"
+
+jobs:
+  notify-users:
+    name: ユーザーにPush通知
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: items-db.jsonの更新内容を確認
+        id: check
+        run: |
+          UPDATED_AT=$(cat items-db.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_meta']['updatedAt'])")
+          COUNT=$(cat items-db.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_meta']['totalItems'])")
+          echo "updated_at=$UPDATED_AT" >> $GITHUB_OUTPUT
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+
+      - name: ユーザーにPush通知を送信
+        run: |
+          curl -X POST "${{ secrets.PUSH_WORKER_URL }}/notify/users" \
+            -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "title": "🆕 新しい制度が追加されました",
+              "body": "港区の新しい給付制度を確認してください",
+              "updatedAt": "${{ steps.check.outputs.updated_at }}"
+            }'
