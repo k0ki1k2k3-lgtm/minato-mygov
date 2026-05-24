@@ -1,4 +1,4 @@
-name: 🔔 Push通知送信
+name: Push通知送信
 
 on:
   push:
@@ -17,34 +17,11 @@ jobs:
         id: check
         run: |
           UPDATED_AT=$(cat items-db.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_meta']['updatedAt'])")
-          COUNT=$(cat items-db.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_meta']['totalItems'])")
           echo "updated_at=$UPDATED_AT" >> $GITHUB_OUTPUT
-          echo "count=$COUNT" >> $GITHUB_OUTPUT
 
       - name: ユーザーにPush通知を送信
         run: |
           curl -X POST "${{ secrets.PUSH_WORKER_URL }}/notify/users" \
             -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "title": "🆕 新しい制度が追加されました",
-              "body": "港区の新しい給付制度を確認してください",
-              "updatedAt": "${{ steps.check.outputs.updated_at }}"
-            }'
-notify-admin:
-    name: "🔔 管理者に草稿通知"
-    runs-on: ubuntu-latest
-    needs: analyze
-    if: needs.analyze.outputs.has_drafts == 'true'
-
-    steps:
-      - name: 管理者にPush通知を送信
-        run: |
-          curl -X POST "${{ secrets.PUSH_WORKER_URL }}/notify/admin" \
-            -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "title": "📥 新しい草稿が届きました",
-              "body": "${{ needs.analyze.outputs.draft_count }}件の新制度候補があります",
-              "count": "${{ needs.analyze.outputs.draft_count }}"
-            }'
+            -d "{\"title\": \"新しい制度が追加されました\", \"body\": \"港区の新しい給付制度を確認してください\", \"updatedAt\": \"${{ steps.check.outputs.updated_at }}\"}"
