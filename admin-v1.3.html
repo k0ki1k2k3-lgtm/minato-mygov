@@ -344,27 +344,7 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
     />
   );
 
-  // eligibility certain/exclude/matchRules をJSON文字列で編集
-  const [elJson, setElJson] = useState(JSON.stringify(form.eligibility, null, 2));
-  const [elError, setElError] = useState("");
-
-  const applyElJson = () => {
-    try {
-      const parsed = JSON.parse(elJson);
-      setEl("certain", parsed.certain || []);
-      setEl("exclude", parsed.exclude || []);
-      setEl("matchRules", parsed.matchRules || []);
-      setEl("baseScore", parsed.baseScore || 0);
-      setEl("missingFor", parsed.missingFor || []);
-      setEl("excludeReasons", parsed.excludeReasons || {});
-      setEl("hints", parsed.hints || {});
-      setForm(f => ({...f, eligibility: parsed}));
-      setElError("");
-      showToast("✅ 判定条件を反映しました");
-    } catch(e) {
-      setElError("JSON形式エラー: " + e.message);
-    }
-  };
+  // eligibility は EligibilityBuilder で直接編集
 
   return (
     <div>
@@ -432,25 +412,11 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
             />
           </Section>
 
-          <Section title="判定条件（eligibility）">
-            <div style={{color:C.t3,fontSize:12,marginBottom:8,lineHeight:1.7}}>
-              JSON形式で直接編集します。<br/>
-              <code style={{background:C.bg2,padding:"1px 4px",borderRadius:4}}>certain</code>・
-              <code style={{background:C.bg2,padding:"1px 4px",borderRadius:4}}>exclude</code>・
-              <code style={{background:C.bg2,padding:"1px 4px",borderRadius:4}}>matchRules</code> を編集してください。
-            </div>
-            <textarea
-              value={elJson}
-              onChange={e=>setElJson(e.target.value)}
-              rows={14}
-              style={{width:"100%",border:`1px solid ${elError?C.red:C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.t1,outline:"none",background:"#1a2332",color:"#eeeeff",resize:"vertical",fontFamily:"monospace",lineHeight:1.6}}
+          <Section title="🎯 判定条件（eligibility）">
+            <EligibilityBuilder
+              eligibility={form.eligibility}
+              onChange={el => setForm(f => ({...f, eligibility: el}))}
             />
-            {elError && <div style={{color:C.red,fontSize:12,marginTop:4}}>{elError}</div>}
-            <button onClick={applyElJson}
-              style={{marginTop:8,background:C.purple+"22",color:C.purple,border:`1px solid ${C.purple}44`,borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer",width:"100%"}}>
-              ✓ 判定条件を反映する
-            </button>
-            <EligibilityPreview eligibility={form.eligibility}/>
           </Section>
         </div>
       </div>
@@ -479,6 +445,533 @@ function Section({title, children}) {
     </div>
   );
 }
+
+
+/* ════════════════════════════════════════════════════════
+   EligibilityBuilder — GUIで判定条件を組み立てるコンポーネント
+   ════════════════════════════════════════════════════════ */
+
+// ── 使えるプロフィールキーの定義 ──────────────────────────
+const PROFILE_KEY_DEFS = [
+  // キー, ラベル, 型, 選択肢
+  { key:"hasKids",         label:"子どもの有無",          type:"select",
+    opts:["いる（または予定あり）","いない"] },
+  { key:"kidsAge",         label:"子の年齢（最年少）",     type:"multiselect",
+    opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"] },
+  { key:"stage",           label:"ライフステージ",         type:"multiselect",
+    opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"] },
+  { key:"income",          label:"世帯年収",               type:"multiselect",
+    opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"] },
+  { key:"housing",         label:"住居形態",               type:"multiselect",
+    opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"] },
+  { key:"marital",         label:"婚姻状況",               type:"select",
+    opts:["未婚","既婚","離婚・死別"] },
+  { key:"disability",      label:"障がいの有無",           type:"select",
+    opts:["あり","なし","回答しない"] },
+  { key:"disabilityGrade", label:"障がいの等級",           type:"select",
+    opts:["1-2","3-4","5-6","none"] },
+  { key:"disabilityType",  label:"手帳の種類",             type:"select",
+    opts:["physical","mental","intellectual","none"] },
+  { key:"pregnancyStatus", label:"妊娠の状況",             type:"select",
+    opts:["pregnant","not"] },
+  { key:"hasMynumber",     label:"マイナンバーカード",     type:"select",
+    opts:["true","false"] },
+  { key:"taxStatus",       label:"住民税の課税状況",       type:"select",
+    opts:["課税世帯","均等割のみ課税","非課税","わからない"] },
+  { key:"childcareStatus", label:"保育状況",               type:"select",
+    opts:["在宅育児","認可保育園","認可外保育園","幼稚園","認定こども園","未定"] },
+  { key:"schoolType",      label:"在学校の種別",           type:"select",
+    opts:["公立","私立","国立","通信制","その他"] },
+  { key:"studentLevel",    label:"学校種別",               type:"multiselect",
+    opts:["小学生","中学生","高校生","大学生・専門学生"] },
+  { key:"housingLoan",     label:"住宅ローン",             type:"select",
+    opts:["true","false"] },
+  { key:"isUnemployed",    label:"求職中",                 type:"select",
+    opts:["true","false"] },
+  { key:"careLevel",       label:"介護認定",               type:"select",
+    opts:["非該当","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"] },
+  { key:"welfareStatus",   label:"生活保護",               type:"select",
+    opts:["receiving","not"] },
+  { key:"ageMin",          label:"年齢（以上）",           type:"age" },
+  { key:"ageMax",          label:"年齢（以下）",           type:"age" },
+  { key:"_always",         label:"全員対象",               type:"always" },
+  { key:"_alwaysExclude",  label:"常に非表示",             type:"always" },
+];
+
+// missingForに使えるキー
+const MISSING_FOR_KEYS = [
+  {key:"income",           label:"世帯年収"},
+  {key:"kidsAge",          label:"子の年齢"},
+  {key:"housing",          label:"住居形態"},
+  {key:"marital",          label:"婚姻状況"},
+  {key:"disability",       label:"障がいの有無"},
+  {key:"disabilityGrade",  label:"障がいの等級"},
+  {key:"disabilityType",   label:"手帳の種類"},
+  {key:"pregnancyStatus",  label:"妊娠の状況"},
+  {key:"hasMynumber",      label:"マイナンバーカード"},
+  {key:"taxStatus",        label:"住民税の課税状況"},
+  {key:"childcareStatus",  label:"保育状況"},
+  {key:"schoolType",       label:"在学校の種別"},
+  {key:"housingLoan",      label:"住宅ローン"},
+  {key:"isUnemployed",     label:"求職中"},
+];
+
+// 条件オブジェクト→人間語の表示
+function condToLabel(cond) {
+  return Object.entries(cond).map(([k, v]) => {
+    const def = PROFILE_KEY_DEFS.find(d => d.key === k);
+    const label = def ? def.label : k;
+    if (k === "_always") return "全員対象";
+    if (k === "_alwaysExclude") return "常に非表示";
+    if (k === "ageMin") return `${v}歳以上`;
+    if (k === "ageMax") return `${v}歳以下`;
+    if (k === "ageBetween") return `${v[0]}〜${v[1]}歳`;
+    if (typeof v === "string") return `${label}＝${v}`;
+    if (Array.isArray(v)) return `${label}＝[${v.join("/")}]`;
+    if (v && typeof v === "object" && "not" in v) return `${label}≠${v.not}`;
+    if (v && typeof v === "object" && "notIn" in v) return `${label}∉[${v.notIn.join("/")}]`;
+    return `${label}:${JSON.stringify(v)}`;
+  }).join(" AND ");
+}
+
+// ── 1つの条件オブジェクトを編集するコンポーネント ────────
+function CondEditor({ cond, onChange, onRemove, mode }) {
+  // condのキーを取得（複数キーあり得る）
+  const keys = Object.keys(cond);
+  const firstKey = keys[0] || "";
+  const def = PROFILE_KEY_DEFS.find(d => d.key === firstKey);
+
+  // キー変更
+  const handleKeyChange = (newKey) => {
+    const newDef = PROFILE_KEY_DEFS.find(d => d.key === newKey);
+    let newCond = {};
+    if (newKey === "_always")       newCond = { _always: true };
+    else if (newKey === "_alwaysExclude") newCond = { _alwaysExclude: true };
+    else if (newKey === "ageMin")   newCond = { ageMin: 20 };
+    else if (newKey === "ageMax")   newCond = { ageMax: 70 };
+    else if (newDef?.type === "multiselect") newCond = { [newKey]: [newDef.opts[0]] };
+    else if (newDef?.opts)          newCond = { [newKey]: newDef.opts[0] };
+    else                            newCond = { [newKey]: "" };
+    onChange(newCond);
+  };
+
+  // 値変更（単一値）
+  const handleValChange = (val) => {
+    onChange({ ...cond, [firstKey]: val });
+  };
+
+  // 値変更（配列トグル）
+  const handleToggle = (opt) => {
+    const cur = cond[firstKey];
+    const arr = Array.isArray(cur) ? cur : (cur ? [cur] : []);
+    const next = arr.includes(opt) ? arr.filter(x => x !== opt) : [...arr, opt];
+    onChange({ ...cond, [firstKey]: next.length === 1 ? next[0] : next });
+  };
+
+  // NOT モード
+  const isNotSingle = def && !["_always","_alwaysExclude","ageMin","ageMax"].includes(firstKey)
+    && cond[firstKey] && typeof cond[firstKey] === "object" && "not" in cond[firstKey];
+  const isNotMulti = def && def.type === "multiselect"
+    && cond[firstKey] && typeof cond[firstKey] === "object" && "notIn" in cond[firstKey];
+  const isNot = isNotSingle || isNotMulti;
+
+  const toggleNot = () => {
+    const cur = cond[firstKey];
+    if (isNotSingle) {
+      // not解除 → 元の値に戻す
+      onChange({ ...cond, [firstKey]: cur.not });
+    } else if (isNotMulti) {
+      // notIn解除 → 配列に戻す
+      onChange({ ...cond, [firstKey]: cur.notIn && cur.notIn.length ? cur.notIn : [def.opts[0]] });
+    } else if (def?.type === "multiselect") {
+      // multiselect → notIn形式へ
+      const arr = Array.isArray(cur) ? cur : (cur ? [cur] : []);
+      onChange({ ...cond, [firstKey]: { notIn: arr, ifSet: true } });
+    } else {
+      // 通常 → not形式へ
+      onChange({ ...cond, [firstKey]: { not: typeof cur === "string" ? cur : (def?.opts?.[0] || "") } });
+    }
+  };
+
+  const btnStyle = (active) => ({
+    padding:"4px 10px", borderRadius:6, border:`1px solid ${active ? C.blue : C.border}`,
+    background: active ? C.blue+"22" : "none", color: active ? C.blue : C.t2,
+    fontSize:12, cursor:"pointer", fontWeight: active ? 700 : 400,
+  });
+
+  return (
+    <div style={{background:C.bg2,borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+        {/* キー選択 */}
+        <select
+          value={firstKey}
+          onChange={e => handleKeyChange(e.target.value)}
+          style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",fontSize:12,color:C.t1,background:C.bg1,outline:"none"}}>
+          {PROFILE_KEY_DEFS.map(d => (
+            <option key={d.key} value={d.key}>{d.label}</option>
+          ))}
+        </select>
+
+        {/* NOT トグル（通常キーのみ） */}
+        {def && !["_always","_alwaysExclude","ageMin","ageMax"].includes(firstKey) && (
+          <button onClick={toggleNot} style={{...btnStyle(isNot),whiteSpace:"nowrap"}}>
+            {isNot ? "≠ NOT" : "＝ IS"}
+          </button>
+        )}
+
+        {/* 削除 */}
+        <button onClick={onRemove}
+          style={{background:C.red+"11",border:"none",color:C.red,borderRadius:6,padding:"4px 8px",fontSize:13,cursor:"pointer"}}>
+          ✕
+        </button>
+      </div>
+
+      {/* 値UI */}
+      {firstKey === "_always" || firstKey === "_alwaysExclude" ? (
+        <div style={{color:C.t3,fontSize:11}}>条件なし（常に適用）</div>
+      ) : firstKey === "ageMin" || firstKey === "ageMax" ? (
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <input type="number" min={0} max={120}
+            value={cond[firstKey] || 0}
+            onChange={e => handleValChange(Number(e.target.value))}
+            style={{width:80,border:`1px solid ${C.blue}`,borderRadius:6,padding:"4px 8px",fontSize:14,fontWeight:700,color:C.blue,outline:"none",background:C.bg1}}/>
+          <span style={{color:C.t2,fontSize:13}}>{firstKey === "ageMin" ? "歳以上" : "歳以下"}</span>
+        </div>
+      ) : def?.type === "multiselect" ? (
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          {def.opts.map(opt => {
+            const cur = cond[firstKey];
+            const notVal = isNot ? cur?.notIn : null;
+            const arr = isNot ? (notVal || []) : (Array.isArray(cur) ? cur : (cur ? [cur] : []));
+            const active = arr.includes(opt);
+            return (
+              <button key={opt}
+                onClick={() => {
+                  if (isNot) {
+                    const ni = arr.includes(opt) ? arr.filter(x=>x!==opt) : [...arr, opt];
+                    onChange({...cond, [firstKey]: {notIn: ni, ifSet: true}});
+                  } else {
+                    handleToggle(opt);
+                  }
+                }}
+                style={{...btnStyle(active),fontSize:11}}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      ) : def?.opts ? (
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          {def.opts.map(opt => {
+            const cur = isNot ? cond[firstKey]?.not : cond[firstKey];
+            return (
+              <button key={opt}
+                onClick={() => isNot ? onChange({...cond,[firstKey]:{not:opt}}) : handleValChange(opt)}
+                style={{...btnStyle(cur === opt),fontSize:11}}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <input value={cond[firstKey]||""} onChange={e=>handleValChange(e.target.value)}
+          style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",fontSize:12,color:C.t1,outline:"none",background:C.bg1}}/>
+      )}
+    </div>
+  );
+}
+
+// ── 条件リスト（certain/exclude共通） ─────────────────────
+function CondList({ title, color, conds, onChange, hint }) {
+  const addCond = () => onChange([...conds, { hasKids: "いる（または予定あり）" }]);
+  const updateCond = (i, val) => onChange(conds.map((c,j) => j===i ? val : c));
+  const removeCond = (i) => onChange(conds.filter((_,j) => j!==i));
+
+  return (
+    <div style={{marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <div>
+          <span style={{fontWeight:700,fontSize:13,color}}>{title}</span>
+          {hint && <span style={{color:C.t3,fontSize:11,marginLeft:8}}>{hint}</span>}
+        </div>
+        <button onClick={addCond}
+          style={{background:color+"11",border:`1px solid ${color}44`,color,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+          ＋ 条件を追加
+        </button>
+      </div>
+      {conds.length === 0 && (
+        <div style={{color:C.t3,fontSize:12,padding:"8px 0",fontStyle:"italic"}}>条件なし</div>
+      )}
+      {conds.map((cond, i) => (
+        <CondEditor key={i} cond={cond} onChange={v=>updateCond(i,v)} onRemove={()=>removeCond(i)} />
+      ))}
+    </div>
+  );
+}
+
+// ── matchRules エディタ ────────────────────────────────────
+function MatchRulesEditor({ rules, onChange }) {
+  const addRule = () => onChange([...rules, { "if": { hasKids: "いる（または予定あり）" }, score: 30 }]);
+  const removeRule = (i) => onChange(rules.filter((_,j) => j!==i));
+  const updateIf = (i, val) => onChange(rules.map((r,j) => j===i ? {...r, "if": val} : r));
+  const updateScore = (i, val) => onChange(rules.map((r,j) => j===i ? {...r, score: Number(val)} : r));
+
+  return (
+    <div style={{marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <div>
+          <span style={{fontWeight:700,fontSize:13,color:C.purple}}>🎯 スコアルール（matchRules）</span>
+          <span style={{color:C.t3,fontSize:11,marginLeft:8}}>条件を満たすほどスコアが上がる</span>
+        </div>
+        <button onClick={addRule}
+          style={{background:C.purple+"11",border:`1px solid ${C.purple}44`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+          ＋ ルール追加
+        </button>
+      </div>
+      {rules.length === 0 && (
+        <div style={{color:C.t3,fontSize:12,padding:"8px 0",fontStyle:"italic"}}>スコアルールなし</div>
+      )}
+      {rules.map((rule, i) => (
+        <div key={i} style={{background:C.bg2,borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <span style={{color:C.t3,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>条件：</span>
+            <div style={{flex:1}}>
+              <CondEditor cond={rule["if"]||{hasKids:"いる（または予定あり）"}} onChange={v=>updateIf(i,v)} onRemove={()=>removeRule(i)}/>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{color:C.t3,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>加算スコア：</span>
+            <input type="number" min={0} max={100} value={rule.score||0} onChange={e=>updateScore(i,e.target.value)}
+              style={{width:70,border:`1px solid ${C.purple}`,borderRadius:6,padding:"4px 8px",fontSize:14,fontWeight:700,color:C.purple,outline:"none",background:C.bg1}}/>
+            <span style={{color:C.t3,fontSize:12}}>点</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── missingFor エディタ ────────────────────────────────────
+function MissingForEditor({ missingFor, onChange }) {
+  const toggle = (key) => {
+    const cur = missingFor || [];
+    onChange(cur.includes(key) ? cur.filter(k=>k!==key) : [...cur, key]);
+  };
+  return (
+    <div style={{marginBottom:16}}>
+      <div style={{fontWeight:700,fontSize:13,color:C.t2,marginBottom:6}}>
+        ❓ 判定に必要な未入力キー（missingFor）
+        <span style={{color:C.t3,fontSize:11,fontWeight:400,marginLeft:8}}>チェックすると「ミニクイズ」で質問される</span>
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+        {MISSING_FOR_KEYS.map(({key, label}) => {
+          const active = (missingFor||[]).includes(key);
+          return (
+            <button key={key} onClick={()=>toggle(key)}
+              style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${active?C.blue:C.border}`,
+                      background:active?C.blue+"22":"none",color:active?C.blue:C.t2,
+                      fontSize:12,cursor:"pointer",fontWeight:active?700:400}}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── excludeReasons / hints エディタ ───────────────────────
+function TextMapEditor({ value, onChange, label, placeholder }) {
+  const entries = Object.entries(value || {});
+  const addEntry = () => onChange({...value, "": ""});
+  const updateKey = (oldKey, newKey) => {
+    const next = {};
+    Object.entries(value||{}).forEach(([k,v]) => { next[k===oldKey?newKey:k] = v; });
+    onChange(next);
+  };
+  const updateVal = (key, val) => onChange({...value, [key]: val});
+  const removeEntry = (key) => {
+    const next = {...value}; delete next[key]; onChange(next);
+  };
+  return (
+    <div style={{marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontWeight:700,fontSize:12,color:C.t2}}>{label}</span>
+        <button onClick={addEntry}
+          style={{background:C.bg2,border:`1px solid ${C.border}`,color:C.t3,borderRadius:6,padding:"3px 8px",fontSize:11,cursor:"pointer"}}>
+          ＋ 追加
+        </button>
+      </div>
+      {entries.map(([k,v]) => (
+        <div key={k} style={{display:"flex",gap:6,marginBottom:4,alignItems:"center"}}>
+          <select value={k} onChange={e=>updateKey(k,e.target.value)}
+            style={{width:140,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 6px",fontSize:11,color:C.t1,background:C.bg1,outline:"none"}}>
+            <option value="">キーを選択</option>
+            {[...MISSING_FOR_KEYS,{key:"ageNum",label:"年齢"},{key:"stage",label:"ライフステージ"}].map(({key,label})=>(
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <input value={v} onChange={e=>updateVal(k,e.target.value)} placeholder={placeholder}
+            style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",fontSize:12,color:C.t1,outline:"none",background:C.bg1}}/>
+          <button onClick={()=>removeEntry(k)}
+            style={{background:"none",border:"none",color:C.t3,cursor:"pointer",fontSize:14}}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── baseScore スライダー ──────────────────────────────────
+function BaseScoreEditor({ value, onChange }) {
+  return (
+    <div style={{marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+        <span style={{fontWeight:700,fontSize:12,color:C.t2}}>ベーススコア（baseScore）</span>
+        <span style={{color:C.purple,fontWeight:700,fontSize:14}}>{value}点</span>
+      </div>
+      <input type="range" min={0} max={100} step={5} value={value||0} onChange={e=>onChange(Number(e.target.value))}
+        style={{width:"100%",accentColor:C.purple}}/>
+      <div style={{display:"flex",justifyContent:"space-between",color:C.t3,fontSize:10,marginTop:2}}>
+        <span>0（条件なし）</span>
+        <span>50（やや関係あり）</span>
+        <span>100（確実）</span>
+      </div>
+    </div>
+  );
+}
+
+// ── メインの EligibilityBuilder ──────────────────────────
+function EligibilityBuilder({ eligibility, onChange }) {
+  const el = eligibility || { certain:[], exclude:[], matchRules:[], baseScore:0, missingFor:[], excludeReasons:{}, hints:{} };
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showJson, setShowJson] = useState(false);
+  const [jsonText, setJsonText] = useState(JSON.stringify(el, null, 2));
+  const [jsonError, setJsonError] = useState("");
+
+  const upd = (key, val) => {
+    const next = {...el, [key]: val};
+    onChange(next);
+    setJsonText(JSON.stringify(next, null, 2));
+  };
+
+  const applyJson = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      onChange(parsed);
+      setJsonError("");
+    } catch(e) {
+      setJsonError("JSONエラー: " + e.message);
+    }
+  };
+
+  // 現在の設定のプレビュー
+  const certainCount = el.certain?.length || 0;
+  const excludeCount = el.exclude?.length || 0;
+  const matchCount = el.matchRules?.length || 0;
+  const missingCount = el.missingFor?.length || 0;
+
+  return (
+    <div>
+      {/* サマリーバッジ */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+        {[
+          [certainCount, "✅ 確実条件", C.green],
+          [excludeCount, "❌ 除外条件", C.red],
+          [matchCount,   "🎯 スコアルール", C.purple],
+          [missingCount, "❓ ミニクイズ", C.blue],
+        ].map(([n, label, color]) => (
+          <span key={label} style={{background:color+"15",color,border:`1px solid ${color}33`,
+            borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>
+            {label} {n}件
+          </span>
+        ))}
+      </div>
+
+      {/* ✅ certain */}
+      <CondList
+        title="✅ 確実対象（certain）"
+        color={C.green}
+        hint="全条件をANDで満たしたら「対象確実」"
+        conds={el.certain || []}
+        onChange={v => upd("certain", v)}
+      />
+
+      {/* ❌ exclude */}
+      <CondList
+        title="❌ 除外条件（exclude）"
+        color={C.red}
+        hint="1つでも該当したら非表示"
+        conds={el.exclude || []}
+        onChange={v => upd("exclude", v)}
+      />
+
+      {/* 🎯 matchRules */}
+      <MatchRulesEditor
+        rules={el.matchRules || []}
+        onChange={v => upd("matchRules", v)}
+      />
+
+      {/* ベーススコア */}
+      <BaseScoreEditor value={el.baseScore||0} onChange={v => upd("baseScore", v)} />
+
+      {/* ❓ missingFor */}
+      <MissingForEditor
+        missingFor={el.missingFor||[]}
+        onChange={v => upd("missingFor", v)}
+      />
+
+      {/* 詳細（excludeReasons / hints）アコーディオン */}
+      <div
+        style={{borderTop:`1px solid ${C.border}`,paddingTop:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}
+        onClick={()=>setShowAdvanced(s=>!s)}>
+        <span style={{color:C.t2,fontWeight:700,fontSize:12}}>⚙️ 詳細設定（対象外メッセージ・ヒント）</span>
+        <span style={{color:C.t3,fontSize:16,transform:showAdvanced?"rotate(90deg)":"none",display:"inline-block",transition:"transform .2s"}}>›</span>
+      </div>
+      {showAdvanced && (
+        <div style={{marginTop:12}}>
+          <TextMapEditor
+            value={el.excludeReasons||{}}
+            onChange={v => upd("excludeReasons", v)}
+            label="対象外メッセージ（excludeReasons）"
+            placeholder="例: お子さんがいない場合は対象外です"
+          />
+          <TextMapEditor
+            value={el.hints||{}}
+            onChange={v => upd("hints", v)}
+            label="将来対象ヒント（hints）"
+            placeholder="例: 就職すると対象になります"
+          />
+        </div>
+      )}
+
+      {/* JSON直接編集（上級者向け） */}
+      <div style={{marginTop:12,borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}
+          onClick={()=>setShowJson(s=>!s)}>
+          <span style={{color:C.t3,fontSize:11}}>🔧 JSON直接編集（上級者向け）</span>
+          <span style={{color:C.t3,fontSize:14,transform:showJson?"rotate(90deg)":"none",display:"inline-block",transition:"transform .2s"}}>›</span>
+        </div>
+        {showJson && (
+          <div style={{marginTop:8}}>
+            <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)} rows={10}
+              style={{width:"100%",border:`1px solid ${jsonError?C.red:C.border}`,borderRadius:8,
+                      padding:"8px 10px",fontSize:11,color:"#eeeeff",background:"#1a2332",
+                      outline:"none",resize:"vertical",fontFamily:"monospace",lineHeight:1.6}}/>
+            {jsonError && <div style={{color:C.red,fontSize:11,marginTop:4}}>{jsonError}</div>}
+            <button onClick={applyJson}
+              style={{marginTop:6,width:"100%",background:C.purple+"22",color:C.purple,
+                      border:`1px solid ${C.purple}44`,borderRadius:6,padding:"7px",
+                      fontWeight:700,fontSize:12,cursor:"pointer"}}>
+              JSON を反映する
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 
 /* ── 給付金額ルールエディター ── */
 function SubsidyRulesEditor({rules, labelRules, onChange}) {
@@ -547,22 +1040,7 @@ function SubsidyRulesEditor({rules, labelRules, onChange}) {
   );
 }
 
-/* ── 判定条件プレビュー ── */
-function EligibilityPreview({eligibility}) {
-  if (!eligibility) return null;
-  const { certain=[], exclude=[], matchRules=[], baseScore=0, missingFor=[] } = eligibility;
-  return (
-    <div style={{marginTop:12,background:C.bg2,borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
-      <div style={{color:C.t2,fontSize:11,fontWeight:700,marginBottom:8}}>📊 判定条件サマリー</div>
-      <div style={{color:C.t3,fontSize:11,lineHeight:2}}>
-        <span style={{color:C.green}}>✅ certain:</span> {certain.length}件のAND条件<br/>
-        <span style={{color:C.red}}>❌ exclude:</span> {exclude.length}件の除外条件<br/>
-        <span style={{color:C.blue}}>🎯 matchRules:</span> {matchRules.length}件のスコアルール (base: {baseScore})<br/>
-        <span style={{color:C.purple}}>❓ missingFor:</span> [{missingFor.join(", ")}]
-      </div>
-    </div>
-  );
-}
+/* EligibilityPreview → EligibilityBuilder に統合 */
 
 /* ════════════════════════════════════════════════════════
    AI抽出タブ
