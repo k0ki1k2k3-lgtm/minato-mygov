@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "version": "1.3",
-    "updatedAt": "2026-05-23",
+    "version": "1.4",
+    "updatedAt": "2026-05-24T00:00:00Z",
     "totalItems": 43,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
@@ -22,12 +22,28 @@
       "subsidyType": "cash",
       "subsidyFixed": 120000,
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "amount": 120000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "amount": 120000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "label": "年約12万円〜"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "label": "年約12万円〜"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 360000,
       "potentialLabel": "第3子なら年36万円",
@@ -36,18 +52,50 @@
       "easyTitle": "子どもがいる家庭に毎月お金が振り込まれる制度",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"kidsAge": ["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "kidsAge": [
+              "0〜2歳",
+              "3〜5歳",
+              "6〜12歳",
+              "13〜15歳",
+              "16〜18歳"
+            ]
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳",
+                "3〜5歳",
+                "6〜12歳",
+                "13〜15歳",
+                "16〜18歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 60}
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 60
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
+        "missingFor": [
+          "kidsAge"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "18歳を超えたお子さんのみの場合は対象外です"
@@ -70,12 +118,30 @@
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}, "amount": 500000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          "amount": 500000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}, "label": "50万円"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          "label": "50万円"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 500000,
       "potentialLabel": "50万円",
@@ -84,22 +150,45 @@
       "easyTitle": "赤ちゃんが生まれたら50万円もらえる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 50}
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 50
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
+        "missingFor": [
+          "kidsAge"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
         },
-        "hints": {"hasKids": "出産予定がある場合は対象になります"}
+        "hints": {
+          "hasKids": "出産予定がある場合は対象になります"
+        }
       }
     },
     {
@@ -117,12 +206,30 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"stage": "学生", "ageMin": 20}, "amount": 200000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "stage": "学生",
+            "ageMin": 20
+          },
+          "amount": 200000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"stage": "学生", "ageMin": 20}, "label": "年約20万円節約"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "stage": "学生",
+            "ageMin": 20
+          },
+          "label": "年約20万円節約"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 200000,
       "potentialLabel": "年約20万円節約",
@@ -131,25 +238,57 @@
       "easyTitle": "【学生限定】年金1.6万円/月を卒業まで後回しにする方法",
       "eligibility": {
         "certain": [
-          {"stage": "学生"},
-          {"ageMin": 20}
+          {
+            "stage": "学生"
+          },
+          {
+            "ageMin": 20
+          }
         ],
         "exclude": [
-          {"stage": "年金生活者"},
-          {"income": ["800万円～"]},
-          {"income": ["400～600万円","600～800万円"]}
+          {
+            "stage": "年金生活者"
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          },
+          {
+            "income": [
+              "400～600万円",
+              "600～800万円"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 40},
-          {"if": {"stage": "学生"}, "score": 30}
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 40
+          },
+          {
+            "if": {
+              "stage": "学生"
+            },
+            "score": 30
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["income"],
+        "missingFor": [
+          "income"
+        ],
         "excludeReasons": {
           "stage": "年金生活者は対象外です",
           "income": "中〜高所得の場合は対象外です"
         },
-        "hints": {"income": "低所得・学生なら免除申請できます"}
+        "hints": {
+          "income": "低所得・学生なら免除申請できます"
+        }
       }
     },
     {
@@ -166,8 +305,18 @@
       "deadline": "通年（受講前に申請要）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 560000,
       "potentialLabel": "年最大56万円",
       "reminderLabel": "ハローワークで受講前申請を忘れずに",
@@ -176,18 +325,42 @@
       "eligibility": {
         "certain": [],
         "exclude": [
-          {"stage": "学生", "ageMax": 21},
-          {"stage": "年金生活者"}
+          {
+            "stage": "学生",
+            "ageMax": 21
+          },
+          {
+            "stage": "年金生活者"
+          }
         ],
         "matchRules": [
-          {"if": {"stage": "社会人（会社員）"}, "score": 40},
-          {"if": {"stage": "育休・産休中"}, "score": 30},
-          {"if": {"stage": "社会人（フリーランス・自営）"}, "score": 10}
+          {
+            "if": {
+              "stage": "社会人（会社員）"
+            },
+            "score": 40
+          },
+          {
+            "if": {
+              "stage": "育休・産休中"
+            },
+            "score": 30
+          },
+          {
+            "if": {
+              "stage": "社会人（フリーランス・自営）"
+            },
+            "score": 10
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
-        "excludeReasons": {"stage": "年金生活者・学生（22歳未満）は対象外です"},
-        "hints": {"stage": "就職すると教育訓練給付の対象になります"}
+        "excludeReasons": {
+          "stage": "年金生活者・学生（22歳未満）は対象外です"
+        },
+        "hints": {
+          "stage": "就職すると教育訓練給付の対象になります"
+        }
       }
     },
     {
@@ -203,8 +376,18 @@
       "deadline": "各大学の募集時期（毎年4〜5月頃）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 900000,
       "potentialLabel": "月最大7.5万円",
       "reminderLabel": "在籍大学の奨学金担当窓口に確認",
@@ -213,22 +396,51 @@
       "eligibility": {
         "certain": [],
         "exclude": [
-          {"income": ["800万円～"]},
-          {"income": ["400～600万円","600～800万円"]},
-          {"stage": {"not": "学生"}},
-          {"ageMax": 17},
-          {"ageMin": 31}
+          {
+            "income": [
+              "800万円～"
+            ]
+          },
+          {
+            "income": [
+              "400～600万円",
+              "600～800万円"
+            ]
+          },
+          {
+            "stage": {
+              "not": "学生"
+            }
+          },
+          {
+            "ageMax": 17
+          },
+          {
+            "ageMin": 31
+          }
         ],
         "matchRules": [
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 50}
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 50
+          }
         ],
         "baseScore": 15,
-        "missingFor": ["income"],
+        "missingFor": [
+          "income"
+        ],
         "excludeReasons": {
           "income": "世帯年収が高い場合は対象外です（目安：400万円超）",
           "stage": "大学・専門学校生が対象です"
         },
-        "hints": {"income": "世帯収入が減った場合は対象になる可能性があります"}
+        "hints": {
+          "income": "世帯収入が減った場合は対象になる可能性があります"
+        }
       }
     },
     {
@@ -244,8 +456,18 @@
       "deadline": "育休開始後2ヶ月ごとにハローワークへ申請",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "申請は勤務先の人事部経由でハローワークへ",
@@ -253,21 +475,48 @@
       "easyTitle": "育休中も給与の約8割が支給される",
       "eligibility": {
         "certain": [
-          {"stage": "育休・産休中"}
+          {
+            "stage": "育休・産休中"
+          }
         ],
         "exclude": [
-          {"stage": "年金生活者"},
-          {"stage": "学生", "ageMax": 21}
+          {
+            "stage": "年金生活者"
+          },
+          {
+            "stage": "学生",
+            "ageMax": 21
+          }
         ],
         "matchRules": [
-          {"if": {"stage": "育休・産休中"}, "score": 55},
-          {"if": {"hasKids": "いる（または予定あり）", "stage": "社会人（会社員）"}, "score": 40},
-          {"if": {"stage": "社会人（会社員）"}, "score": 25}
+          {
+            "if": {
+              "stage": "育休・産休中"
+            },
+            "score": 55
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）",
+              "stage": "社会人（会社員）"
+            },
+            "score": 40
+          },
+          {
+            "if": {
+              "stage": "社会人（会社員）"
+            },
+            "score": 25
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
-        "excludeReasons": {"stage": "育休取得者（雇用保険加入）が対象です"},
-        "hints": {"stage": "育休取得時に申請できます"}
+        "excludeReasons": {
+          "stage": "育休取得者（雇用保険加入）が対象です"
+        },
+        "hints": {
+          "stage": "育休取得時に申請できます"
+        }
       }
     },
     {
@@ -284,12 +533,34 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"stage": ["社会人（会社員）","育休・産休中"]}, "amount": 30000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "stage": [
+              "社会人（会社員）",
+              "育休・産休中"
+            ]
+          },
+          "amount": 30000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"stage": ["社会人（会社員）","育休・産休中"]}, "label": "高額医療時に還付"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "stage": [
+              "社会人（会社員）",
+              "育休・産休中"
+            ]
+          },
+          "label": "高額医療時に還付"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
@@ -298,12 +569,27 @@
       "easyTitle": "医療費が高額になっても上限で返ってくる制度",
       "eligibility": {
         "certain": [
-          {"stage": ["社会人（会社員）","育休・産休中"]}
+          {
+            "stage": [
+              "社会人（会社員）",
+              "育休・産休中"
+            ]
+          }
         ],
         "exclude": [],
         "matchRules": [
-          {"if": {"stage": "年金生活者"}, "score": 25},
-          {"if": {"stage": "社会人（フリーランス・自営）"}, "score": 15}
+          {
+            "if": {
+              "stage": "年金生活者"
+            },
+            "score": 25
+          },
+          {
+            "if": {
+              "stage": "社会人（フリーランス・自営）"
+            },
+            "score": 15
+          }
         ],
         "baseScore": 30,
         "missingFor": [],
@@ -324,8 +610,18 @@
       "deadline": "療養開始日の翌日から2年以内",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "休業4日目から申請可。勤務先・健保組合へ相談",
@@ -333,24 +629,51 @@
       "easyTitle": "病気・ケガで働けない間も給与の2/3が入る",
       "eligibility": {
         "certain": [
-          {"stage": ["社会人（会社員）","育休・産休中"]}
+          {
+            "stage": [
+              "社会人（会社員）",
+              "育休・産休中"
+            ]
+          }
         ],
         "exclude": [
-          {"stage": "社会人（フリーランス・自営）"},
-          {"stage": "学生"},
-          {"stage": "年金生活者"},
-          {"income": ["800万円～"]}
+          {
+            "stage": "社会人（フリーランス・自営）"
+          },
+          {
+            "stage": "学生"
+          },
+          {
+            "stage": "年金生活者"
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"stage": ["社会人（会社員）","育休・産休中"]}, "score": 40}
+          {
+            "if": {
+              "stage": [
+                "社会人（会社員）",
+                "育休・産休中"
+              ]
+            },
+            "score": 40
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["income"],
+        "missingFor": [
+          "income"
+        ],
         "excludeReasons": {
           "stage": "健康保険（協会けんぽ・健保組合）加入の会社員が対象です。国保は対象外。",
           "income": "高所得の場合は対象外です"
         },
-        "hints": {"stage": "就職して健康保険に加入した場合は対象になります"}
+        "hints": {
+          "stage": "就職して健康保険に加入した場合は対象になります"
+        }
       }
     },
     {
@@ -367,12 +690,28 @@
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "amount": 100000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "amount": 100000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "label": "計10万円"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "label": "計10万円"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 100000,
       "potentialLabel": "計10万円",
@@ -381,15 +720,31 @@
       "easyTitle": "妊娠中〜育児中の方に計10万円給付",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
+        "missingFor": [
+          "kidsAge"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
@@ -410,8 +765,18 @@
       "deadline": "在籍校の申請時期に準じる（毎年度）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 700000,
       "potentialLabel": "年最大70万円程度（授業料全額）",
       "reminderLabel": "在籍する大学の学生支援窓口へ確認を",
@@ -420,16 +785,37 @@
       "eligibility": {
         "certain": [],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"ageMin": 35}, "score": 20},
-          {"if": {"ageBetween": [25, 61]}, "score": 10}
+          {
+            "if": {
+              "ageMin": 35
+            },
+            "score": 20
+          },
+          {
+            "if": {
+              "ageBetween": [
+                25,
+                61
+              ]
+            },
+            "score": 10
+          }
         ],
         "baseScore": 30,
         "missingFor": [],
-        "excludeReasons": {"hasKids": "お子さんがいない場合は対象外です"},
-        "hints": {"hasKids": "子ども3人以上いる場合に大学授業料が無償化されます"}
+        "excludeReasons": {
+          "hasKids": "お子さんがいない場合は対象外です"
+        },
+        "hints": {
+          "hasKids": "子ども3人以上いる場合に大学授業料が無償化されます"
+        }
       }
     },
     {
@@ -445,8 +831,18 @@
       "deadline": "通年受付",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 450000,
       "potentialLabel": "借入3000万円の場合、5年間で最大約45万円節約",
       "reminderLabel": "取扱金融機関または住宅金融支援機構に問い合わせを",
@@ -454,26 +850,61 @@
       "easyTitle": "子どもがいると住宅ローンの金利が下がる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"housing": ["持ち家（戸建て）","持ち家（マンション）"]}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "housing": [
+              "持ち家（戸建て）",
+              "持ち家（マンション）"
+            ]
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"income": ["800万円～"]},
-          {"ageMin": 46}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          },
+          {
+            "ageMin": 46
+          }
         ],
         "matchRules": [
-          {"if": {"ageMax": 39}, "score": 25},
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 10}
+          {
+            "if": {
+              "ageMax": 39
+            },
+            "score": 25
+          },
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 10
+          }
         ],
         "baseScore": 25,
-        "missingFor": ["housing","housingLoan"],
+        "missingFor": [
+          "housing",
+          "housingLoan"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "income": "高所得の場合は対象外です",
           "housing": "住宅ローン利用者が対象です"
         },
-        "hints": {"housingLoan": "住宅購入時にフラット35を利用する場合に対象になります"}
+        "hints": {
+          "housingLoan": "住宅購入時にフラット35を利用する場合に対象になります"
+        }
       }
     },
     {
@@ -489,8 +920,18 @@
       "deadline": "通年（保育所入所と同時に適用）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 360000,
       "potentialLabel": "年最大36万円節約",
       "reminderLabel": "保育所入所申込時に区役所へ確認",
@@ -498,24 +939,61 @@
       "easyTitle": "2人目以降の保育料がゼロになる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"kidsAge": ["0〜2歳","3〜5歳"]}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "kidsAge": [
+              "0〜2歳",
+              "3〜5歳"
+            ]
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳","3〜5歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳",
+                "3〜5歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 10},
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 40}
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 10
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 40
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge","childcareStatus"],
+        "missingFor": [
+          "kidsAge",
+          "childcareStatus"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜5歳以外のお子さんのみの場合は対象外です"
         },
-        "hints": {"childcareStatus": "保育園・幼稚園に通わせている場合に適用されます"}
+        "hints": {
+          "childcareStatus": "保育園・幼稚園に通わせている場合に適用されます"
+        }
       }
     },
     {
@@ -532,12 +1010,28 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"ageMin": 70}, "amount": 20000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "ageMin": 70
+          },
+          "amount": 20000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"ageMin": 70}, "label": "年約2万円節約"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "ageMin": 70
+          },
+          "label": "年約2万円節約"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 20000,
       "potentialLabel": "年約2万円節約",
@@ -545,15 +1039,32 @@
       "sourceUrl": "https://www.kotsu.metro.tokyo.jp/other/silver/",
       "easyTitle": "70歳以上：都バス・地下鉄が乗り放題になる",
       "eligibility": {
-        "certain": [{"ageMin": 70}],
-        "exclude": [{"ageMax": 64}],
+        "certain": [
+          {
+            "ageMin": 70
+          }
+        ],
+        "exclude": [
+          {
+            "ageMax": 64
+          }
+        ],
         "matchRules": [
-          {"if": {"ageMin": 65}, "score": 30}
+          {
+            "if": {
+              "ageMin": 65
+            },
+            "score": 30
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
-        "excludeReasons": {"ageNum": "65歳未満は対象外です"},
-        "hints": {"ageNum": "65歳になると一部割引、70歳になると乗り放題になります"}
+        "excludeReasons": {
+          "ageNum": "65歳未満は対象外です"
+        },
+        "hints": {
+          "ageNum": "65歳になると一部割引、70歳になると乗り放題になります"
+        }
       }
     },
     {
@@ -569,8 +1080,18 @@
       "deadline": "2026年度：申請受付中（予算上限に達し次第終了）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 360000,
       "potentialLabel": "最大36万円",
       "reminderLabel": "クール・ネット東京に事前申請が必要",
@@ -578,19 +1099,43 @@
       "easyTitle": "太陽光パネル設置で都から最大36万円もらえる",
       "eligibility": {
         "certain": [
-          {"housing": ["持ち家（戸建て）","持ち家（マンション）"]}
+          {
+            "housing": [
+              "持ち家（戸建て）",
+              "持ち家（マンション）"
+            ]
+          }
         ],
         "exclude": [
-          {"stage": "学生", "ageMax": 24},
-          {"housing": "賃貸"}
+          {
+            "stage": "学生",
+            "ageMax": 24
+          },
+          {
+            "housing": "賃貸"
+          }
         ],
         "matchRules": [
-          {"if": {"housing": ["持ち家（戸建て）","持ち家（マンション）"]}, "score": 50}
+          {
+            "if": {
+              "housing": [
+                "持ち家（戸建て）",
+                "持ち家（マンション）"
+              ]
+            },
+            "score": 50
+          }
         ],
         "baseScore": 40,
-        "missingFor": ["housing"],
-        "excludeReasons": {"housing": "持ち家でない場合は対象外です"},
-        "hints": {"housing": "持ち家に引っ越した場合は対象になります"}
+        "missingFor": [
+          "housing"
+        ],
+        "excludeReasons": {
+          "housing": "持ち家でない場合は対象外です"
+        },
+        "hints": {
+          "housing": "持ち家に引っ越した場合は対象になります"
+        }
       }
     },
     {
@@ -606,8 +1151,18 @@
       "deadline": "毎年7〜9月に在籍校で申請",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 469000,
       "potentialLabel": "年最大46.9万円節約",
       "reminderLabel": "在籍校の7〜9月の申請期間に注意",
@@ -616,23 +1171,73 @@
       "eligibility": {
         "certain": [],
         "exclude": [
-          {"income": ["800万円～"]},
-          {"stage": {"not": "学生"}, "hasKids": {"not": "いる（または予定あり）"}}
+          {
+            "income": [
+              "800万円～"
+            ]
+          },
+          {
+            "stage": {
+              "not": "学生"
+            },
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"studentLevel": "高校生"}, "score": 70},
-          {"if": {"kidsAge": ["16〜18歳","13〜15歳"]}, "score": 45},
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 20},
-          {"if": {"income": ["400～600万円","600～800万円"]}, "score": 15},
-          {"if": {"schoolType": "私立"}, "score": 20}
+          {
+            "if": {
+              "studentLevel": "高校生"
+            },
+            "score": 70
+          },
+          {
+            "if": {
+              "kidsAge": [
+                "16〜18歳",
+                "13〜15歳"
+              ]
+            },
+            "score": 45
+          },
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 20
+          },
+          {
+            "if": {
+              "income": [
+                "400～600万円",
+                "600～800万円"
+              ]
+            },
+            "score": 15
+          },
+          {
+            "if": {
+              "schoolType": "私立"
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["income","schoolType"],
+        "missingFor": [
+          "income",
+          "schoolType"
+        ],
         "excludeReasons": {
           "income": "世帯年収910万円以上の場合は対象外です",
           "studentLevel": "高校生（または高校生の子を持つ親）が対象です"
         },
-        "hints": {"income": "所得制限は年々緩和される傾向があります"}
+        "hints": {
+          "income": "所得制限は年々緩和される傾向があります"
+        }
       }
     },
     {
@@ -648,8 +1253,18 @@
       "deadline": "令和8年1月16日（港区窓口）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 275000,
       "potentialLabel": "受講料最大20万円＋受験料最大7.5万円",
       "reminderLabel": "港区立子ども家庭支援センターへ申請。1月中旬が期限",
@@ -657,11 +1272,33 @@
       "easyTitle": "塾代・受験料を無利子で借りられる（高校3年生）",
       "eligibility": {
         "certain": [],
-        "exclude": [{"_alwaysExclude": true}],
+        "exclude": [
+          {
+            "_alwaysExclude": true
+          }
+        ],
         "matchRules": [
-          {"if": {"studentLevel": "高校生"}, "score": 60},
-          {"if": {"studentLevel": "中学生"}, "score": 55},
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 20}
+          {
+            "if": {
+              "studentLevel": "高校生"
+            },
+            "score": 60
+          },
+          {
+            "if": {
+              "studentLevel": "中学生"
+            },
+            "score": 55
+          },
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
@@ -683,8 +1320,18 @@
       "deadline": "通年（随時申請）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 200000,
       "potentialLabel": "医療費自己負担分を大幅軽減",
       "reminderLabel": "国保年金課給付係（03-3578-2642）へ申請",
@@ -692,21 +1339,51 @@
       "easyTitle": "重度障害者の医療費がほぼゼロになる制度",
       "eligibility": {
         "certain": [
-          {"disability": "あり"},
-          {"disabilityGrade": "1-2"}
+          {
+            "disability": "あり"
+          },
+          {
+            "disabilityGrade": "1-2"
+          }
         ],
         "exclude": [
-          {"disability": ["なし","回答しない"]},
-          {"income": ["800万円～"]}
+          {
+            "disability": [
+              "なし",
+              "回答しない"
+            ]
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"disability": "あり"}, "score": 65},
-          {"if": {"disabilityGrade": "1-2"}, "score": 20}
+          {
+            "if": {
+              "disability": "あり"
+            },
+            "score": 65
+          },
+          {
+            "if": {
+              "disabilityGrade": "1-2"
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["disability","disabilityGrade"],
-        "excludeReasons": {"disability": "障がいがない場合は対象外です"},
-        "hints": {"disabilityGrade": "重度（1〜3級等）の手帳所持者が主な対象です"}
+        "missingFor": [
+          "disability",
+          "disabilityGrade"
+        ],
+        "excludeReasons": {
+          "disability": "障がいがない場合は対象外です"
+        },
+        "hints": {
+          "disabilityGrade": "重度（1〜3級等）の手帳所持者が主な対象です"
+        }
       }
     },
     {
@@ -722,8 +1399,18 @@
       "deadline": "2027年4月1日まで",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 11000,
       "potentialLabel": "11,000ポイント（1.1万円相当）即付与",
       "reminderLabel": "「東京アプリ」をダウンロードしてマイナンバーカードで登録",
@@ -731,18 +1418,42 @@
       "easyTitle": "東京アプリに登録するだけで1.1万円分ポイントがもらえる",
       "eligibility": {
         "certain": [
-          {"ageMin": 15},
-          {"hasMynumber": "true"}
+          {
+            "ageMin": 15
+          },
+          {
+            "hasMynumber": "true"
+          }
         ],
-        "exclude": [{"ageMax": 14}],
+        "exclude": [
+          {
+            "ageMax": 14
+          }
+        ],
         "matchRules": [
-          {"if": {"ageMin": 15}, "score": 60},
-          {"if": {"hasMynumber": "true"}, "score": 30}
+          {
+            "if": {
+              "ageMin": 15
+            },
+            "score": 60
+          },
+          {
+            "if": {
+              "hasMynumber": "true"
+            },
+            "score": 30
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["hasMynumber"],
-        "excludeReasons": {"ageNum": "15歳未満は対象外です"},
-        "hints": {"hasMynumber": "マイナンバーカードがあると東京アプリに登録できます"}
+        "missingFor": [
+          "hasMynumber"
+        ],
+        "excludeReasons": {
+          "ageNum": "15歳未満は対象外です"
+        },
+        "hints": {
+          "hasMynumber": "マイナンバーカードがあると東京アプリに登録できます"
+        }
       }
     },
     {
@@ -758,8 +1469,18 @@
       "deadline": "令和8年8月31日（利用登録）",
       "urgent": true,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 50000,
       "potentialLabel": "ギフトカード相当額",
       "reminderLabel": "東京都の特設サイトから利用登録が必要",
@@ -767,16 +1488,33 @@
       "easyTitle": "出産後に育児グッズのギフトカードがもらえる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"kidsAge": "0〜2歳"}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "kidsAge": "0〜2歳"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
+        "missingFor": [
+          "kidsAge"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
@@ -797,8 +1535,18 @@
       "deadline": "通年（妊娠28〜36週の間）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 20000,
       "potentialLabel": "接種費用相当額（定期接種のため無料または低額）",
       "reminderLabel": "妊娠28週になったらかかりつけ医または港区保健センターへ相談",
@@ -806,25 +1554,59 @@
       "easyTitle": "妊娠中にRSウイルスワクチンを無料で接種できる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"},
-          {"ageMax": 45}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          {
+            "ageMax": 45
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}},
-          {"ageMin": 46}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          },
+          {
+            "ageMin": 46
+          }
         ],
         "matchRules": [
-          {"if": {"kidsAge": "0〜2歳", "ageMax": 45}, "score": 60},
-          {"if": {"pregnancyStatus": "pregnant"}, "score": 40}
+          {
+            "if": {
+              "kidsAge": "0〜2歳",
+              "ageMax": 45
+            },
+            "score": 60
+          },
+          {
+            "if": {
+              "pregnancyStatus": "pregnant"
+            },
+            "score": 40
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge","pregnancyStatus"],
+        "missingFor": [
+          "kidsAge",
+          "pregnancyStatus"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "ageNum": "46歳以上は対象外です"
         },
-        "hints": {"pregnancyStatus": "妊娠中（28〜36週）の方が主な対象です"}
+        "hints": {
+          "pregnancyStatus": "妊娠中（28〜36週）の方が主な対象です"
+        }
       }
     },
     {
@@ -840,8 +1622,18 @@
       "deadline": "令和8年5月29日17時（申込締切）",
       "urgent": true,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 0,
       "potentialLabel": "在宅ワーク収入確保のスキル習得",
       "reminderLabel": "東京都ひとり親家庭等就業・生活支援センターへ申込",
@@ -849,20 +1641,44 @@
       "easyTitle": "ひとり親がパソコンで在宅ワークを始められる支援",
       "eligibility": {
         "certain": [
-          {"marital": "離婚・死別"},
-          {"hasKids": "いる（または予定あり）"}
+          {
+            "marital": "離婚・死別"
+          },
+          {
+            "hasKids": "いる（または予定あり）"
+          }
         ],
         "exclude": [
-          {"marital": {"not": "離婚・死別"}},
-          {"hasKids": {"not": "いる（または予定あり）"}}
+          {
+            "marital": {
+              "not": "離婚・死別"
+            }
+          },
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"marital": "離婚・死別", "hasKids": "いる（または予定あり）"}, "score": 85}
+          {
+            "if": {
+              "marital": "離婚・死別",
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 85
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["marital"],
-        "excludeReasons": {"marital": "ひとり親（離婚・死別）でお子さんがいる方が対象です"},
-        "hints": {"marital": "離婚・死別でひとり親になった場合に対象になります"}
+        "missingFor": [
+          "marital"
+        ],
+        "excludeReasons": {
+          "marital": "ひとり親（離婚・死別）でお子さんがいる方が対象です"
+        },
+        "hints": {
+          "marital": "離婚・死別でひとり親になった場合に対象になります"
+        }
       }
     },
     {
@@ -878,8 +1694,18 @@
       "deadline": "通年（離職後2年以内）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 630000,
       "potentialLabel": "月最大7万円×9ヶ月",
       "reminderLabel": "港区生活・就労支援センター（03-6453-9032）に相談",
@@ -888,24 +1714,74 @@
       "eligibility": {
         "certain": [],
         "exclude": [
-          {"income": ["800万円～"]},
-          {"income": ["400～600万円","600～800万円"]},
-          {"housing": ["持ち家（戸建て）","持ち家（マンション）"]},
-          {"stage": "年金生活者", "income": {"not": ["～200万円","200～400万円"]}}
+          {
+            "income": [
+              "800万円～"
+            ]
+          },
+          {
+            "income": [
+              "400～600万円",
+              "600～800万円"
+            ]
+          },
+          {
+            "housing": [
+              "持ち家（戸建て）",
+              "持ち家（マンション）"
+            ]
+          },
+          {
+            "stage": "年金生活者",
+            "income": {
+              "not": [
+                "～200万円",
+                "200～400万円"
+              ]
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"housing": "賃貸"}, "score": 30},
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 30},
-          {"if": {"stage": "その他・無職"}, "score": 20},
-          {"if": {"isUnemployed": "true"}, "score": 15}
+          {
+            "if": {
+              "housing": "賃貸"
+            },
+            "score": 30
+          },
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 30
+          },
+          {
+            "if": {
+              "stage": "その他・無職"
+            },
+            "score": 20
+          },
+          {
+            "if": {
+              "isUnemployed": "true"
+            },
+            "score": 15
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["housing","income"],
+        "missingFor": [
+          "housing",
+          "income"
+        ],
         "excludeReasons": {
           "income": "世帯年収が一定以上の場合は対象外です",
           "housing": "持ち家の場合は対象外です"
         },
-        "hints": {"income": "離職・休業で収入が下がった場合は対象になる可能性があります"}
+        "hints": {
+          "income": "離職・休業で収入が下がった場合は対象になる可能性があります"
+        }
       }
     },
     {
@@ -922,15 +1798,29 @@
       "deadline": "通年",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 24000}],
-      "subsidyLabelRules": [{"default": true, "label": "年2.4万円節約"}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 24000
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": "年2.4万円節約"
+        }
+      ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "区民カードを取得して使い始めよう",
       "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/sport/sport/04.html",
       "easyTitle": "区のジムとプールが月2回タダで使える",
       "eligibility": {
-        "certain": [{"_always": true}],
+        "certain": [
+          {
+            "_always": true
+          }
+        ],
         "exclude": [],
         "matchRules": [],
         "baseScore": 100,
@@ -952,15 +1842,29 @@
       "deadline": "通年（月ごとに抽選申込）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 20000}],
-      "subsidyLabelRules": [{"default": true, "label": "1泊最大2万円節約"}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 20000
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": "1泊最大2万円節約"
+        }
+      ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "早めに予約しないと埋まりやすい",
       "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/cate005/index.html",
       "easyTitle": "箱根・熱海に格安で泊まれる（港区民限定）",
       "eligibility": {
-        "certain": [{"_always": true}],
+        "certain": [
+          {
+            "_always": true
+          }
+        ],
         "exclude": [],
         "matchRules": [],
         "baseScore": 100,
@@ -983,14 +1887,40 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "amount": 50000},
-        {"if": {"ageMax": 15}, "amount": 50000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "amount": 50000
+        },
+        {
+          "if": {
+            "ageMax": 15
+          },
+          "amount": 50000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "label": "年約5万円節約"},
-        {"if": {"ageMax": 15}, "label": "年約5万円節約"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "label": "年約5万円節約"
+        },
+        {
+          "if": {
+            "ageMax": 15
+          },
+          "label": "年約5万円節約"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 50000,
       "potentialLabel": "年約5万円節約",
@@ -999,16 +1929,44 @@
       "easyTitle": "中学生以下の医療費が無料になる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": ["0〜2歳","3〜5歳","6〜12歳","13〜15歳"]}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": [
+              "0〜2歳",
+              "3〜5歳",
+              "6〜12歳",
+              "13〜15歳"
+            ]
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}, "ageMin": 16},
-          {"kidsAge": {"notIn": ["0〜2歳","3〜5歳","6〜12歳","13〜15歳"], "ifSet": true}, "ageMin": 16}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            },
+            "ageMin": 16
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳",
+                "3〜5歳",
+                "6〜12歳",
+                "13〜15歳"
+              ],
+              "ifSet": true
+            },
+            "ageMin": 16
+          }
         ],
         "matchRules": [],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
-        "excludeReasons": {"hasKids": "中学生以下のお子さんがいない場合は対象外です"},
+        "missingFor": [
+          "kidsAge"
+        ],
+        "excludeReasons": {
+          "hasKids": "中学生以下のお子さんがいない場合は対象外です"
+        },
         "hints": {}
       }
     },
@@ -1025,10 +1983,23 @@
       "deadline": "4月入園：前年11〜12月申込",
       "urgent": true,
       "subsidyType": "info",
-      "subsidyRules": [{"default": true, "amount": 0}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "label": "手続き情報"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "label": "手続き情報"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
@@ -1037,18 +2008,45 @@
       "easyTitle": "保育所に入れたいなら11月が勝負",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"kidsAge": ["0〜2歳","3〜5歳"]}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "kidsAge": [
+              "0〜2歳",
+              "3〜5歳"
+            ]
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳","3〜5歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳",
+                "3〜5歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 50}
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 50
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge","childcareStatus"],
+        "missingFor": [
+          "kidsAge",
+          "childcareStatus"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜5歳以外のお子さんのみの場合は対象外です"
@@ -1069,8 +2067,18 @@
       "deadline": "2026年4月1日〜2027年1月29日（2026年度）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 400000,
       "potentialLabel": "最大40万円（都と合計76万円）",
       "reminderLabel": "工事前に港区環境課へ事前申請が必須",
@@ -1078,19 +2086,43 @@
       "easyTitle": "太陽光パネルに区から最大40万円追加補助がもらえる",
       "eligibility": {
         "certain": [
-          {"housing": ["持ち家（戸建て）","持ち家（マンション）"]}
+          {
+            "housing": [
+              "持ち家（戸建て）",
+              "持ち家（マンション）"
+            ]
+          }
         ],
         "exclude": [
-          {"stage": "学生", "ageMax": 24},
-          {"housing": "賃貸"}
+          {
+            "stage": "学生",
+            "ageMax": 24
+          },
+          {
+            "housing": "賃貸"
+          }
         ],
         "matchRules": [
-          {"if": {"housing": ["持ち家（戸建て）","持ち家（マンション）"]}, "score": 50}
+          {
+            "if": {
+              "housing": [
+                "持ち家（戸建て）",
+                "持ち家（マンション）"
+              ]
+            },
+            "score": 50
+          }
         ],
         "baseScore": 40,
-        "missingFor": ["housing"],
-        "excludeReasons": {"housing": "持ち家でない場合は対象外です"},
-        "hints": {"housing": "持ち家に引っ越した場合は対象になります"}
+        "missingFor": [
+          "housing"
+        ],
+        "excludeReasons": {
+          "housing": "持ち家でない場合は対象外です"
+        },
+        "hints": {
+          "housing": "持ち家に引っ越した場合は対象になります"
+        }
       }
     },
     {
@@ -1107,12 +2139,28 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"ageMin": 65}, "amount": 5000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "ageMin": 65
+          },
+          "amount": 5000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"ageMin": 65}, "label": "年最大5,000円"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "ageMin": 65
+          },
+          "label": "年最大5,000円"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 5000,
       "potentialLabel": "年最大5,000円",
@@ -1120,15 +2168,32 @@
       "sourceUrl": "https://www.city.minato.tokyo.jp/kenkouzukuri/kenko/kenko/kenkozukuri/",
       "easyTitle": "健康診断を受けるとポイントがもらえる",
       "eligibility": {
-        "certain": [{"ageMin": 65}],
-        "exclude": [{"ageMax": 59}],
+        "certain": [
+          {
+            "ageMin": 65
+          }
+        ],
+        "exclude": [
+          {
+            "ageMax": 59
+          }
+        ],
         "matchRules": [
-          {"if": {"ageMin": 60}, "score": 25}
+          {
+            "if": {
+              "ageMin": 60
+            },
+            "score": 25
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
-        "excludeReasons": {"ageNum": "60歳未満は対象外です"},
-        "hints": {"ageNum": "60歳以降に対象になります"}
+        "excludeReasons": {
+          "ageNum": "60歳未満は対象外です"
+        },
+        "hints": {
+          "ageNum": "60歳以降に対象になります"
+        }
       }
     },
     {
@@ -1145,12 +2210,28 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"ageMin": 40}, "amount": 15000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "ageMin": 40
+          },
+          "amount": 15000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"ageMin": 40}, "label": "年約1.5万円節約"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "ageMin": 40
+          },
+          "label": "年約1.5万円節約"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 15000,
       "potentialLabel": "年約1.5万円節約",
@@ -1158,15 +2239,26 @@
       "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
       "easyTitle": "がん検診が無料または格安で受けられる",
       "eligibility": {
-        "certain": [{"ageMin": 40}],
+        "certain": [
+          {
+            "ageMin": 40
+          }
+        ],
         "exclude": [],
         "matchRules": [
-          {"if": {"ageMin": 20}, "score": 20}
+          {
+            "if": {
+              "ageMin": 20
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
         "excludeReasons": {},
-        "hints": {"ageNum": "20歳以上なら子宮頸がん検診のみ対象。40歳以上で全種類対象です"}
+        "hints": {
+          "ageNum": "20歳以上なら子宮頸がん検診のみ対象。40歳以上で全種類対象です"
+        }
       }
     },
     {
@@ -1183,12 +2275,28 @@
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "amount": 10000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "amount": 10000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "label": "カタログギフト（〜1万円相当）"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "label": "カタログギフト（〜1万円相当）"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 10000,
       "potentialLabel": "〜1万円相当",
@@ -1197,16 +2305,33 @@
       "easyTitle": "2歳の誕生月にプレゼントが届く（港区）",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"kidsAge": "0〜2歳"}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "kidsAge": "0〜2歳"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
+        "missingFor": [
+          "kidsAge"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
@@ -1228,12 +2353,30 @@
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}, "amount": 310000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          "amount": 310000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}, "label": "最大31万円"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          "label": "最大31万円"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 310000,
       "potentialLabel": "最大31万円",
@@ -1242,15 +2385,31 @@
       "easyTitle": "港区で出産したら追加でお祝い金がもらえる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [],
         "baseScore": 0,
-        "missingFor": ["kidsAge"],
+        "missingFor": [
+          "kidsAge"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
@@ -1272,22 +2431,41 @@
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "amount": 0},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "amount": 0
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 50000,
       "potentialLabel": "給付あり（要確認）",
       "reminderLabel": "港区子ども家庭支援センターへ確認",
       "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
       "easyTitle": "妊婦への給付金（港区）",
       "eligibility": {
-        "certain": [{"hasKids": "いる（または予定あり）"}],
+        "certain": [
+          {
+            "hasKids": "いる（または予定あり）"
+          }
+        ],
         "exclude": [],
         "matchRules": [],
         "baseScore": 0,
         "missingFor": [],
-        "excludeReasons": {"hasKids": "お子さんがいない場合は対象外です"},
+        "excludeReasons": {
+          "hasKids": "お子さんがいない場合は対象外です"
+        },
         "hints": {}
       }
     },
@@ -1305,12 +2483,28 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "amount": 100000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "amount": 100000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）"}, "label": "最大10万円相当の支援"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "label": "最大10万円相当の支援"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 100000,
       "potentialLabel": "最大10万円相当",
@@ -1319,25 +2513,58 @@
       "easyTitle": "妊娠中〜育児を格安（1時間1000円）でサポートしてもらえる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"},
-          {"ageMin": 18},
-          {"ageMax": 45}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          {
+            "ageMin": 18
+          },
+          {
+            "ageMax": 45
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"ageMin": 18}, "score": 20},
-          {"if": {"pregnancyStatus": "pregnant"}, "score": 30}
+          {
+            "if": {
+              "ageMin": 18
+            },
+            "score": 20
+          },
+          {
+            "if": {
+              "pregnancyStatus": "pregnant"
+            },
+            "score": 30
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge","pregnancyStatus"],
+        "missingFor": [
+          "kidsAge",
+          "pregnancyStatus"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
         },
-        "hints": {"pregnancyStatus": "妊娠中・育児中の方が対象です"}
+        "hints": {
+          "pregnancyStatus": "妊娠中・育児中の方が対象です"
+        }
       }
     },
     {
@@ -1354,12 +2581,32 @@
       "urgent": false,
       "subsidyType": "savings",
       "subsidyRules": [
-        {"if": {"hasKids": "いる（または予定あり）", "ageMin": 18, "ageMax": 45}, "amount": 100000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "ageMin": 18,
+            "ageMax": 45
+          },
+          "amount": 100000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"hasKids": "いる（または予定あり）", "ageMin": 18, "ageMax": 45}, "label": "14回分・約10万円相当"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "ageMin": 18,
+            "ageMax": 45
+          },
+          "label": "14回分・約10万円相当"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 100000,
       "potentialLabel": "14回分・約10万円相当",
@@ -1368,24 +2615,52 @@
       "easyTitle": "妊婦健診14回分が全部タダになる",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）", "kidsAge": "0〜2歳"},
-          {"ageMin": 18},
-          {"ageMax": 45}
+          {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": "0〜2歳"
+          },
+          {
+            "ageMin": 18
+          },
+          {
+            "ageMax": 45
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"pregnancyStatus": "pregnant"}, "score": 40}
+          {
+            "if": {
+              "pregnancyStatus": "pregnant"
+            },
+            "score": 40
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge","pregnancyStatus"],
+        "missingFor": [
+          "kidsAge",
+          "pregnancyStatus"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
         },
-        "hints": {"pregnancyStatus": "妊婦健診の費用が全額助成されます"}
+        "hints": {
+          "pregnancyStatus": "妊婦健診の費用が全額助成されます"
+        }
       }
     },
     {
@@ -1401,8 +2676,18 @@
       "deadline": "※令和7年度分は期限終了。令和8年度分は要確認",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 70000,
       "potentialLabel": "3万円〜（子あり世帯はさらに加算）",
       "reminderLabel": "区から書類が届いたら期限内に返送を",
@@ -1410,18 +2695,57 @@
       "easyTitle": "非課税世帯に現金給付（子あり加算あり）",
       "eligibility": {
         "certain": [],
-        "exclude": [{"_alwaysExclude": true}],
+        "exclude": [
+          {
+            "_alwaysExclude": true
+          }
+        ],
         "matchRules": [
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 50},
-          {"if": {"taxStatus": "非課税"}, "score": 60},
-          {"if": {"stage": "その他・無職"}, "score": 30},
-          {"if": {"stage": "年金生活者"}, "score": 20},
-          {"if": {"stage": "社会人（フリーランス・自営）"}, "score": 10}
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 50
+          },
+          {
+            "if": {
+              "taxStatus": "非課税"
+            },
+            "score": 60
+          },
+          {
+            "if": {
+              "stage": "その他・無職"
+            },
+            "score": 30
+          },
+          {
+            "if": {
+              "stage": "年金生活者"
+            },
+            "score": 20
+          },
+          {
+            "if": {
+              "stage": "社会人（フリーランス・自営）"
+            },
+            "score": 10
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["income","taxStatus"],
-        "excludeReasons": {"income": "住民税課税世帯は対象外です"},
-        "hints": {"taxStatus": "住民税非課税世帯の場合に対象になります"},
+        "missingFor": [
+          "income",
+          "taxStatus"
+        ],
+        "excludeReasons": {
+          "income": "住民税課税世帯は対象外です"
+        },
+        "hints": {
+          "taxStatus": "住民税非課税世帯の場合に対象になります"
+        },
         "_note": "令和7年度分期限終了・令和8年度分要確認につき一時非表示"
       }
     },
@@ -1439,12 +2763,28 @@
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
-        {"if": {"ageMin": 65}, "amount": 30000},
-        {"default": true, "amount": 0}
+        {
+          "if": {
+            "ageMin": 65
+          },
+          "amount": 30000
+        },
+        {
+          "default": true,
+          "amount": 0
+        }
       ],
       "subsidyLabelRules": [
-        {"if": {"ageMin": 65}, "label": "最大3万円"},
-        {"default": true, "label": null}
+        {
+          "if": {
+            "ageMin": 65
+          },
+          "label": "最大3万円"
+        },
+        {
+          "default": true,
+          "label": null
+        }
       ],
       "potentialSubsidy": 30000,
       "potentialLabel": "最大3万円",
@@ -1452,10 +2792,28 @@
       "sourceUrl": "https://www.city.minato.tokyo.jp/jouhouka/smartphone.html",
       "easyTitle": "初めてスマホを買う65歳以上に3万円もらえる",
       "eligibility": {
-        "certain": [{"ageMin": 65}],
-        "exclude": [{"ageMax": 64}, {"income": ["800万円～"]}],
+        "certain": [
+          {
+            "ageMin": 65
+          }
+        ],
+        "exclude": [
+          {
+            "ageMax": 64
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          }
+        ],
         "matchRules": [
-          {"if": {"ageMin": 65}, "score": 60}
+          {
+            "if": {
+              "ageMin": 65
+            },
+            "score": 60
+          }
         ],
         "baseScore": 0,
         "missingFor": [],
@@ -1463,7 +2821,9 @@
           "ageNum": "65歳未満は対象外です",
           "income": "高所得の場合は対象外です"
         },
-        "hints": {"ageNum": "65歳になってから申請できます"}
+        "hints": {
+          "ageNum": "65歳になってから申請できます"
+        }
       }
     },
     {
@@ -1479,15 +2839,29 @@
       "deadline": "令和8年度：8/11・11/3・R9年2/11（5/5は終了）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 2000}],
-      "subsidyLabelRules": [{"default": true, "label": "年4回・入館料無料"}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 2000
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": "年4回・入館料無料"
+        }
+      ],
       "potentialSubsidy": 2000,
       "potentialLabel": "年4回無料（通常有料）",
       "reminderLabel": "当日は区内在住確認書類（マイナンバーカード等）を持参",
       "sourceUrl": "https://www.city.minato.tokyo.jp/kyoudorekishi/",
       "easyTitle": "科学館とプラネタリウムが年4回タダで入れる",
       "eligibility": {
-        "certain": [{"_always": true}],
+        "certain": [
+          {
+            "_always": true
+          }
+        ],
         "exclude": [],
         "matchRules": [],
         "baseScore": 100,
@@ -1509,23 +2883,56 @@
       "deadline": "毎年2月頃募集（次回は令和9年2月頃）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 200000,
       "potentialLabel": "最大約20万円（3ヶ月分）",
       "reminderLabel": "毎年2月頃に広報みなとで募集。（特）みなと障がい者福祉事業団へ",
       "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/service.html",
       "easyTitle": "障害がある人向け就労体験（時給1,226円）",
       "eligibility": {
-        "certain": [{"disability": "あり"}],
-        "exclude": [{"disability": ["なし","回答しない"]}],
+        "certain": [
+          {
+            "disability": "あり"
+          }
+        ],
+        "exclude": [
+          {
+            "disability": [
+              "なし",
+              "回答しない"
+            ]
+          }
+        ],
         "matchRules": [
-          {"if": {"disability": "あり"}, "score": 85}
+          {
+            "if": {
+              "disability": "あり"
+            },
+            "score": 85
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["disability","disabilityType"],
-        "excludeReasons": {"disability": "障がいがない場合は対象外です"},
-        "hints": {"disability": "障害者手帳がなくても医師の診断書等で応募できる場合があります"}
+        "missingFor": [
+          "disability",
+          "disabilityType"
+        ],
+        "excludeReasons": {
+          "disability": "障がいがない場合は対象外です"
+        },
+        "hints": {
+          "disability": "障害者手帳がなくても医師の診断書等で応募できる場合があります"
+        }
       }
     },
     {
@@ -1541,8 +2948,18 @@
       "deadline": "通年（随時申請）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 100000,
       "potentialLabel": "医療費自己負担分を大幅軽減",
       "reminderLabel": "総合支所区民課保健福祉係に申請。所得制限あり",
@@ -1550,24 +2967,51 @@
       "easyTitle": "ひとり親なら医療費がほぼ無料になる",
       "eligibility": {
         "certain": [
-          {"marital": "離婚・死別"},
-          {"hasKids": "いる（または予定あり）"}
+          {
+            "marital": "離婚・死別"
+          },
+          {
+            "hasKids": "いる（または予定あり）"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"income": ["800万円～"]}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"marital": "離婚・死別"}, "score": 50},
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 20}
+          {
+            "if": {
+              "marital": "離婚・死別"
+            },
+            "score": 50
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["marital","income"],
+        "missingFor": [
+          "marital",
+          "income"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "income": "高所得の場合は対象外です"
         },
-        "hints": {"marital": "離婚・死別でひとり親になった場合に対象になります"}
+        "hints": {
+          "marital": "離婚・死別でひとり親になった場合に対象になります"
+        }
       }
     },
     {
@@ -1583,8 +3027,18 @@
       "deadline": "通年（随時申請）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "子ども若者支援課子ども給付係（03-3578-2432）へ申請",
@@ -1592,24 +3046,51 @@
       "easyTitle": "ひとり親に毎月手当が支給される",
       "eligibility": {
         "certain": [
-          {"marital": "離婚・死別"},
-          {"hasKids": "いる（または予定あり）"}
+          {
+            "marital": "離婚・死別"
+          },
+          {
+            "hasKids": "いる（または予定あり）"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"income": ["800万円～"]}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"marital": "離婚・死別"}, "score": 50},
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 20}
+          {
+            "if": {
+              "marital": "離婚・死別"
+            },
+            "score": 50
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["marital","income"],
+        "missingFor": [
+          "marital",
+          "income"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "income": "高所得の場合は対象外です"
         },
-        "hints": {"marital": "離婚・死別でひとり親になった場合に対象になります"}
+        "hints": {
+          "marital": "離婚・死別でひとり親になった場合に対象になります"
+        }
       }
     },
     {
@@ -1625,8 +3106,18 @@
       "deadline": "所有権移転登記から1年以内（令和9年3月まで緩和中）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 200000,
       "potentialLabel": "購入手続き費用の一部",
       "reminderLabel": "街づくり支援部住宅課住宅支援係（03-3578-2459）へ",
@@ -1634,16 +3125,44 @@
       "easyTitle": "港区で家を買うなら区から費用補助がある",
       "eligibility": {
         "certain": [],
-        "exclude": [{"ageMin": 56}],
+        "exclude": [
+          {
+            "ageMin": 56
+          }
+        ],
         "matchRules": [
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 35},
-          {"if": {"ageMax": 39}, "score": 25},
-          {"if": {"housing": ["持ち家（戸建て）","持ち家（マンション）"]}, "score": 20}
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 35
+          },
+          {
+            "if": {
+              "ageMax": 39
+            },
+            "score": 25
+          },
+          {
+            "if": {
+              "housing": [
+                "持ち家（戸建て）",
+                "持ち家（マンション）"
+              ]
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["housing"],
-        "excludeReasons": {"ageNum": "56歳以上は対象外です"},
-        "hints": {"housing": "港区内で住宅を取得した場合に対象になります"}
+        "missingFor": [
+          "housing"
+        ],
+        "excludeReasons": {
+          "ageNum": "56歳以上は対象外です"
+        },
+        "hints": {
+          "housing": "港区内で住宅を取得した場合に対象になります"
+        }
       }
     },
     {
@@ -1659,8 +3178,18 @@
       "deadline": "通年（随時申請）",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 60000,
       "potentialLabel": "等級・手帳種別により異なる",
       "reminderLabel": "障害者福祉課または各総合支所保健福祉係へ相談",
@@ -1668,24 +3197,53 @@
       "easyTitle": "障害がある人に区から毎月手当が出る",
       "eligibility": {
         "certain": [
-          {"disability": "あり"},
-          {"disabilityGrade": "1-2"}
+          {
+            "disability": "あり"
+          },
+          {
+            "disabilityGrade": "1-2"
+          }
         ],
         "exclude": [
-          {"disability": ["なし","回答しない"]},
-          {"income": ["800万円～"]}
+          {
+            "disability": [
+              "なし",
+              "回答しない"
+            ]
+          },
+          {
+            "income": [
+              "800万円～"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"disability": "あり"}, "score": 70},
-          {"if": {"disabilityGrade": "1-2"}, "score": 20}
+          {
+            "if": {
+              "disability": "あり"
+            },
+            "score": 70
+          },
+          {
+            "if": {
+              "disabilityGrade": "1-2"
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["disability","disabilityGrade","income"],
+        "missingFor": [
+          "disability",
+          "disabilityGrade",
+          "income"
+        ],
         "excludeReasons": {
           "disability": "障がいがない場合は対象外です",
           "income": "高所得の場合は対象外です"
         },
-        "hints": {"disabilityGrade": "手帳の等級によって手当額が異なります"}
+        "hints": {
+          "disabilityGrade": "手帳の等級によって手当額が異なります"
+        }
       }
     },
     {
@@ -1701,8 +3259,18 @@
       "deadline": "通年（事前登録制）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 50000,
       "potentialLabel": "保育費の一部負担軽減",
       "reminderLabel": "港区子ども課に問い合わせ・事前登録が必要",
@@ -1710,24 +3278,54 @@
       "easyTitle": "働いていなくても保育施設を月数時間使える",
       "eligibility": {
         "certain": [
-          {"hasKids": "いる（または予定あり）"},
-          {"kidsAge": "0〜2歳"}
+          {
+            "hasKids": "いる（または予定あり）"
+          },
+          {
+            "kidsAge": "0〜2歳"
+          }
         ],
         "exclude": [
-          {"hasKids": {"not": "いる（または予定あり）"}},
-          {"kidsAge": {"notIn": ["0〜2歳"], "ifSet": true}}
+          {
+            "hasKids": {
+              "not": "いる（または予定あり）"
+            }
+          },
+          {
+            "kidsAge": {
+              "notIn": [
+                "0〜2歳"
+              ],
+              "ifSet": true
+            }
+          }
         ],
         "matchRules": [
-          {"if": {"hasKids": "いる（または予定あり）"}, "score": 50},
-          {"if": {"childcareStatus": "在宅育児"}, "score": 20}
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）"
+            },
+            "score": 50
+          },
+          {
+            "if": {
+              "childcareStatus": "在宅育児"
+            },
+            "score": 20
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["kidsAge","childcareStatus"],
+        "missingFor": [
+          "kidsAge",
+          "childcareStatus"
+        ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
         },
-        "hints": {"childcareStatus": "保育所に入っていない0〜2歳の子がいる場合に利用できます"}
+        "hints": {
+          "childcareStatus": "保育所に入っていない0〜2歳の子がいる場合に利用できます"
+        }
       }
     },
     {
@@ -1743,8 +3341,18 @@
       "deadline": "毎年度4月頃（在籍校を通じて申請）",
       "urgent": false,
       "subsidyType": "savings",
-      "subsidyRules": [{"default": true, "amount": 0}],
-      "subsidyLabelRules": [{"default": true, "label": null}],
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
       "potentialSubsidy": 100000,
       "potentialLabel": "年間数万〜10万円程度",
       "reminderLabel": "在籍する学校を通じて申請。毎年度更新が必要",
@@ -1753,36 +3361,167 @@
       "eligibility": {
         "certain": [],
         "exclude": [
-          {"income": ["800万円～"]},
-          {"income": ["400～600万円","600～800万円"]}
+          {
+            "income": [
+              "800万円～"
+            ]
+          },
+          {
+            "income": [
+              "400～600万円",
+              "600～800万円"
+            ]
+          }
         ],
         "matchRules": [
-          {"if": {"studentLevel": ["小学生","中学生"]}, "score": 50},
-          {"if": {"income": ["～200万円","200～400万円"]}, "score": 35},
-          {"if": {"hasKids": "いる（または予定あり）", "kidsAge": ["6〜12歳","13〜15歳"]}, "score": 30},
-          {"if": {"schoolType": "公立"}, "score": 10}
+          {
+            "if": {
+              "studentLevel": [
+                "小学生",
+                "中学生"
+              ]
+            },
+            "score": 50
+          },
+          {
+            "if": {
+              "income": [
+                "～200万円",
+                "200～400万円"
+              ]
+            },
+            "score": 35
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）",
+              "kidsAge": [
+                "6〜12歳",
+                "13〜15歳"
+              ]
+            },
+            "score": 30
+          },
+          {
+            "if": {
+              "schoolType": "公立"
+            },
+            "score": 10
+          }
         ],
         "baseScore": 0,
-        "missingFor": ["income","schoolType"],
-        "excludeReasons": {"income": "中〜高所得の場合は対象外です"},
-        "hints": {"income": "低所得世帯の小・中学生のいる家庭が主な対象です"}
+        "missingFor": [
+          "income",
+          "schoolType"
+        ],
+        "excludeReasons": {
+          "income": "中〜高所得の場合は対象外です"
+        },
+        "hints": {
+          "income": "低所得世帯の小・中学生のいる家庭が主な対象です"
+        }
       }
     }
   ],
   "repeatableIds": [
-    "sports_free","yoyou","kagakukan_free","kenko_point","cancer_check",
-    "kougaku_ryoyo","silver_pass"
+    "sports_free",
+    "yoyou",
+    "kagakukan_free",
+    "kenko_point",
+    "cancer_check",
+    "kougaku_ryoyo",
+    "silver_pass"
   ],
   "festivals": [
-    {"id":"f01","type":"festival","name":"麻布十番納涼まつり","area":"麻布十番","date":"8/23〜24","lat":35.6566,"lng":139.7368},
-    {"id":"f02","type":"fireworks","name":"隅田川花火大会","area":"浅草・両国","date":"7/26","lat":35.7108,"lng":139.8019},
-    {"id":"f03","type":"festival","name":"愛宕神社例大祭","area":"愛宕・芝公園","date":"6/7〜8","lat":35.6588,"lng":139.7492},
-    {"id":"f04","type":"fireworks","name":"神宮外苑花火大会","area":"青山・信濃町","date":"8/9","lat":35.6717,"lng":139.7178},
-    {"id":"f05","type":"festival","name":"高輪台夏祭り","area":"高輪","date":"8/2","lat":35.6398,"lng":139.7311},
-    {"id":"f06","type":"festival","name":"芝大神宮大祭（だらだら祭り）","area":"芝・浜松町","date":"9/11〜21","lat":35.6544,"lng":139.7503},
-    {"id":"f07","type":"fireworks","name":"東京湾大華火祭","area":"港南・芝浦","date":"8/6","lat":35.6393,"lng":139.7632},
-    {"id":"f08","type":"festival","name":"六本木ヒルズ盆踊り","area":"六本木","date":"8/14〜15","lat":35.6604,"lng":139.7292},
-    {"id":"f09","type":"festival","name":"増上寺薪能","area":"芝公園","date":"10/4","lat":35.6562,"lng":139.7493},
-    {"id":"f10","type":"festival","name":"港南夏まつり","area":"港南・芝浦","date":"7/19","lat":35.6273,"lng":139.7455}
+    {
+      "id": "f01",
+      "type": "festival",
+      "name": "麻布十番納涼まつり",
+      "area": "麻布十番",
+      "date": "8/23〜24",
+      "lat": 35.6566,
+      "lng": 139.7368
+    },
+    {
+      "id": "f02",
+      "type": "fireworks",
+      "name": "隅田川花火大会",
+      "area": "浅草・両国",
+      "date": "7/26",
+      "lat": 35.7108,
+      "lng": 139.8019
+    },
+    {
+      "id": "f03",
+      "type": "festival",
+      "name": "愛宕神社例大祭",
+      "area": "愛宕・芝公園",
+      "date": "6/7〜8",
+      "lat": 35.6588,
+      "lng": 139.7492
+    },
+    {
+      "id": "f04",
+      "type": "fireworks",
+      "name": "神宮外苑花火大会",
+      "area": "青山・信濃町",
+      "date": "8/9",
+      "lat": 35.6717,
+      "lng": 139.7178
+    },
+    {
+      "id": "f05",
+      "type": "festival",
+      "name": "高輪台夏祭り",
+      "area": "高輪",
+      "date": "8/2",
+      "lat": 35.6398,
+      "lng": 139.7311
+    },
+    {
+      "id": "f06",
+      "type": "festival",
+      "name": "芝大神宮大祭（だらだら祭り）",
+      "area": "芝・浜松町",
+      "date": "9/11〜21",
+      "lat": 35.6544,
+      "lng": 139.7503
+    },
+    {
+      "id": "f07",
+      "type": "fireworks",
+      "name": "東京湾大華火祭",
+      "area": "港南・芝浦",
+      "date": "8/6",
+      "lat": 35.6393,
+      "lng": 139.7632
+    },
+    {
+      "id": "f08",
+      "type": "festival",
+      "name": "六本木ヒルズ盆踊り",
+      "area": "六本木",
+      "date": "8/14〜15",
+      "lat": 35.6604,
+      "lng": 139.7292
+    },
+    {
+      "id": "f09",
+      "type": "festival",
+      "name": "増上寺薪能",
+      "area": "芝公園",
+      "date": "10/4",
+      "lat": 35.6562,
+      "lng": 139.7493
+    },
+    {
+      "id": "f10",
+      "type": "festival",
+      "name": "港南夏まつり",
+      "area": "港南・芝浦",
+      "date": "7/19",
+      "lat": 35.6273,
+      "lng": 139.7455
+    }
   ]
 }
