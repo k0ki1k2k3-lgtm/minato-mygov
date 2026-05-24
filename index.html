@@ -3032,5 +3032,120 @@ function App(){
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(App));
   </script>
+
+<script>
+// ── Service Worker & Web Push 登録 ──
+const VAPID_PUBLIC_KEY = "ここにPublicKeyを貼る";
+const PUSH_WORKER_URL = "https://minato-mygov-push.k0ki1k2k3-lgtm.workers.dev";
+
+// IndexedDB ヘルパー（SW と共有）
+function openAppDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("minato-mygov-db", 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("profile")) db.createObjectStore("profile", { keyPath: "key" });
+      if (!db.objectStoreNames.contains("seen")) db.createObjectStore("seen", { keyPath: "key" });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbSet(store, key, value) {
+  const db = await openAppDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, "readwrite");
+    tx.objectStore(store).put({ key, value });
+    tx.oncomplete = resolve;
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function idbGet(store, key) {
+  const db = await openAppDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, "readonly");
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = e => resolve(e.target.result?.value);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+// プロフィールをIndexedDBに保存（SWと共有するため）
+window.saveProfileToIDB = async (profile) => {
+  await idbSet("profile", "current", profile);
+  // SW にも通知
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "SAVE_PROFILE", profile });
+  }
+};
+
+// 既読情報をIndexedDBに保存
+window.saveSeenToIDB = async (ids, updatedAt) => {
+  await idbSet("seen", "ids", ids);
+  await idbSet("seen", "updatedAt", updatedAt);
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "SAVE_SEEN", ids, updatedAt });
+  }
+};
+
+// Base64URL → Uint8Array（VAPID公開鍵変換用）
+function urlB64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+}
+
+// Push通知の購読登録
+async function subscribePush(sw, type = "user") {
+  try {
+    let sub = await sw.pushManager.getSubscription();
+    if (!sub) {
+      sub = await sw.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    // Workerにendpointを送信
+    await fetch(`${PUSH_WORKER_URL}/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON(), type }),
+    });
+    console.log("✅ Push通知登録完了");
+  } catch (e) {
+    console.warn("Push通知登録失敗:", e.message);
+  }
+}
+
+// Service Worker 初期化
+async function initSW() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    console.warn("このブラウザはWeb Pushに対応していません");
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    console.log("✅ Service Worker登録完了");
+
+    // 通知許可を求める
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      // 管理者かどうか（adminページから来た場合は管理者として登録）
+      const isAdmin = window.location.pathname.includes("admin");
+      await subscribePush(reg, isAdmin ? "admin" : "user");
+    }
+  } catch (e) {
+    console.warn("Service Worker初期化失敗:", e.message);
+  }
+}
+
+// アプリ起動後に初期化
+window.addEventListener("load", () => {
+  setTimeout(initSW, 3000); // 起動から3秒後に通知許可を求める
+});
+</script>
 </body>
 </html>
