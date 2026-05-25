@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="港区給付金">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>君の代わりに全部やってあげるよアプリ v1.4</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -45,6 +48,9 @@ html, body, #root { height: 100%; width: 100%; overflow: hidden; }
 @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
 @keyframes scaleIn { from { opacity:0; transform:scale(.92) } to { opacity:1; transform:scale(1) } }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes pulseDot { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:.6} }
+@keyframes toggleGlow { 0%,100%{box-shadow:0 0 0 3px transparent} 50%{box-shadow:0 0 0 5px #1a9e6b55} }
+@keyframes toggleLabelAlt { 0%,45%{opacity:1} 50%,95%{opacity:.4} 100%{opacity:1} }
 @keyframes popIn { 0%{transform:scale(1)} 40%{transform:scale(1.4)} 100%{transform:scale(1)} }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 @keyframes toastIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
@@ -85,13 +91,20 @@ let ITEMS_BASE = [];
 let REPEATABLE_IDS = new Set();
 let FESTIVALS_DB = [];
 let TOWN_COORDS = [
-  {name:"麻布十番",lat:35.6566,lng:139.7368},{name:"青山",lat:35.6717,lng:139.7178},
-  {name:"赤坂",lat:35.6731,lng:139.7372},{name:"六本木",lat:35.6604,lng:139.7292},
-  {name:"西麻布",lat:35.6622,lng:139.7247},{name:"芝",lat:35.6507,lng:139.7503},
-  {name:"三田",lat:35.6479,lng:139.7403},{name:"高輪",lat:35.6398,lng:139.7311},
-  {name:"白金",lat:35.6419,lng:139.7197},{name:"白金台",lat:35.6368,lng:139.7197},
-  {name:"港南",lat:35.6273,lng:139.7455},{name:"芝浦",lat:35.6393,lng:139.7432},
-  {name:"虎ノ門",lat:35.6673,lng:139.7495},
+  {name:"麻布十番", lat:35.6566,lng:139.7368},{name:"東麻布",  lat:35.6588,lng:139.7420},
+  {name:"元麻布",  lat:35.6570,lng:139.7320},{name:"西麻布",  lat:35.6622,lng:139.7247},
+  {name:"南麻布",  lat:35.6490,lng:139.7297},{name:"麻布台",  lat:35.6643,lng:139.7453},
+  {name:"麻布狸穴町",lat:35.6573,lng:139.7340},{name:"麻布永坂町",lat:35.6560,lng:139.7355},
+  {name:"六本木",  lat:35.6604,lng:139.7292},{name:"赤坂",   lat:35.6731,lng:139.7372},
+  {name:"北青山",  lat:35.6717,lng:139.7178},{name:"南青山",  lat:35.6650,lng:139.7147},
+  {name:"虎ノ門",  lat:35.6673,lng:139.7495},{name:"愛宕",   lat:35.6656,lng:139.7494},
+  {name:"西新橋",  lat:35.6659,lng:139.7522},{name:"新橋",   lat:35.6664,lng:139.7583},
+  {name:"東新橋",  lat:35.6634,lng:139.7593},{name:"芝",     lat:35.6507,lng:139.7503},
+  {name:"芝大門",  lat:35.6566,lng:139.7514},{name:"芝公園",  lat:35.6563,lng:139.7454},
+  {name:"浜松町",  lat:35.6548,lng:139.7571},{name:"海岸",   lat:35.6487,lng:139.7550},
+  {name:"三田",   lat:35.6479,lng:139.7403},{name:"高輪",   lat:35.6398,lng:139.7311},
+  {name:"白金",   lat:35.6419,lng:139.7197},{name:"白金台",  lat:35.6368,lng:139.7197},
+  {name:"港南",   lat:35.6273,lng:139.7455},{name:"芝浦",   lat:35.6393,lng:139.7432},
 ];
 
 // ── データ駆動型条件評価 ──────────────────────────────────
@@ -225,6 +238,28 @@ function convertDbItem(raw) {
 // ── 新着チェック定数 ──────────────────────────────────────
 const LS_LAST_SEEN_AT = "mgov_last_seen_at";
 const LS_SEEN_IDS     = "mgov_seen_ids";
+const LS_PROFILE      = "mgov_profile";
+const LS_LIKED        = "mgov_liked";
+const LS_REMINDED     = "mgov_reminded";
+const LS_HIDDEN       = "mgov_hidden";
+const LS_DONE         = "mgov_done";
+const LS_PHASE        = "mgov_phase";
+
+function lsSave(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+}
+function lsLoad(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v !== null ? JSON.parse(v) : fallback;
+  } catch(e) { return fallback; }
+}
+function lsClearAll() {
+  [LS_PROFILE, LS_LIKED, LS_REMINDED, LS_HIDDEN, LS_DONE, LS_PHASE,
+   LS_LAST_SEEN_AT, LS_SEEN_IDS, "mgov_notif_deferred", "mgov_toggle_tried"].forEach(k => {
+    try { localStorage.removeItem(k); } catch(e) {}
+  });
+}
 let NEW_ITEMS_SINCE_LAST = []; // 新着ID一覧（グローバル）
 
 // ── items-db.json 読み込み ─────────────────────────────────
@@ -475,6 +510,53 @@ const style = document.createElement("style");
 style.textContent = FONT_INJECT;
 document.head.appendChild(style);
 
+/* ─── NotifInlineButton: RevealScreen下部の通知誘導（インライン） ─── */
+function NotifInlineButton() {
+  const [status, setStatus] = React.useState("idle"); // idle | loading | done
+  if (status === "done") return (
+    <div style={{
+      marginTop:16, color:C.green, fontSize:12, fontWeight:600,
+      animation:"fadeUp .3s ease", display:"flex", alignItems:"center", gap:5,
+    }}>
+      ✅ 通知をONにしました
+    </div>
+  );
+  return (
+    <div style={{
+      marginTop:20, width:"100%", maxWidth:320,
+      background:C.bg2, border:`1px solid ${C.border}`,
+      borderRadius:14, padding:"12px 16px",
+      display:"flex", alignItems:"center", justifyContent:"space-between", gap:12,
+      animation:"fadeUp .4s ease .1s both",
+    }}>
+      <div style={{color:C.t2, fontSize:12, lineHeight:1.5}}>
+        🔔 新しい制度が来たら<br/>お知らせしますか？
+      </div>
+      <button
+        disabled={status==="loading"}
+        onClick={async()=>{
+          setStatus("loading");
+          const ok = await window.requestPushPermission();
+          setStatus(ok?"done":"idle");
+        }}
+        style={{
+          background:C.blue, color:"#fff",
+          border:"none", borderRadius:10,
+          padding:"8px 14px", fontSize:12, fontWeight:700,
+          cursor:status==="loading"?"default":"pointer",
+          flexShrink:0, opacity:status==="loading"?0.6:1,
+          transition:"opacity .2s",
+          display:"flex", alignItems:"center", gap:6,
+        }}>
+        {status==="loading"
+          ? <span style={{width:12,height:12,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>
+          : "ONにする"
+        }
+      </button>
+    </div>
+  );
+}
+
 function Splash({onDone}){
   useEffect(()=>{const t=setTimeout(onDone,2200);return()=>clearTimeout(t);},[]);
   return (
@@ -609,6 +691,10 @@ function RevealScreen({profile, items, onEnter, done=[], hidden=[]}){
           可能性額を含めると最大 {(banner.potential+total).toLocaleString()}円
         </div>
       )}
+      {/* 通知ボタン：許可済み・非対応は非表示 */}
+      {phase3 && typeof Notification !== "undefined" && Notification.permission === "default" && (
+        <NotifInlineButton/>
+      )}
     </div>
   );
 }
@@ -723,8 +809,124 @@ function PreviewHome({items, onStart}){
   );
 }
 
+/* ─── TownPicker: サーチ＋グループ一覧の地区選択UI ─── */
+function TownPicker({ onSelect, currentValue }) {
+  const [query, setQuery] = React.useState("");
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  const filtered = query.trim()
+    ? ALL_TOWNS.filter(t => t.includes(query.trim()))
+    : null;
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:0, animation:"fadeUp .25s ease" }}>
+      {/* 検索ボックス */}
+      <div style={{
+        position:"sticky", top:0, zIndex:10,
+        background:C.bg1, paddingBottom:10,
+      }}>
+        <div style={{
+          display:"flex", alignItems:"center", gap:8,
+          background:C.bg2, borderRadius:12,
+          border:`1.5px solid ${query ? C.blue : C.border}`,
+          padding:"10px 14px",
+          transition:"border-color .2s",
+        }}>
+          <span style={{fontSize:16, opacity:.5}}>🔍</span>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="地区名を入力（例：三田）"
+            style={{
+              flex:1, background:"none", border:"none", outline:"none",
+              color:C.t1, fontSize:15, fontWeight:500,
+            }}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              style={{ background:"none", border:"none", color:C.t3, fontSize:18, cursor:"pointer", lineHeight:1, padding:0 }}>
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 絞り込み結果 */}
+      {filtered ? (
+        filtered.length === 0 ? (
+          <div style={{ color:C.t3, fontSize:13, textAlign:"center", padding:"24px 0" }}>
+            該当する地区が見つかりません
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+            {filtered.map(town => (
+              <TownChip key={town} town={town} selected={currentValue === town} onSelect={onSelect} />
+            ))}
+          </div>
+        )
+      ) : (
+        /* グループ一覧 */
+        MINATO_DISTRICTS.map(group => (
+          <div key={group.group} style={{ marginBottom:16 }}>
+            <div style={{
+              color:C.t3, fontSize:11, fontWeight:700,
+              letterSpacing:.8, marginBottom:8,
+              paddingBottom:4, borderBottom:`1px solid ${C.border}`,
+            }}>
+              {group.group}
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+              {group.towns.map(town => (
+                <TownChip key={town} town={town} selected={currentValue === town} onSelect={onSelect} />
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function TownChip({ town, selected, onSelect }) {
+  return (
+    <button
+      onClick={() => onSelect(town)}
+      style={{
+        background: selected ? C.blue : C.bg2,
+        color: selected ? "#fff" : C.t1,
+        border: `1.5px solid ${selected ? C.blue : C.border}`,
+        borderRadius: 20,
+        padding: "7px 14px",
+        fontSize: 13,
+        fontWeight: selected ? 700 : 400,
+        cursor: "pointer",
+        transition: "all .15s ease",
+        whiteSpace: "nowrap",
+        animation: "fadeUp .2s ease",
+      }}>
+      {town}
+    </button>
+  );
+}
+
 /* ─── Quiz: 4問 + GPS ─── */
-const AREA_OPTS=["麻布・元麻布・麻布十番","青山・赤坂","六本木・西麻布","芝・三田","高輪・白金","港南・芝浦","その他（港区内）"];
+const MINATO_DISTRICTS = [
+  { group: "麻布エリア",       towns: ["麻布十番","東麻布","元麻布","西麻布","南麻布","麻布台","麻布狸穴町","麻布永坂町"] },
+  { group: "六本木・赤坂エリア", towns: ["六本木","赤坂","北青山","南青山"] },
+  { group: "虎ノ門・愛宕エリア", towns: ["虎ノ門","愛宕","西新橋","新橋","東新橋"] },
+  { group: "芝・浜松町エリア",  towns: ["芝","芝大門","芝公園","浜松町","海岸"] },
+  { group: "三田・高輪エリア",  towns: ["三田","高輪","白金","白金台"] },
+  { group: "港南・芝浦エリア",  towns: ["港南","芝浦"] },
+];
+const ALL_TOWNS = MINATO_DISTRICTS.flatMap(g => g.towns);
+const AREA_OPTS = ALL_TOWNS; // GPS fallbackでも同じ地区リストを使う
 
 const QUIZ_STEPS=[
   {key:"stage",   q:"ライフステージは？", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"]},
@@ -936,10 +1138,12 @@ function Quiz({onDone}){
             <button style={{...S.btn(C.bg3),border:`1px solid ${C.border}`}} onClick={()=>setGpsPhase("fallback")}>違う</button>
           </>}
           {gpsPhase==="fallback"&&<>
-            <div style={{color:C.t1,fontSize:18,fontWeight:700,marginTop:8}}>お住まいのエリアは？</div>
-            {AREA_OPTS.map(a=>(
-              <button key={a} style={{...S.btn(C.bg3),border:`1px solid ${C.border}`,textAlign:"left",marginBottom:4}} onClick={()=>finishGps(false,a)}>{a}</button>
-            ))}
+            <div style={{color:C.t1,fontSize:18,fontWeight:700,marginTop:8}}>お住まいの地区は？</div>
+            <div style={{color:C.t2,fontSize:12,marginBottom:4}}>近くのイベント情報の精度が上がります</div>
+            <TownPicker
+              onSelect={town => finishGps(false, town)}
+              currentValue={null}
+            />
           </>}
         </div>
       </div>
@@ -2058,7 +2262,7 @@ const PROFILE_FIELDS=[
   {key:"stage",   label:"ライフステージ", emoji:"💼", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"]},
   {key:"studentLevel", label:"学校種別（学生のみ）", emoji:"🎒", studentOnly:true, opts:["小学生","中学生","高校生","大学生・専門学生"]},
   {key:"hasKids", label:"子どもの有無",   emoji:"👶", opts:["いる（または予定あり）","いない"]},
-  {key:"town",    label:"居住エリア",     emoji:"📍", opts:["麻布・元麻布・麻布十番","青山・赤坂","六本木・西麻布","芝・三田","高輪・白金","港南・芝浦","その他（港区内）"]},
+  {key:"town",    label:"居住地区",       emoji:"📍", useTownPicker:true},
   {key:"housing", label:"住居形態",       emoji:"🏠", opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
   {key:"income",  label:"世帯年収",       emoji:"💰", opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
   {key:"kidsAge", label:"子の年齢（最年少）", emoji:"🧒", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
@@ -2129,6 +2333,139 @@ const DETAIL_DISPLAY_MAP = {
   welfareStatus:     {"receiving":"受給中","not":"非受給"},
 };
 
+/* ─── NotificationModal: 通知許可誘導UI ─── */
+function NotificationModal({ trigger, onAllow, onLater }) {
+  const [loading, setLoading] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+
+  const isRemind = trigger === "remind";
+
+  const handleAllow = async () => {
+    setLoading(true);
+    const ok = await window.requestPushPermission();
+    setLoading(false);
+    if (ok) {
+      setDone(true);
+      setTimeout(onAllow, 1200);
+    } else {
+      onLater();
+    }
+  };
+
+  return (
+    <div style={{
+      position:"absolute", inset:0,
+      background:"rgba(0,0,0,.55)",
+      zIndex:180,
+      display:"flex", alignItems:"flex-end",
+      animation:"fadeUp .2s ease",
+    }}>
+      <div style={{
+        background:C.bg1,
+        borderRadius:"24px 24px 0 0",
+        width:"100%",
+        padding:"28px 24px 40px",
+        animation:"slideUp .32s cubic-bezier(.16,1,.3,1)",
+        display:"flex", flexDirection:"column", alignItems:"center", gap:0,
+      }}>
+        {/* アイコン */}
+        <div style={{
+          width:64, height:64, borderRadius:32,
+          background:done ? C.green+"22" : C.blue+"18",
+          border:`2px solid ${done ? C.green+"55" : C.blue+"33"}`,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          fontSize:30, marginBottom:16,
+          transition:"background .4s, border-color .4s",
+        }}>
+          {done ? "✅" : "🔔"}
+        </div>
+
+        {/* タイトル */}
+        <div style={{ color:C.t1, fontWeight:700, fontSize:18, marginBottom:8, textAlign:"center" }}>
+          {done
+            ? "通知をONにしました！"
+            : isRemind
+            ? "プッシュ通知でお届けできます"
+            : trigger === "notif"
+            ? "通知・リマインドを受け取る"
+            : "新しい制度をお知らせします"}
+        </div>
+
+        {/* 説明 */}
+        {!done && (
+          <div style={{ color:C.t2, fontSize:13, textAlign:"center", lineHeight:1.7, marginBottom:20 }}>
+            {isRemind
+              ? <>リマインドした制度の期限が近づいたら<br/>プッシュ通知でお知らせします。</>
+              : trigger === "notif"
+              ? <>リマインド期限や新着制度を<br/>プッシュ通知でお知らせします。</>
+              : <>あなたに関係する新しい制度が追加されたとき<br/>お知らせします。見逃しがなくなります。</>
+            }
+          </div>
+        )}
+
+        {/* 2回出る旨の注意（未許可時のみ） */}
+        {!done && (
+          <div style={{
+            background:C.bg2,
+            border:`1px solid ${C.border}`,
+            borderRadius:12,
+            padding:"10px 14px",
+            width:"100%",
+            marginBottom:22,
+            display:"flex", alignItems:"flex-start", gap:8,
+          }}>
+            <span style={{ fontSize:15, flexShrink:0, marginTop:1 }}>ℹ️</span>
+            <div style={{ color:C.t2, fontSize:12, lineHeight:1.6 }}>
+              確認画面が<strong style={{color:C.t1}}>2回</strong>出ます。<br/>
+              どちらも「<strong style={{color:C.t1}}>許可</strong>」を選んでください。
+            </div>
+          </div>
+        )}
+
+        {/* ボタン */}
+        {!done && (
+          <>
+            <button
+              onClick={handleAllow}
+              disabled={loading}
+              style={{
+                width:"100%",
+                background: loading ? C.blue+"88" : C.blue,
+                color:"#fff",
+                border:"none",
+                borderRadius:14,
+                padding:"15px",
+                fontSize:16, fontWeight:700,
+                cursor: loading ? "default" : "pointer",
+                marginBottom:10,
+                transition:"background .2s",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              }}>
+              {loading
+                ? <><span style={{width:16,height:16,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>設定中…</>
+                : "🔔 通知をONにする"
+              }
+            </button>
+            <button
+              onClick={onLater}
+              style={{
+                width:"100%",
+                background:"none",
+                border:"none",
+                color:C.t3,
+                fontSize:14,
+                cursor:"pointer",
+                padding:"10px",
+              }}>
+              後で
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── 通知許可ボタン ── */
 function NotificationButton() {
   const [status, setStatus] = React.useState(
@@ -2167,7 +2504,7 @@ function NotificationButton() {
   );
 }
 
-function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,darkMode,setDarkMode}){
+function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,onClearAll,darkMode,setDarkMode}){
   const [showHiddenList,setShowHiddenList]=useState(false);
   const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
   const [showDetailSection,setShowDetailSection]=useState(false);
@@ -2410,6 +2747,15 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
               </div>
             </>}
 
+            {sheet.useTownPicker&&<>
+              <div style={{marginTop:8}}>
+                <TownPicker
+                  onSelect={v=>{setProfile({...profile,town:v});setSheet(null);}}
+                  currentValue={profile.town||""}
+                />
+              </div>
+            </>}
+
             {!sheet.opts&&!sheet.inputType&&(
               <div style={{color:C.t2,fontSize:13,marginBottom:12,marginTop:8}}>
                 現在：{profile[sheet.key]||"未設定"}<br/>
@@ -2439,6 +2785,12 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         </button>
         <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t3,fontSize:12}} onClick={onShowAdmin}>
           ⚙️ 制度を追加・管理する
+        </button>
+        {/* 全データクリア */}
+        <button
+          style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.red}44`,color:C.red,fontSize:12,marginTop:4}}
+          onClick={onClearAll}>
+          🗑️ すべてのデータをリセット
         </button>
         {trueHidden.length>0&&(
           <div style={{background:C.bg2,borderRadius:14,padding:12,border:`1px solid ${C.border}`}}>
@@ -2831,10 +3183,11 @@ function BottomNav({tab,setTab,notifCount,festivalCount}){
 
 /* ─── App ─── */
 function App(){
-  const [phase,setPhase]=useState("loading"); // loading→splash→preview→quiz→reveal→main
+  // phaseをlocalStorageから復元（mainだった場合はmainから再開）
+  const [phase,setPhase]=useState("loading");
   const [dbLoaded,setDbLoaded]=useState(false);
   const [dbError,setDbError]=useState(false);
-  const [profile,setProfile]=useState({});
+  const [profile,setProfile]=useState(()=>lsLoad(LS_PROFILE,{}));
   const [tab,setTab]=useState("home");
   const [easy,setEasy]=useState(false);
   const [darkMode,setDarkMode]=useState(false);
@@ -2860,7 +3213,12 @@ function App(){
         setNewItems(NEW_ITEMS_SINCE_LAST);
         setShowNewPop(true);
       }
-      setPhase("splash");
+      // プロフィールが保存済みならmainから再開、なければsplash
+      const savedPhase = lsLoad(LS_PHASE, null);
+      const savedProfile = lsLoad(LS_PROFILE, {});
+      const hasProfile = savedPhase === "main" && Object.keys(savedProfile).length > 0;
+      setPhase(hasProfile ? "main" : "splash");
+      if (hasProfile) setTab("home");
     });
   },[]);
 
@@ -2876,10 +3234,10 @@ function App(){
   };
 
   const toggleDark=(v)=>{setDarkMode(v);forceUpdate(n=>n+1);};
-  const [liked,setLiked]=useState([]);
-  const [reminded,setReminded]=useState([]);
-  const [done,setDone]=useState([]); // 申請済・利用済
-  const [hidden,setHidden]=useState([]);
+  const [liked,setLiked]=useState(()=>lsLoad(LS_LIKED,[]));
+  const [reminded,setReminded]=useState(()=>lsLoad(LS_REMINDED,[]));
+  const [done,setDone]=useState(()=>lsLoad(LS_DONE,[]));
+  const [hidden,setHidden]=useState(()=>lsLoad(LS_HIDDEN,[]));
   const [toast,setToast]=useState({msg:"",visible:false});
   const [festivalSettings,setFestivalSettings]=useState(null);
   const [festivalNotified,setFestivalNotified]=useState([]);
@@ -2895,8 +3253,40 @@ function App(){
     setTimeout(()=>setToast({msg:"",visible:false}),2200);
   };
 
+  // ── localStorage への自動保存 ──
+  useEffect(()=>{ lsSave(LS_PROFILE, profile); },[profile]);
+  useEffect(()=>{ lsSave(LS_LIKED, liked); },[liked]);
+  useEffect(()=>{ lsSave(LS_REMINDED, reminded); },[reminded]);
+  useEffect(()=>{ lsSave(LS_DONE, done); },[done]);
+  useEffect(()=>{ lsSave(LS_HIDDEN, hidden); },[hidden]);
+  useEffect(()=>{ if(phase==="main") lsSave(LS_PHASE,"main"); },[phase]);
+
   const [revealMode, setRevealMode] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [notifModal, setNotifModal] = useState(null); // null | "reveal" | "remind"
+  const [toggleTried, setToggleTried] = useState(
+    () => !!localStorage.getItem("mgov_toggle_tried")
+  );
+
+  const handleToggleEasy = () => {
+    setEasy(e => !e);
+    if (!toggleTried) {
+      setToggleTried(true);
+      localStorage.setItem("mgov_toggle_tried", "1");
+    }
+  };
+
+  const shouldShowNotifModal = () =>
+    typeof Notification !== "undefined" &&
+    Notification.permission === "default" &&
+    !localStorage.getItem("mgov_notif_deferred");
+
+  const handleSetTab = (t) => {
+    setTab(t);
+    if (t === "notif" && shouldShowNotifModal()) {
+      localStorage.setItem("mgov_notif_deferred","true"); // 表示した時点でフラグ
+      setTimeout(() => setNotifModal("notif"), 500);
+    }
+  };
 
   const handleQuizDone=(ans)=>{
     setProfile(ans);
@@ -2910,9 +3300,9 @@ function App(){
   };
 
   const handleRevealEnter=()=>{
-    setRevealMode(true);
+    setTab("home");
     setPhase("main");
-    setTimeout(()=>setShowTutorial(true), 900); // カード降下完了後に表示
+    setTimeout(()=>setRevealMode(true), 1000);
   };
 
   const handleUpdate=async()=>{
@@ -2966,18 +3356,80 @@ function App(){
         {phase==="main"&&
           <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,overflow:"hidden"}}>
             {/* Header */}
-            <div style={{padding:"52px 16px 6px",borderBottom:`1px solid ${C.border}`,flexShrink:0,background:C.bg1}}>
+            <div style={{padding:"52px 16px 6px",borderBottom:`1px solid ${C.border}`,flexShrink:0,background:C.bg1,position:"relative"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
+                {/* アプリ名：クイズ後かつ未試行時は完全透明 */}
+                <div style={{
+                  opacity: (!toggleTried && revealMode) ? 0 : 1,
+                  transition: toggleTried ? "opacity .5s ease" : "none",
+                }}>
                   <div style={{color:C.t1,fontWeight:700,fontSize:13}}>🏙️ 君の代わりに全部やってあげるよアプリ</div>
                   <div style={{color:C.t3,fontSize:10,marginTop:1}}>{profile.town||""}</div>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:9,color:easy?C.t3:C.blue,fontWeight:600}}>行政用語</span>
-                  <div onClick={()=>setEasy(e=>!e)} style={{width:36,height:20,borderRadius:10,background:easy?C.green:C.t3,cursor:"pointer",position:"relative",transition:"background .25s",flexShrink:0}}>
-                    <div style={{position:"absolute",top:2,left:easy?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .25s"}}/>
+                {/* トグルエリア：クイズ後(revealMode=true)かつ未試行時だけ中央にスライド */}
+                <div style={{
+                  display:"flex", alignItems:"center", gap:6,
+                  transform: (!toggleTried && revealMode) ? "translateX(calc(-50vw + 80px))" : "translateX(0)",
+                  transition: toggleTried
+                    ? "transform .4s cubic-bezier(.4,0,1,1)"    // 帰り：早め
+                    : "transform 1.2s cubic-bezier(.16,1,.3,1)", // 行き：ゆっくり
+                }}>
+                  <span style={{
+                    fontSize: (!toggleTried && revealMode) ? 11 : 9,
+                    color: easy ? C.t3 : C.blue,
+                    fontWeight:700,
+                    transition:"font-size .4s",
+                  }}>行政用語</span>
+                  <div
+                    onClick={handleToggleEasy}
+                    style={{
+                      width: (!toggleTried && revealMode) ? 50 : 36,
+                      height: (!toggleTried && revealMode) ? 26 : 20,
+                      borderRadius:13,
+                      background: easy ? C.green : ((!toggleTried && revealMode) ? C.blue : C.t3),
+                      cursor:"pointer",
+                      position:"relative",
+                      transition:"width .4s, height .4s, background .3s",
+                      boxShadow: (!toggleTried && revealMode) ? `0 0 0 4px ${C.blue}22, 0 4px 16px ${C.blue}44` : "none",
+                      animation: (!toggleTried && revealMode) ? "toggleGlow 1.8s ease infinite" : "none",
+                      flexShrink:0,
+                    }}>
+                    <div style={{
+                      position:"absolute",
+                      top: (!toggleTried && revealMode) ? 3 : 2,
+                      left: easy ? ((!toggleTried && revealMode) ? 26 : 18) : 3,
+                      width: (!toggleTried && revealMode) ? 20 : 16,
+                      height: (!toggleTried && revealMode) ? 20 : 16,
+                      borderRadius:10,
+                      background:"#fff",
+                      transition:"left .25s cubic-bezier(.22,1,.36,1), width .4s, height .4s",
+                      boxShadow:"0 1px 4px rgba(0,0,0,.25)",
+                    }}/>
                   </div>
-                  <span style={{fontSize:9,color:easy?C.green:C.t3,fontWeight:600}}>かんたん</span>
+                  <span style={{
+                    fontSize: (!toggleTried && revealMode) ? 11 : 9,
+                    color: easy ? C.green : C.t3,
+                    fontWeight:700,
+                    transition:"font-size .4s",
+                  }}>かんたん</span>
+                  {/* 「試してみて」吹き出し：クイズ後かつ未試行時のみ */}
+                  {(!toggleTried && revealMode) && (
+                    <div style={{
+                      position:"absolute",
+                      top:"calc(100% + 4px)",
+                      right:16,
+                      background:C.blue,
+                      borderRadius:8,
+                      padding:"3px 10px",
+                      color:"#fff", fontSize:10, fontWeight:700,
+                      whiteSpace:"nowrap",
+                      pointerEvents:"none",
+                      animation:"pulse 2s ease infinite",
+                      zIndex:5,
+                    }}>
+                      試してみて！
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2985,7 +3437,15 @@ function App(){
             {/* Tab content */}
             {tab==="home"&&<Home profile={profile} setProfile={setProfile} liked={liked} reminded={reminded} hidden={hidden}
               onLike={(id)=>{setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id]);showToast(liked.includes(id)?"いいね解除":"❤️ いいね！");}}
-              onRemind={(id)=>{setReminded(r=>r.includes(id)?r.filter(x=>x!==id):[...r,id]);showToast(reminded.includes(id)?"リマインド解除":"🔔 リマインドしました");}}
+              onRemind={(id)=>{
+                const wasReminded=reminded.includes(id);
+                setReminded(r=>wasReminded?r.filter(x=>x!==id):[...r,id]);
+                showToast(wasReminded?"リマインド解除":"🔔 リマインドしました");
+                if(!wasReminded && shouldShowNotifModal()){
+                  localStorage.setItem("mgov_notif_deferred","true"); // 表示した時点でフラグ
+                  setTimeout(()=>setNotifModal("remind"),400);
+                }
+              }}
               onHide={(id)=>{setHidden(h=>[...h,id]);showToast("非表示にしました");}}
               done={done}
               onDone={(id,action)=>{
@@ -3007,7 +3467,15 @@ function App(){
             {tab==="consult"&&<ConsultTab profile={profile}/>}
             {tab==="notif"&&<NotifTab liked={liked} reminded={reminded}
               onLike={(id)=>{setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id]);showToast(liked.includes(id)?"いいね解除":"❤️ いいね！");}}
-              onRemind={(id)=>{setReminded(r=>r.includes(id)?r.filter(x=>x!==id):[...r,id]);showToast(reminded.includes(id)?"リマインド解除":"🔔 リマインドしました");}}
+              onRemind={(id)=>{
+                const wasReminded=reminded.includes(id);
+                setReminded(r=>wasReminded?r.filter(x=>x!==id):[...r,id]);
+                showToast(wasReminded?"リマインド解除":"🔔 リマインドしました");
+                if(!wasReminded && shouldShowNotifModal()){
+                  localStorage.setItem("mgov_notif_deferred","true"); // 表示した時点でフラグ
+                  setTimeout(()=>setNotifModal("remind"),400);
+                }
+              }}
               items={allItems} liveData={liveData} profile={profile} setProfile={setProfile}
               onHide={(id)=>{setHidden(h=>[...h,id]);showToast("非表示にしました");}}
               done={done}
@@ -3031,7 +3499,17 @@ function App(){
               onRestoreAll={()=>{setHidden([]);showToast("✅ 全件復元しました");}}
               onRestoreOne={(id)=>{setHidden(h=>h.filter(x=>x!==id));showToast("✅ 復元しました");}}
               onShowAdmin={()=>setShowAdmin(true)}
-              onResetQuiz={()=>{setProfile({});setLiked([]);setReminded([]);setHidden([]);setPhase("quiz");}}
+              onResetQuiz={()=>{
+                lsClearAll();
+                setProfile({});setLiked([]);setReminded([]);setHidden([]);setDone([]);
+                setPhase("quiz");
+              }}
+              onClearAll={()=>{
+                lsClearAll();
+                setProfile({});setLiked([]);setReminded([]);setHidden([]);setDone([]);
+                setPhase("splash");
+                showToast("🗑️ すべてのデータをリセットしました");
+              }}
               darkMode={darkMode} setDarkMode={toggleDark}/>}
 
             {/* 管理モーダル */}
@@ -3057,17 +3535,17 @@ function App(){
               />
             )}
 
-            <BottomNav tab={tab} setTab={setTab}
+            <BottomNav tab={tab} setTab={handleSetTab}
               notifCount={liked.length+reminded.length+newItems.length}
               festivalCount={festivalNotified.length}/>
             <Toast msg={toast.msg} visible={toast.visible}/>
 
-            {/* チュートリアル：かんたん/行政モード体験 */}
-            {showTutorial&&(
-              <TutorialOverlay
-                onSwitch={(isEasy)=>setEasy(isEasy)}
-                onClose={()=>setShowTutorial(false)}
-                item={allItems.find(it=>it.officialBody)||allItems[0]}
+            {/* 通知許可モーダル */}
+            {notifModal && (
+              <NotificationModal
+                trigger={notifModal}
+                onAllow={() => setNotifModal(null)}
+                onLater={() => setNotifModal(null)}
               />
             )}
           </div>
@@ -3159,7 +3637,7 @@ async function subscribePush(sw, type = "user") {
     await fetch(`${PUSH_WORKER_URL}/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subscription: sub.toJSON(), type }),
+      body: JSON.stringify(sub.toJSON()),
     });
     console.log("✅ Push通知登録完了");
   } catch (e) {

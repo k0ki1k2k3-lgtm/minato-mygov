@@ -1,0 +1,25 @@
+{
+  "name": "君の代わりに全部やってあげるよアプリ",
+  "short_name": "港区給付金",
+  "description": "港区在住・在勤者向け給付金・補助金パーソナライズアプリ",
+  "start_url": "/minato-mygov/",
+  "scope": "/minato-mygov/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#2d5fc4",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

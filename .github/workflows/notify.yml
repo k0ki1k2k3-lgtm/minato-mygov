@@ -21,7 +21,7 @@ jobs:
 
       - name: ユーザーにPush通知を送信
         run: |
-          curl -X POST "${{ secrets.PUSH_WORKER_URL }}/notify/users" \
+          curl -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/users" \
             -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
             -H "Content-Type: application/json" \
             -d "{\"title\": \"新しい制度が追加されました\", \"body\": \"港区の新しい給付制度を確認してください\", \"updatedAt\": \"${{ steps.check.outputs.updated_at }}\"}"
