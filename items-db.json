@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-05-26T13:18:28.652Z",
-    "totalItems": 48,
+    "updatedAt": "2026-05-26T13:25:27.863Z",
+    "totalItems": 49,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -3529,6 +3529,34 @@
         "助成上限額・日額",
         "申請受付窓口",
         "対象者要件（港区在住・在勤等）"
+      ],
+      "_source": "crawl",
+      "_status": "pending",
+      "_created_at": "2026-05-26T12:59:16.325153"
+    },
+    {
+      "id": "koreisha_nyuyokuken",
+      "gov": "港区",
+      "icon": "♨️",
+      "color": "C.green",
+      "tag": "高齢",
+      "title": "高齢者に無料入浴券を給付",
+      "officialName": "高齢者無料入浴券の給付",
+      "catch": "65歳以上の区民に銭湯の無料券をプレゼント",
+      "body": "65歳以上の港区在住の方に、区内の銭湯で使える無料入浴券を給付します。健康増進や閉じこもり防止、地域交流の促進を目的とした港区独自の高齢者支援です。",
+      "officialBody": "65歳以上の区民に対し、区内の浴場（銭湯）で利用できる無料入浴券を給付します。高齢者の健康増進及び閉じこもり防止等を図るとともに、地域コミュニティの活性化を目的とします。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "savings",
+      "subsidy_note": "入浴券の枚数・金額は要確認",
+      "potentialLabel": "銭湯利用料が無料に",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/zaitakushien/kenko/fukushi/koresha/sekatsu/nyuyokuken.html",
+      "_confidence": "high",
+      "_reason": "高齢者向け港区独自の生活支援制度。silver_passとは異なる内容で追加価値あり。",
+      "_needs_verification": [
+        "給付枚数・年間上限",
+        "申請方法・窓口",
+        "対象年齢の詳細条件"
       ],
       "_source": "crawl",
       "_status": "pending",
