@@ -3254,7 +3254,11 @@ function App(){
   };
 
   // ── localStorage への自動保存 ──
-  useEffect(()=>{ lsSave(LS_PROFILE, profile); },[profile]);
+  useEffect(()=>{
+    lsSave(LS_PROFILE, profile);
+    // IndexedDB にも同期（Service Worker がプロフィール照合に使う）
+    if (window.saveProfileToIDB) window.saveProfileToIDB(profile);
+  },[profile]);
   useEffect(()=>{ lsSave(LS_LIKED, liked); },[liked]);
   useEffect(()=>{ lsSave(LS_REMINDED, reminded); },[reminded]);
   useEffect(()=>{ lsSave(LS_DONE, done); },[done]);
