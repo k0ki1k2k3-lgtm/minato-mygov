@@ -80,7 +80,7 @@ async function callClaude(prompt, useWebSearch = false) {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
+      model:"claude-sonnet-4-6",
       max_tokens:4000,
       ...(tools?{tools}:{}),
       messages:[{role:"user",content:prompt}],
@@ -211,17 +211,34 @@ function App() {
     }
   };
 
-  // ── 草稿を承認してitems-db.jsonに追加 ──
-  const approveDraft = async (draft) => {
-    if (!db) return;
-    const { _draft_meta, ...item } = draft;
-    const updated = {...db, items: [...db.items, item]};
-    updated._meta.totalItems = updated.items.length;
-    const ok = await publishToGitHub(updated);
-    if (ok) {
-      setDrafts(ds => ds.filter(d => d.id !== draft.id));
-      showToast(`✅「${item.title}」を承認・公開しました 🚀`);
-    }
+  // ── 草稿を編集フォームに展開（直接公開せず確認を挟む） ──
+  const approveDraft = (draft) => {
+    // クローラー内部フィールドを除去
+    const {
+      _confidence, _reason, _needs_verification, _source,
+      _status, _created_at, _draft_meta, subsidy_note,
+      color,           // crawlerは "C.blue" 形式 → colorKey に変換
+      officialBody,    // 保持する
+      ...rest
+    } = draft;
+
+    // colorKey を正規化（"C.blue" → "blue"、すでに "blue" の場合もOK）
+    const colorKey = (color || rest.colorKey || "blue").replace(/^C\./, "");
+
+    // items-db.json の必須フィールドをデフォルト値で補完
+    const item = {
+      ...emptyItem(),
+      ...rest,
+      colorKey,
+      officialBody: officialBody || rest.officialBody || "",
+      // potentialSubsidy は数値に統一（草稿では文字列 or 未設定のことがある）
+      potentialSubsidy: Number(rest.potentialSubsidy) || 0,
+    };
+
+    // 編集フォームに展開してタブ切り替え
+    setEditItem(item);
+    setTab("add");
+    showToast(`📝「${item.title}」を編集フォームに展開しました。内容を確認・補完してから保存してください。`);
   };
 
   // ── ログイン処理 ──
@@ -1353,9 +1370,22 @@ function DraftsTab({drafts, loading, publishing, existingIds, onApprove, onReloa
                       <span style={{background:(govColors[draft.gov]||C.blue)+"22",color:govColors[draft.gov]||C.blue,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{draft.gov||"—"}</span>
                       <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{draft.tag||"—"}</span>
                       <code style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{draft.id||"(id未設定)"}</code>
-                      {draft._draft_meta?.source && (
+                        {/* クローラーのソース（_source） */}
+                      {draft._source && (
                         <span style={{background:C.purple+"11",color:C.purple,borderRadius:6,padding:"2px 8px",fontSize:11}}>
-                          📡 {draft._draft_meta.source}
+                          {{"rss":"📡 RSS","pdf":"📰 PDF","crawl":"🕷️ クロール"}[draft._source]||draft._source}
+                        </span>
+                      )}
+                      {/* 信頼度バッジ */}
+                      {draft._confidence && (
+                        <span style={{background:{"high":C.green,"medium":"#e8a000","low":C.red}[draft._confidence]+"22",color:{"high":C.green,"medium":"#e8a000","low":C.red}[draft._confidence]||C.t3,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>
+                          {{"high":"🟢 High","medium":"🟡 Medium","low":"🔴 Low"}[draft._confidence]}
+                        </span>
+                      )}
+                      {/* 要確認フラグ */}
+                      {draft._needs_verification && draft._needs_verification.length > 0 && (
+                        <span style={{background:C.red+"11",color:C.red,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>
+                          ⚠️ 要確認{draft._needs_verification.length}項目
                         </span>
                       )}
                     </div>
@@ -1379,9 +1409,8 @@ function DraftsTab({drafts, loading, publishing, existingIds, onApprove, onReloa
                   {!alreadyExists && (
                     <button
                       onClick={()=>onApprove(draft)}
-                      disabled={publishing}
-                      style={{flex:1.5,background:publishing?C.t3:C.green,color:"#fff",border:"none",borderRadius:8,padding:"9px",fontWeight:700,fontSize:14,cursor:publishing?"not-allowed":"pointer"}}>
-                      {publishing ? "🚀 push中…" : "✅ 承認・公開する"}
+                      style={{flex:1.5,background:C.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                      ✏️ 編集して追加
                     </button>
                   )}
                   {alreadyExists && (
@@ -1404,6 +1433,31 @@ function DraftsTab({drafts, loading, publishing, existingIds, onApprove, onReloa
               <h3 style={{color:C.t1,fontWeight:700,fontSize:18}}>{detail.title}</h3>
               <button onClick={()=>setDetail(null)}
                 style={{background:"none",border:"none",color:C.t3,fontSize:24,cursor:"pointer",lineHeight:1}}>×</button>
+            </div>
+            {/* 要確認事項を目立たせる */}
+            {detail._needs_verification && detail._needs_verification.length > 0 && (
+              <div style={{background:C.red+"11",border:`1px solid ${C.red}33`,borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+                <div style={{color:C.red,fontWeight:700,fontSize:13,marginBottom:6}}>⚠️ 要確認事項（編集フォームで補完してください）</div>
+                <ul style={{margin:0,paddingLeft:20}}>
+                  {detail._needs_verification.map((v,i)=>(
+                    <li key={i} style={{color:C.red,fontSize:13,lineHeight:1.8}}>{v}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {detail._reason && (
+              <div style={{background:C.blue+"11",border:`1px solid ${C.blue}22`,borderRadius:10,padding:"10px 14px",marginBottom:16,color:C.blue,fontSize:13}}>
+                💡 検出理由: {detail._reason}
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <span style={{background:{"high":C.green,"medium":"#e8a000","low":C.red}[detail._confidence]+"22",color:{"high":C.green,"medium":"#e8a000","low":C.red}[detail._confidence],borderRadius:6,padding:"3px 10px",fontSize:12,fontWeight:700}}>
+                信頼度: {detail._confidence}
+              </span>
+              <a href={detail.sourceUrl} target="_blank" rel="noopener noreferrer"
+                style={{color:C.blue,fontSize:12,padding:"3px 10px",border:`1px solid ${C.blue}44`,borderRadius:6,textDecoration:"none"}}>
+                🔗 公式URL →
+              </a>
             </div>
             <pre style={{background:C.bg0,borderRadius:10,padding:16,fontSize:11,color:C.t2,overflow:"auto",lineHeight:1.6,fontFamily:"monospace",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>
               {JSON.stringify(detail, null, 2)}
