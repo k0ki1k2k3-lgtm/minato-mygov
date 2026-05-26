@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-05-26T13:13:55.709Z",
-    "totalItems": 47,
+    "updatedAt": "2026-05-26T13:18:28.652Z",
+    "totalItems": 48,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -3501,6 +3501,34 @@
         "助成上限額・助成率",
         "対象となるフリースクールの要件",
         "申請窓口・受付期間"
+      ],
+      "_source": "crawl",
+      "_status": "pending",
+      "_created_at": "2026-05-26T12:59:16.325153"
+    },
+    {
+      "id": "kotsui_donor_josei",
+      "gov": "港区",
+      "icon": "🩸",
+      "color": "C.red",
+      "tag": "医療",
+      "title": "骨髄ドナー助成金",
+      "officialName": "港区骨髄移植ドナー支援事業助成金",
+      "catch": "骨髄提供で仕事を休んだ分を助成",
+      "body": "骨髄・末梢血幹細胞の提供（ドナー）のために入院・通院が必要となった場合、ドナー本人と雇用事業者の双方に対して助成金を交付します。港区在住のドナーが対象です。",
+      "officialBody": "骨髄移植又は末梢血幹細胞移植のためにドナーとなった方及びその方を雇用する事業者に対し、入院・通院に要した日数に応じた助成金を交付することにより、ドナー登録及び骨髄移植の推進を図ります。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "cash",
+      "subsidy_note": "ドナー：日額2万円程度×日数、事業者：日額2万円程度×日数（要確認）",
+      "potentialLabel": "提供日数に応じた助成",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/hokenyobou/kenko/kenko/jose/kotuzuiishokudona-sienn.html",
+      "_confidence": "medium",
+      "_reason": "港区独自の医療支援制度。ドナー登録促進・骨髄移植推進に寄与する重要制度。",
+      "_needs_verification": [
+        "助成上限額・日額",
+        "申請受付窓口",
+        "対象者要件（港区在住・在勤等）"
       ],
       "_source": "crawl",
       "_status": "pending",
