@@ -283,11 +283,18 @@ async function loadItemsDB() {
       NEW_ITEMS_SINCE_LAST = [];
       localStorage.setItem(LS_SEEN_IDS, JSON.stringify(allIds));
       localStorage.setItem(LS_LAST_SEEN_AT, dbUpdatedAt);
+      // IDBにも同期（SWが「全件既読」と認識できるよう）
+      if (window.saveSeenToIDB) window.saveSeenToIDB(allIds, dbUpdatedAt);
     } else if (dbUpdatedAt && dbUpdatedAt !== lastSeenAt) {
       // 2回目以降 かつ DB更新あり → 未見IDのみ新着
       NEW_ITEMS_SINCE_LAST = allIds.filter(id => !seenIds.includes(id));
+      // 旧seenIdsをIDBへ同期（SWが正確な差分を計算できるよう）
+      // ※ allIdsへの更新はポップアップを閉じる markNewItemsRead() で行う
+      if (window.saveSeenToIDB) window.saveSeenToIDB(seenIds, lastSeenAt);
     } else {
+      // 変化なし → 現在の全IDをIDBに同期しておく
       NEW_ITEMS_SINCE_LAST = [];
+      if (window.saveSeenToIDB) window.saveSeenToIDB(allIds, dbUpdatedAt);
     }
 
     return { ok: true, updatedAt: dbUpdatedAt, allIds };
