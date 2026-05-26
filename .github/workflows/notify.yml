@@ -10,18 +10,68 @@ jobs:
   notify-users:
     name: ユーザーにPush通知
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # HEAD~1 の比較に必要
 
-      - name: items-db.jsonの更新内容を確認
-        id: check
+      - name: 追加された制度を特定して通知文を作成
         run: |
-          UPDATED_AT=$(cat items-db.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['_meta']['updatedAt'])")
-          echo "updated_at=$UPDATED_AT" >> $GITHUB_OUTPUT
+          python3 << 'PYEOF'
+          import subprocess, json, os
+
+          # 現在の items-db.json
+          with open("items-db.json", encoding="utf-8") as f:
+              current = json.load(f)
+
+          # 1つ前のコミットの items-db.json
+          try:
+              prev_raw = subprocess.check_output(
+                  ["git", "show", "HEAD~1:items-db.json"],
+                  stderr=subprocess.DEVNULL
+              ).decode("utf-8")
+              prev_ids = {item["id"] for item in json.loads(prev_raw).get("items", [])}
+          except Exception:
+              prev_ids = set()
+
+          # 新規追加されたアイテムを抽出
+          new_items = [
+              item for item in current.get("items", [])
+              if item["id"] not in prev_ids
+          ]
+
+          updated_at = current["_meta"]["updatedAt"]
+
+          # 通知文を生成
+          if len(new_items) == 1:
+              item = new_items[0]
+              tag  = item.get("tag", "")
+              gov  = item.get("gov", "")
+              notif_title = f"【新制度】{item.get('title', '新しい制度')}"
+              catch = item.get("catch", "")
+              notif_body  = f"{gov}｜{tag}｜{catch}" if catch else f"{gov}の新制度を確認してください"
+          elif len(new_items) > 1:
+              notif_title = f"新しい制度が{len(new_items)}件追加されました"
+              notif_body  = "・".join(i.get("title", "") for i in new_items[:3])
+          else:
+              # 追加でなく編集の場合
+              notif_title = "制度情報が更新されました"
+              notif_body  = "最新情報をアプリで確認してください"
+
+          # curl に渡すペイロードをファイルに書き出し（シェルのエスケープを回避）
+          payload = {"title": notif_title, "body": notif_body, "updatedAt": updated_at}
+          with open("notify-payload.json", "w", encoding="utf-8") as f:
+              json.dump(payload, f, ensure_ascii=False)
+
+          print(f"通知タイトル: {notif_title}")
+          print(f"通知本文:     {notif_body}")
+          PYEOF
 
       - name: ユーザーにPush通知を送信
         run: |
-          curl -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/users" \
+          curl -s -w "\nHTTP Status: %{http_code}" \
+            -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/users" \
             -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
             -H "Content-Type: application/json" \
-            -d "{\"title\": \"新しい制度が追加されました\", \"body\": \"港区の新しい給付制度を確認してください\", \"updatedAt\": \"${{ steps.check.outputs.updated_at }}\"}"
+            -d @notify-payload.json
