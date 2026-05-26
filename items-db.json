@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-05-26T13:25:27.863Z",
-    "totalItems": 49,
+    "updatedAt": "2026-05-26T13:26:02.111Z",
+    "totalItems": 50,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -3557,6 +3557,35 @@
         "給付枚数・年間上限",
         "申請方法・窓口",
         "対象年齢の詳細条件"
+      ],
+      "_source": "crawl",
+      "_status": "pending",
+      "_created_at": "2026-05-26T12:59:16.325153"
+    },
+    {
+      "id": "bukka_kosodate_teate",
+      "gov": "港区",
+      "icon": "💴",
+      "color": "C.blue",
+      "tag": "子育て",
+      "title": "物価高対応子育て応援手当",
+      "officialName": "物価高対応子育て応援手当",
+      "catch": "物価高から子育て家庭を応援する港区独自給付",
+      "body": "物価高騰の影響を受ける子育て家庭を支援するため、港区が独自に支給する手当です。対象となる子どもがいる家庭に現金を給付します。申請書による申請が必要です。",
+      "officialBody": "物価高騰等による家計への影響を踏まえ、子育て家庭の経済的負担を軽減するため、対象児童を養育する保護者に対して港区独自の応援手当を支給します。",
+      "deadline": "通年",
+      "urgent": true,
+      "subsidyType": "cash",
+      "subsidy_note": "金額・対象年齢は要確認",
+      "potentialLabel": "子ども1人あたり現金給付",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/bukkadakataioukosodateouenteate.html",
+      "_confidence": "medium",
+      "_reason": "物価高対応の港区独自制度。申請書PDFが2026年更新のため現行制度と判断。urgentとして扱う。",
+      "_needs_verification": [
+        "給付額",
+        "対象児童の年齢・条件",
+        "申請期限",
+        "既存jidouteateとの関係"
       ],
       "_source": "crawl",
       "_status": "pending",
