@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-05-26T13:13:33.166Z",
-    "totalItems": 46,
+    "updatedAt": "2026-05-26T13:13:55.709Z",
+    "totalItems": 47,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -3473,6 +3473,34 @@
         "助成上限額",
         "対象となるADR機関",
         "申請期限・受付窓口"
+      ],
+      "_source": "crawl",
+      "_status": "pending",
+      "_created_at": "2026-05-26T12:59:16.325153"
+    },
+    {
+      "id": "freeschool_josei",
+      "gov": "港区",
+      "icon": "🏫",
+      "color": "C.purple",
+      "tag": "学び",
+      "title": "フリースクール利用料を助成",
+      "officialName": "港区フリースクール等利用料助成金",
+      "catch": "不登校の子のフリースクール費用を港区が助成",
+      "body": "不登校の児童・生徒がフリースクール等を利用する際の費用を港区が助成します。学校以外の多様な学びの場を確保し、子どもたちの社会的自立を支援する港区独自の制度です。",
+      "officialBody": "不登校の状態にある児童・生徒が民間のフリースクール等を利用する場合に、その利用料の一部を助成することにより、学校外における多様な学習機会の確保及び社会的自立を支援します。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "cash",
+      "subsidy_note": "助成上限額・助成率は要確認",
+      "potentialLabel": "フリースクール費用の一部を助成",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kyouikushien/minatofs.html",
+      "_confidence": "high",
+      "_reason": "不登校支援の港区独自制度。既存IDに類似制度なし。社会的ニーズが高い。",
+      "_needs_verification": [
+        "助成上限額・助成率",
+        "対象となるフリースクールの要件",
+        "申請窓口・受付期間"
       ],
       "_source": "crawl",
       "_status": "pending",
