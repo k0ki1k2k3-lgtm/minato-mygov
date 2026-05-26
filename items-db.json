@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-05-25T22:26:28.124Z",
-    "totalItems": 43,
+    "updatedAt": "2026-05-26T13:12:55.909Z",
+    "totalItems": 45,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -3421,6 +3421,34 @@
           "income": "低所得世帯の小・中学生のいる家庭が主な対象です"
         }
       }
+    },
+    {
+      "id": "hitorioya_kotsupas",
+      "gov": "東京都",
+      "icon": "🚃",
+      "color": "C.blue",
+      "tag": "子育て",
+      "title": "ひとり親に都営交通無料パス",
+      "officialName": "児童扶養手当受給者等への都営交通無料乗車券の発行",
+      "catch": "ひとり親家庭に都営バス・地下鉄が無料に",
+      "body": "児童扶養手当を受給しているひとり親家庭の親と子に、都営地下鉄・都営バス・都電荒川線・日暮里・舎人ライナーが無料で乗れる乗車証を発行します。港区窓口で申請できます。",
+      "officialBody": "児童扶養手当の受給者及びその児童（18歳に達する日以後の最初の3月31日までの者）に対し、都営交通（都営地下鉄・都営バス・都電荒川線・日暮里舎人ライナー）の無料乗車証を発行します。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "savings",
+      "subsidy_note": "都営交通運賃相当額（利用頻度による）",
+      "potentialLabel": "交通費が実質無料に",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/hitorioya/kotsu.html",
+      "_confidence": "high",
+      "_reason": "ひとり親家庭向けの交通費支援。既存のhitorioya_teleworkとは異なる制度。利用価値が高い。",
+      "_needs_verification": [
+        "申請に必要な書類",
+        "子の年齢上限の確認",
+        "港区独自給付か都制度か"
+      ],
+      "_source": "crawl",
+      "_status": "pending",
+      "_created_at": "2026-05-26T12:59:16.325153"
     }
   ],
   "repeatableIds": [
