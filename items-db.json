@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-05-26T13:12:55.909Z",
-    "totalItems": 45,
+    "updatedAt": "2026-05-26T13:13:33.166Z",
+    "totalItems": 46,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -3445,6 +3445,34 @@
         "申請に必要な書類",
         "子の年齢上限の確認",
         "港区独自給付か都制度か"
+      ],
+      "_source": "crawl",
+      "_status": "pending",
+      "_created_at": "2026-05-26T12:59:16.325153"
+    },
+    {
+      "id": "rikon_shien_josei",
+      "gov": "港区",
+      "icon": "⚖️",
+      "color": "C.purple",
+      "tag": "子育て",
+      "title": "離婚前後の親への支援助成金",
+      "officialName": "港区離婚前後の親の支援推進助成金",
+      "catch": "離婚時の養育費取り決めをサポート",
+      "body": "離婚前後に養育費の取り決めをするためにADR（裁判外紛争解決手続）を利用した場合、その費用の一部を助成します。子どもの養育費確保を支援する港区独自の制度です。",
+      "officialBody": "離婚前後における父母間の養育費等に関する取り決めを促進するため、裁判外紛争解決手続（ADR）を利用した際にかかる費用の一部について助成金を交付します。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "cash",
+      "subsidy_note": "ADR利用費用の一部（上限額要確認）",
+      "potentialLabel": "ADR費用の一部を助成",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/adr-youikuhihoshou.html",
+      "_confidence": "medium",
+      "_reason": "離婚前後の親向け港区独自制度。養育費確保に直結する重要な支援。",
+      "_needs_verification": [
+        "助成上限額",
+        "対象となるADR機関",
+        "申請期限・受付窓口"
       ],
       "_source": "crawl",
       "_status": "pending",
