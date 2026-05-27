@@ -310,6 +310,41 @@ function calcEligibility(p, el) { return calcEligibilityData(p, el); }
 function getConfidence(item, profile) { return getConfidenceData(item, profile); }
 function getMissingQuestions(item, profile) { return getMissingQuestionsData(item, profile); }
 function getExclusionReason(item, profile) { return getExclusionReasonData(item, profile); }
+
+/* ════════════════════════════════════════════════════════
+   interestScores — いいね・申請済みから興味スコアを計算
+   ════════════════════════════════════════════════════════ */
+
+// いいね=1票、申請済み=2票の割合で管理（腐らない）
+function calcInterestScores(liked, done, allItems) {
+  const votes = {};
+  const totalVotes = { l1: 0, l2: 0, l3: 0 };
+  [...liked.map(id => ({id, weight:1})), ...done.map(id => ({id, weight:2}))]
+    .forEach(({id, weight}) => {
+      const item = allItems.find(it => it.id === id);
+      if (!item?.interestTags) return;
+      const {l1, l2, l3} = item.interestTags;
+      if (l1) { votes[`l1:${l1}`] = (votes[`l1:${l1}`]||0) + weight; totalVotes.l1 += weight; }
+      if (l2) { votes[`l2:${l2}`] = (votes[`l2:${l2}`]||0) + weight; totalVotes.l2 += weight; }
+      if (l3) { votes[`l3:${l3}`] = (votes[`l3:${l3}`]||0) + weight; totalVotes.l3 += weight; }
+    });
+  const scores = {};
+  Object.entries(votes).forEach(([key, v]) => {
+    const level = key.split(':')[0];
+    const total = totalVotes[level];
+    scores[key] = total > 0 ? v / total : 0;
+  });
+  return scores;
+}
+
+// 制度の興味スコアを計算（l1:0.3 + l2:0.4 + l3:0.3 の加重平均）
+function getItemInterestScore(item, interestScores) {
+  if (!item?.interestTags || !interestScores) return 0;
+  const {l1, l2, l3} = item.interestTags;
+  return (interestScores[`l1:${l1}`]||0) * 0.3
+       + (interestScores[`l2:${l2}`]||0) * 0.4
+       + (interestScores[`l3:${l3}`]||0) * 0.3;
+}
 function getEligibilityHint(item, profile) { return getEligibilityHintData(item, profile); }
 
 // ── 全プロフィール質問定義（ミニクイズ用） ──────────────────
@@ -1820,15 +1855,28 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
     return baseScore;
   };
   const allVisible=items
-    .filter(it=>!hidden.includes(it.id)&&getConfidence(it,profile)!=="none")
+    .filter(it=>{
+      if(hidden.includes(it.id)) return false;
+      if(getConfidence(it,profile)!=="none") return true;
+      // interest型は興味スコアが閾値を超えれば表示
+      if(it.judgmentType==="interest"){
+        return getItemInterestScore(it, profile.interestScores) > 0.1;
+      }
+      return false;
+    })
     .sort((a,b)=>{
       // 利用済みは最下位
       const da=done.includes(a.id)?1:0;
       const db=done.includes(b.id)?1:0;
       if(da!==db) return da-db;
+      // 確信度優先（certain > それ以外）
       const ca=getConfidence(a,profile)==="certain"?0:1;
       const cb=getConfidence(b,profile)==="certain"?0:1;
       if(ca!==cb) return ca-cb;
+      // 同率なら興味スコアをタイブレーカーに
+      const ia=getItemInterestScore(a, profile.interestScores);
+      const ib=getItemInterestScore(b, profile.interestScores);
+      if(Math.abs(ia-ib)>0.05) return ib-ia;
       return getScore(b)-getScore(a);
     });
 
@@ -3472,6 +3520,12 @@ function App(){
   useEffect(()=>{ lsSave(LS_LIKED, liked); },[liked]);
   useEffect(()=>{ lsSave(LS_REMINDED, reminded); },[reminded]);
   useEffect(()=>{ lsSave(LS_DONE, done); },[done]);
+  // liked/done 変化 → interestScores 再計算
+  useEffect(()=>{
+    if (!dbLoaded) return;
+    const scores = calcInterestScores(liked, done, ITEMS_BASE);
+    setProfile(p => ({...p, interestScores: scores}));
+  },[liked, done, dbLoaded]);
   useEffect(()=>{ lsSave(LS_HIDDEN, hidden); },[hidden]);
   useEffect(()=>{ lsSave("mgov_easy", easy); },[easy]);
   useEffect(()=>{ if(phase==="main") lsSave(LS_PHASE,"main"); },[phase]);

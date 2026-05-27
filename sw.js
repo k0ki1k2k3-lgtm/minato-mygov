@@ -87,75 +87,111 @@ async function handlePush(event) {
 
 async function handleUserPush(data) {
   try {
-    // プロフィール・既読リスト取得
     const profile    = await dbGet("profile", "current") || {};
     const seenIds    = await dbGet("seen", "ids")        || [];
     const lastSeenAt = await dbGet("seen", "updatedAt")  || "";
 
-    // updatedAt が同じなら新着なし → スキップ
     if (data.updatedAt && data.updatedAt === lastSeenAt) return;
 
-    // items-db.json を取得（scope 経由でパスを解決）
     const dbUrl = self.registration.scope + "items-db.json?" + Date.now();
     const res = await fetch(dbUrl, { cache: "no-store" });
     const db  = await res.json();
     const allItems = db.items || [];
     const allIds   = allItems.map(it => it.id);
 
-    // 新着ID を特定
     const newIds = allIds.filter(id => !seenIds.includes(id));
     if (newIds.length === 0) return;
 
     // プロフィール未設定 → 汎用通知
     if (Object.keys(profile).length === 0) {
       await self.registration.showNotification("🆕 新しい制度が追加されました", {
-        body:  `${newIds.length}件の新着制度があります。アプリを開いて確認してください。`,
-        icon:  ICON,
-        badge: BADGE,
-        tag:   "new-items",
-        data:  { url: APP_URL },
+        body: `${newIds.length}件の新着制度があります。アプリを開いて確認してください。`,
+        icon: ICON, badge: BADGE, tag: "new-items", data: { url: APP_URL },
       });
       return;
     }
 
-    // プロフィールと照合して関係ある制度を絞り込む
-    const newItems      = allItems.filter(it => newIds.includes(it.id));
-    const relevantItems = newItems.filter(item => isRelevant(item, profile));
+    // interestScores を IDB から取得
+    const interestScores = profile.interestScores || {};
 
-    if (relevantItems.length === 0) {
-      // 関係なし → 通知しない。既読として記録
+    const newItems = allItems.filter(it => newIds.includes(it.id));
+
+    // 通知マトリクスに基づいてフィルタリング
+    const toNotify = [];
+    for (const item of newItems) {
+      const decision = shouldNotify(item, profile, interestScores);
+      if (decision.notify) toNotify.push({ item, decision });
+    }
+
+    if (toNotify.length === 0) {
       await dbSet("seen", "ids",       allIds);
       await dbSet("seen", "updatedAt", data.updatedAt || "");
       return;
     }
 
-    // 関係ある制度がある → 通知表示
-    const title = relevantItems.length === 1
-      ? `🆕 ${relevantItems[0].easyTitle || relevantItems[0].title}`
-      : `🆕 あなたに関係する新制度が${relevantItems.length}件`;
+    // 1制度ずつ通知（最大2件）
+    for (const { item, decision } of toNotify.slice(0, 2)) {
+      const notifTitle = item.title || item.officialName || "新しい制度";
+      const notifBody  = decision.useMiniQuiz
+        ? (item.miniQuizText || "詳細はアプリで確認してください")
+        : (item.notifHook || item.catch || "詳細はアプリで確認してください");
 
-    const body = relevantItems.length === 1
-      ? (relevantItems[0].catch || "アプリを開いて詳細を確認してください")
-      : relevantItems.slice(0, 3).map(it => it.easyTitle || it.title).join("、");
-
-    await self.registration.showNotification(title, {
-      body,
-      icon:  ICON,
-      badge: BADGE,
-      tag:   "new-items",
-      data:  { url: APP_URL },
-    });
+      await self.registration.showNotification(notifTitle, {
+        body:  notifBody,
+        icon:  ICON,
+        badge: BADGE,
+        tag:   `minato-${item.id}`,
+        data:  {
+          url:          APP_URL,
+          itemId:       item.id,
+          notifyLevel:  item.notifyLevel  || "mid",
+          miniQuizKey:  item.miniQuizKey  || "",
+          miniQuizText: item.miniQuizText || "",
+          categoryHint: item.categoryHint || "",
+        },
+      });
+    }
 
   } catch (e) {
-    // エラー時はシンプルな汎用通知
     await self.registration.showNotification("🆕 新しい制度が追加されました", {
       body:  data.body || "アプリを開いて確認してください",
-      icon:  ICON,
-      badge: BADGE,
-      tag:   "new-items",
-      data:  { url: APP_URL },
+      icon:  ICON, badge: BADGE, tag: "new-items", data: { url: APP_URL },
     });
   }
+}
+
+// ── 通知マトリクス判定 ──────────────────────────────────────
+// notifyLevel: "high" | "mid" | "low"
+// judgmentType: "eligibility" | "interest"
+function shouldNotify(item, profile, interestScores) {
+  const level        = item.notifyLevel  || "mid";
+  const jType        = item.judgmentType || "eligibility";
+  const interestScore = getItemInterestScoreSW(item, interestScores);
+
+  if (jType === "eligibility") {
+    const relevant = isRelevant(item, profile);
+    if (!relevant) return { notify: false };
+    if (level === "high") return { notify: true,  useMiniQuiz: false };
+    if (level === "mid")  return { notify: true,  useMiniQuiz: true  };
+    // low → 通知しない（新着ポップのみ）
+    return { notify: false };
+  }
+
+  // judgmentType === "interest"
+  if (level === "high") return { notify: true,  useMiniQuiz: false };
+  if (level === "mid")  return { notify: true,  useMiniQuiz: true  };
+  // low → 興味スコア 0.2 超のみ通知
+  if (level === "low" && interestScore > 0.2) return { notify: true, useMiniQuiz: false };
+  return { notify: false };
+}
+
+// SW内で使うinterestScore計算（index.htmlのgetItemInterestScoreと同一ロジック）
+function getItemInterestScoreSW(item, interestScores) {
+  if (!item?.interestTags || !interestScores) return 0;
+  const {l1, l2, l3} = item.interestTags;
+  return (interestScores[`l1:${l1}`]||0) * 0.3
+       + (interestScores[`l2:${l2}`]||0) * 0.4
+       + (interestScores[`l3:${l3}`]||0) * 0.3;
 }
 
 // ── プロフィールと制度の照合 ──
