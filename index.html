@@ -256,7 +256,8 @@ function lsLoad(key, fallback) {
 }
 function lsClearAll() {
   [LS_PROFILE, LS_LIKED, LS_REMINDED, LS_HIDDEN, LS_DONE, LS_PHASE,
-   LS_LAST_SEEN_AT, LS_SEEN_IDS, "mgov_notif_deferred", "mgov_toggle_tried", "mgov_easy", "mgov_dark"].forEach(k => {
+   LS_LAST_SEEN_AT, LS_SEEN_IDS, "mgov_notif_deferred", "mgov_toggle_tried", "mgov_easy", "mgov_dark",
+   "mgov_festival_notified", "mgov_festival_radius", "mgov_festival_fireworksRadius"].forEach(k => {
     try { localStorage.removeItem(k); } catch(e) {}
   });
 }
@@ -3481,8 +3482,20 @@ function App(){
   const [done,setDone]=useState(()=>lsLoad(LS_DONE,[]));
   const [hidden,setHidden]=useState(()=>lsLoad(LS_HIDDEN,[]));
   const [toast,setToast]=useState({msg:"",visible:false});
-  const [festivalSettings,setFestivalSettings]=useState(null);
-  const [festivalNotified,setFestivalNotified]=useState([]);
+  // festivalSettings: リロード後もプロフィールから復元する
+  const [festivalSettings,setFestivalSettings]=useState(()=>{
+    const p=lsLoad(LS_PROFILE,{});
+    const savedPhase=lsLoad(LS_PHASE,null);
+    if(savedPhase!=="main") return null;
+    if(!p.festivalCoords&&!p.coords) return null;
+    return {
+      coords: p.festivalCoords||p.coords||null,
+      town:   p.festivalTown||{name:p.town||"麻布十番"},
+      radius:         lsLoad("mgov_festival_radius",3000),
+      fireworksRadius:lsLoad("mgov_festival_fw_radius",5000),
+    };
+  });
+  const [festivalNotified,setFestivalNotified]=useState(()=>lsLoad("mgov_festival_notified",[]));
   const [dynamicItems,setDynamicItems]=useState([]);
   const [showAdmin,setShowAdmin]=useState(false);
   const allItems=[...ITEMS_BASE,...dynamicItems];
@@ -3533,6 +3546,7 @@ function App(){
     setProfile(p => ({...p, interestScores: scores}));
   },[liked, done, dbLoaded]);
   useEffect(()=>{ lsSave(LS_HIDDEN, hidden); },[hidden]);
+  useEffect(()=>{ lsSave("mgov_festival_notified", festivalNotified); },[festivalNotified]);
   useEffect(()=>{ lsSave("mgov_easy", easy); },[easy]);
   useEffect(()=>{ if(phase==="main") lsSave(LS_PHASE,"main"); },[phase]);
 
@@ -3619,6 +3633,8 @@ function App(){
 
   const handleChangeRadius=(key,val)=>{
     setFestivalSettings(prev=>({...prev,[key]:val}));
+    // 半径設定を永続化（リロード後も保持）
+    lsSave(`mgov_festival_${key}`,val);
   };
 
   return (
