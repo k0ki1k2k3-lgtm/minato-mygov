@@ -256,7 +256,7 @@ function lsLoad(key, fallback) {
 }
 function lsClearAll() {
   [LS_PROFILE, LS_LIKED, LS_REMINDED, LS_HIDDEN, LS_DONE, LS_PHASE,
-   LS_LAST_SEEN_AT, LS_SEEN_IDS, "mgov_notif_deferred", "mgov_toggle_tried"].forEach(k => {
+   LS_LAST_SEEN_AT, LS_SEEN_IDS, "mgov_notif_deferred", "mgov_toggle_tried", "mgov_easy", "mgov_dark"].forEach(k => {
     try { localStorage.removeItem(k); } catch(e) {}
   });
 }
@@ -495,7 +495,7 @@ const fetchLiveInfo = async (item) => {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
+      model:"claude-sonnet-4-6",
       max_tokens:1000,
       tools:[{type:"web_search_20250305",name:"web_search"}],
       messages:[{role:"user",content:prompt}],
@@ -936,7 +936,7 @@ const ALL_TOWNS = MINATO_DISTRICTS.flatMap(g => g.towns);
 const AREA_OPTS = ALL_TOWNS; // GPS fallbackでも同じ地区リストを使う
 
 const QUIZ_STEPS=[
-  {key:"stage",   q:"ライフステージは？", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"]},
+  {key:"stage",   q:"ライフステージは？", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","主婦・主夫","年金生活者","その他・無職"]},
   {key:"hasKids", q:"18歳未満のお子さんはいますか？",   opts:["いる（または予定あり）","いない（または18歳以上のみ）"]},
   {key:"housing", q:"住まいの形態は？",   opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
 ];
@@ -1323,12 +1323,11 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
   const [showRepeatConfirm,setShowRepeatConfirm]=useState(false);
   const [fetchedUrl,setFetchedUrl]=useState(null);
   const [fetching,setFetching]=useState(true);
-  const [localEasy,setLocalEasy]=useState(easy); // モーダル内独自トグル
+  const bodyText = easy ? item.body : (item.officialBody||item.body);
   const missingQ=getMissingQuestions(item,profile);
   const isNeeds=conf==="needs_profile";
 
   const hasOfficialBody=!!(item.officialBody);
-  const bodyText = localEasy ? item.body : (item.officialBody||item.body);
 
   const [miniAnswers,setMiniAnswers]=useState({});
 
@@ -1377,7 +1376,7 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
     const reason = getExclusionReason(item, mergedProfile);
     const hint   = getEligibilityHint(item, mergedProfile);
     return (
-      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",zIndex:120,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div style={{position:"absolute",inset:0,top:90,background:"rgba(0,0,0,.7)",zIndex:40,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
         <div style={{
           background:C.bg1, borderRadius:"24px 24px 0 0", width:"100%",
           padding:"32px 24px 40px", animation:"slideUp .3s ease",
@@ -1448,7 +1447,7 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
   }
 
   return (
-    <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",zIndex:120,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+    <div style={{position:"absolute",inset:0,top:90,background:"rgba(0,0,0,.7)",zIndex:40,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
       <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"80%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
           <div style={{fontSize:36}}>{item.icon}</div>
@@ -1465,21 +1464,6 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
           </div>
         </div>
         <div style={{marginBottom:12}}>
-          {/* かんたん/行政トグル（officialBodyがある場合のみ） */}
-          {hasOfficialBody&&(
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-              <button
-                onClick={e=>{e.stopPropagation();setLocalEasy(true);}}
-                style={{flex:1,padding:"6px 0",borderRadius:10,border:`1.5px solid ${localEasy?C.green:C.border}`,background:localEasy?C.green+"22":"transparent",color:localEasy?C.green:C.t3,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                💬 かんたん
-              </button>
-              <button
-                onClick={e=>{e.stopPropagation();setLocalEasy(false);}}
-                style={{flex:1,padding:"6px 0",borderRadius:10,border:`1.5px solid ${!localEasy?C.blue:C.border}`,background:!localEasy?C.blue+"22":"transparent",color:!localEasy?C.blue:C.t3,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                🏛️ 行政語
-              </button>
-            </div>
-          )}
           <div style={{color:C.t2,fontSize:13,lineHeight:1.7,transition:"opacity .2s"}}>{bodyText}</div>
         </div>
 
@@ -1901,7 +1885,7 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
   };
 
   return (
-    <div style={{flex:1,overflowY:"auto",padding:"0 16px 16px"}}>
+    <div style={{flex:1,overflowY:"auto",padding:"8px 16px 16px"}}>
       {/* バナー */}
       <div style={{background:`linear-gradient(135deg,${C.bg2},${C.bg3})`,borderRadius:16,padding:"12px 16px",marginBottom:12,border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>setShowBanner(true)}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -2266,7 +2250,7 @@ function FestivalTab({festivalSettings,onChangeRadius,festivalNotified,onToggleN
 
 const PROFILE_FIELDS=[
   {key:"ageNum",  label:"年齢",           emoji:"🎂", inputType:"number"},
-  {key:"stage",   label:"ライフステージ", emoji:"💼", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"]},
+  {key:"stage",   label:"ライフステージ", emoji:"💼", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","主婦・主夫","年金生活者","その他・無職"]},
   {key:"studentLevel", label:"学校種別（学生のみ）", emoji:"🎒", studentOnly:true, opts:["小学生","中学生","高校生","大学生・専門学生"]},
   {key:"hasKids", label:"子どもの有無",   emoji:"👶", opts:["いる（または予定あり）","いない"]},
   {key:"town",    label:"居住地区",       emoji:"📍", useTownPicker:true},
@@ -2339,6 +2323,110 @@ const DETAIL_DISPLAY_MAP = {
   intractableDisease:{"true":"受給者証あり","false":"なし"},
   welfareStatus:     {"receiving":"受給中","not":"非受給"},
 };
+
+/* ─── NotifLaunchQuiz: 通知起動時のミニクイズ先出し画面（mid） ─── */
+function NotifLaunchQuiz({ item, quizText, categoryHint, onYes, onNo }) {
+  const [answered, setAnswered] = React.useState(null); // null | "yes" | "no"
+
+  const handleYes = () => {
+    setAnswered("yes");
+    setTimeout(onYes, 600);
+  };
+  const handleNo = () => {
+    setAnswered("no");
+    setTimeout(onNo, 800);
+  };
+
+  return (
+    <div style={{
+      position:"absolute", inset:0, zIndex:200,
+      background:C.bg0,
+      display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center",
+      padding:"32px 28px",
+      animation:"fadeUp .35s ease",
+    }}>
+      {/* アイコン */}
+      <div style={{
+        width:72, height:72, borderRadius:36,
+        background:C.bg2, border:`2px solid ${C.border}`,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize:36, marginBottom:28,
+      }}>
+        {answered === "yes" ? "✅" : answered === "no" ? "👋" : "🏙️"}
+      </div>
+
+      {answered === null && <>
+        {/* カテゴリヒント */}
+        {categoryHint && (
+          <div style={{
+            background:C.bg2, border:`1px solid ${C.border}`,
+            borderRadius:10, padding:"6px 14px",
+            color:C.t3, fontSize:11, marginBottom:20,
+            display:"flex", alignItems:"center", gap:5,
+          }}>
+            🏙️ {categoryHint}に関するお知らせがあります
+          </div>
+        )}
+        {/* 質問文 */}
+        <div style={{
+          color:C.t1, fontSize:20, fontWeight:700,
+          textAlign:"center", lineHeight:1.5, marginBottom:12,
+        }}>
+          {quizText}
+        </div>
+        <div style={{
+          color:C.t3, fontSize:12, marginBottom:36, textAlign:"center",
+        }}>
+          港区からのお知らせに関する確認です
+        </div>
+
+        {/* ボタン */}
+        <div style={{display:"flex", flexDirection:"column", gap:12, width:"100%", maxWidth:280}}>
+          <button
+            onClick={handleYes}
+            style={{
+              background:C.blue, color:"#fff",
+              border:"none", borderRadius:16,
+              padding:"16px", fontSize:16, fontWeight:700,
+              cursor:"pointer",
+              boxShadow:`0 4px 16px ${C.blue}44`,
+            }}>
+            はい
+          </button>
+          <button
+            onClick={handleNo}
+            style={{
+              background:C.bg2, color:C.t2,
+              border:`1.5px solid ${C.border}`, borderRadius:16,
+              padding:"16px", fontSize:16, fontWeight:600,
+              cursor:"pointer",
+            }}>
+            いいえ
+          </button>
+        </div>
+      </>}
+
+      {answered === "yes" && (
+        <div style={{textAlign:"center", animation:"fadeUp .3s ease"}}>
+          <div style={{color:C.t1, fontSize:18, fontWeight:700, marginBottom:8}}>
+            関係する制度が見つかりました！
+          </div>
+          <div style={{color:C.t3, fontSize:13}}>内容を確認しています…</div>
+        </div>
+      )}
+
+      {answered === "no" && (
+        <div style={{textAlign:"center", animation:"fadeUp .3s ease"}}>
+          <div style={{color:C.t1, fontSize:17, fontWeight:700, marginBottom:8}}>
+            今回は該当なしでした
+          </div>
+          <div style={{color:C.t3, fontSize:13}}>また新しい情報が届いたらお知らせします</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ─── NotificationModal: 通知許可誘導UI ─── */
 function NotificationModal({ trigger, onAllow, onLater }) {
@@ -2511,7 +2599,7 @@ function NotificationButton() {
   );
 }
 
-function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,onClearAll,darkMode,setDarkMode}){
+function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,onClearAll,onTestNewItems,onTestLike,darkMode,setDarkMode}){
   const [showHiddenList,setShowHiddenList]=useState(false);
   const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
   const [showDetailSection,setShowDetailSection]=useState(false);
@@ -2793,6 +2881,26 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t3,fontSize:12}} onClick={onShowAdmin}>
           ⚙️ 制度を追加・管理する
         </button>
+        {/* 🧪 開発テスト */}
+        {(onTestNewItems||onTestLike) && (
+          <div style={{marginTop:8,padding:"12px",background:C.bg2,borderRadius:12,border:`1px dashed ${C.border}`}}>
+            <div style={{color:C.t3,fontSize:10,marginBottom:8,fontWeight:600}}>🧪 開発テスト</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {onTestNewItems && (
+                <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                  onClick={onTestNewItems}>
+                  新着ポップを出す
+                </button>
+              )}
+              {onTestLike && (
+                <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                  onClick={onTestLike}>
+                  ダミーいいねを追加
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {/* 全データクリア */}
         <button
           style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.red}44`,color:C.red,fontSize:12,marginTop:4}}
@@ -2864,7 +2972,7 @@ function AdminTab({onAddItem, existingIds}){
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
+          model:"claude-sonnet-4-6",
           max_tokens:4000,
           ...(tools?{tools}:{}),
           messages:[{role:"user",content:prompt}],
@@ -3081,9 +3189,20 @@ function Gateway({profile, items, onEnter}){
 
 
 /* ── 新着ポップアップ ─────────────────────────────────────── */
-function NewItemsPopup({ newItemIds, allItems, onClose }) {
+function NewItemsPopup({ newItemIds, allItems, onClose, profile, setProfile, onLike, onOpenDetail }) {
   const newItems = allItems.filter(it => newItemIds.includes(it.id));
   const govColors = { "国": C.blue, "東京都": C.green, "港区": C.purple };
+  const [quizAnswers, setQuizAnswers] = React.useState({}); // itemId -> "yes"|"no"
+
+  const handleQuizAnswer = (item, answer) => {
+    setQuizAnswers(a => ({...a, [item.id]: answer}));
+    if (item.miniQuizKey) {
+      setProfile(p => ({...p, [item.miniQuizKey]: answer === "yes"}));
+    }
+    if (answer === "yes") {
+      onLike(item.id);
+    }
+  };
 
   return (
     <div style={{
@@ -3122,28 +3241,96 @@ function NewItemsPopup({ newItemIds, allItems, onClose }) {
             <div style={{color:C.t3,fontSize:13,textAlign:"center",padding:24}}>
               新着制度の詳細を取得できませんでした
             </div>
-          ) : newItems.map(item => (
-            <div key={item.id} style={{
-              display:"flex", gap:12, padding:"12px 0",
-              borderBottom:`1px solid ${C.border}`,
-              alignItems:"flex-start",
-            }}>
-              <div style={{fontSize:28,flexShrink:0}}>{item.icon}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",gap:5,marginBottom:5,flexWrap:"wrap"}}>
-                  <span style={{background:(govColors[item.gov]||C.blue)+"22",color:govColors[item.gov]||C.blue,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>{item.gov}</span>
-                  <span style={{background:C.bg2,color:C.t3,borderRadius:5,padding:"1px 7px",fontSize:10}}>{item.tag}</span>
-                </div>
-                <div style={{fontWeight:700,fontSize:14,color:C.t1,marginBottom:2}}>{item.title}</div>
-                <div style={{color:C.t2,fontSize:12}}>{item.catch}</div>
-                {item.potentialSubsidy > 0 && (
-                  <div style={{color:C.blue,fontWeight:700,fontSize:12,marginTop:4}}>
-                    💙 最大{(item.potentialSubsidy||0).toLocaleString()}円
+          ) : newItems.map(item => {
+            const isLowInterest = item.judgmentType === "interest" && item.notifyLevel === "low";
+            const answered = quizAnswers[item.id];
+
+            // lowレベル＆interest系：ミニクイズ表示
+            if (isLowInterest && item.miniQuizText) {
+              return (
+                <div key={item.id} style={{
+                  padding:"14px 0",
+                  borderBottom:`1px solid ${C.border}`,
+                }}>
+                  {/* カテゴリヒント */}
+                  {item.categoryHint && (
+                    <div style={{color:C.t3,fontSize:11,marginBottom:6}}>
+                      🏙️ {item.categoryHint}に関するお知らせ
+                    </div>
+                  )}
+                  <div style={{fontWeight:600,fontSize:14,color:C.t1,marginBottom:10}}>
+                    {item.miniQuizText}
                   </div>
-                )}
+                  {!answered ? (
+                    <div style={{display:"flex",gap:8}}>
+                      <button
+                        onClick={()=>handleQuizAnswer(item,"yes")}
+                        style={{
+                          flex:1, background:C.blue, color:"#fff",
+                          border:"none", borderRadius:10,
+                          padding:"9px", fontSize:13, fontWeight:700, cursor:"pointer",
+                        }}>
+                        はい
+                      </button>
+                      <button
+                        onClick={()=>handleQuizAnswer(item,"no")}
+                        style={{
+                          flex:1, background:C.bg2, color:C.t2,
+                          border:`1px solid ${C.border}`, borderRadius:10,
+                          padding:"9px", fontSize:13, cursor:"pointer",
+                        }}>
+                        いいえ
+                      </button>
+                    </div>
+                  ) : answered === "yes" ? (
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{color:C.green,fontSize:12,fontWeight:600}}>❤️ 興味ありに追加しました</div>
+                      <button
+                        onClick={()=>onOpenDetail(item)}
+                        style={{marginLeft:"auto",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",fontSize:12,color:C.blue,fontWeight:600,cursor:"pointer"}}>
+                        詳細 →
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{color:C.t3,fontSize:12}}>スキップしました</div>
+                  )}
+                </div>
+              );
+            }
+
+            // 通常の制度カード
+            return (
+              <div key={item.id} style={{
+                display:"flex", gap:12, padding:"12px 0",
+                borderBottom:`1px solid ${C.border}`,
+                alignItems:"flex-start",
+              }}>
+                <div style={{fontSize:28,flexShrink:0}}>{item.icon}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",gap:5,marginBottom:5,flexWrap:"wrap"}}>
+                    <span style={{background:(govColors[item.gov]||C.blue)+"22",color:govColors[item.gov]||C.blue,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>{item.gov}</span>
+                    <span style={{background:C.bg2,color:C.t3,borderRadius:5,padding:"1px 7px",fontSize:10}}>{item.tag}</span>
+                  </div>
+                  <div style={{fontWeight:700,fontSize:14,color:C.t1,marginBottom:2}}>{item.title}</div>
+                  <div style={{color:C.t2,fontSize:12,marginBottom:8}}>{item.catch}</div>
+                  {item.potentialSubsidy > 0 && (
+                    <div style={{color:C.blue,fontWeight:700,fontSize:12,marginBottom:8}}>
+                      💙 最大{(item.potentialSubsidy||0).toLocaleString()}円
+                    </div>
+                  )}
+                  <button
+                    onClick={()=>onOpenDetail(item)}
+                    style={{
+                      background:C.bg2, border:`1px solid ${C.border}`,
+                      borderRadius:8, padding:"6px 12px",
+                      fontSize:12, color:C.blue, fontWeight:600, cursor:"pointer",
+                    }}>
+                    詳細を見る →
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* フッターボタン */}
@@ -3172,7 +3359,7 @@ function BottomNav({tab,setTab,notifCount,festivalCount}){
       background:C.bg1,
       borderTop:`1px solid ${C.border}`,
       flexShrink:0,
-      paddingBottom:"env(safe-area-inset-bottom, 16px)",
+      paddingBottom:"env(safe-area-inset-bottom, 0px)",
     }}>
       {tabs.map(t=>(
         <button key={t.id}
@@ -3196,8 +3383,8 @@ function App(){
   const [dbError,setDbError]=useState(false);
   const [profile,setProfile]=useState(()=>lsLoad(LS_PROFILE,{}));
   const [tab,setTab]=useState("home");
-  const [easy,setEasy]=useState(false);
-  const [darkMode,setDarkMode]=useState(false);
+  const [easy,setEasy]=useState(()=>lsLoad("mgov_easy",false));
+  const [darkMode,setDarkMode]=useState(()=>lsLoad("mgov_dark",false));
   const [,forceUpdate]=useState(0);
 
   // CをdarkModeに応じて更新（全コンポーネントに即反映）
@@ -3240,7 +3427,7 @@ function App(){
     setNewItems([]);
   };
 
-  const toggleDark=(v)=>{setDarkMode(v);forceUpdate(n=>n+1);};
+  const toggleDark=(v)=>{setDarkMode(v);lsSave("mgov_dark",v);forceUpdate(n=>n+1);};
   const [liked,setLiked]=useState(()=>lsLoad(LS_LIKED,[]));
   const [reminded,setReminded]=useState(()=>lsLoad(LS_REMINDED,[]));
   const [done,setDone]=useState(()=>lsLoad(LS_DONE,[]));
@@ -3260,7 +3447,23 @@ function App(){
     setTimeout(()=>setToast({msg:"",visible:false}),2200);
   };
 
-  // ── localStorage への自動保存 ──
+  // ── SW からの通知起動メッセージを受け取る ──
+  useEffect(()=>{
+    const handler = (e) => {
+      if (e.data?.type === "NOTIF_OPEN") {
+        const { itemId, notifyLevel, miniQuizKey } = e.data;
+        const item = (ITEMS_BASE||[]).find(it => it.id === itemId);
+        if (!item) return;
+        const miniQuizText = item.miniQuizText || "";
+        // dbLoaded後に処理するため少し待つ
+        setTimeout(() => {
+          setNotifLaunch({ itemId, notifyLevel, miniQuizKey, miniQuizText, item });
+        }, 800);
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", handler);
+    return () => navigator.serviceWorker?.removeEventListener("message", handler);
+  }, []);
   useEffect(()=>{
     lsSave(LS_PROFILE, profile);
     // IndexedDB にも同期（Service Worker がプロフィール照合に使う）
@@ -3270,13 +3473,32 @@ function App(){
   useEffect(()=>{ lsSave(LS_REMINDED, reminded); },[reminded]);
   useEffect(()=>{ lsSave(LS_DONE, done); },[done]);
   useEffect(()=>{ lsSave(LS_HIDDEN, hidden); },[hidden]);
+  useEffect(()=>{ lsSave("mgov_easy", easy); },[easy]);
   useEffect(()=>{ if(phase==="main") lsSave(LS_PHASE,"main"); },[phase]);
 
   const [revealMode, setRevealMode] = useState(false);
-  const [notifModal, setNotifModal] = useState(null); // null | "reveal" | "remind"
+  const [notifModal, setNotifModal] = useState(null); // null | "reveal" | "remind" | "notif"
+  const [notifLaunch, setNotifLaunch] = useState(null);
+  const [notifDetail, setNotifDetail] = useState(null); // 通知から直接開くDetailModal用
   const [toggleTried, setToggleTried] = useState(
     () => !!localStorage.getItem("mgov_toggle_tried")
   );
+
+  const headerRef = React.useRef(null);
+  const toggleRef = React.useRef(null);
+  const [toggleOffset, setToggleOffset] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!toggleTried && revealMode && headerRef.current && toggleRef.current) {
+      const headerRect = headerRef.current.getBoundingClientRect();
+      const toggleRect = toggleRef.current.getBoundingClientRect();
+      const headerCenter = headerRect.left + headerRect.width / 2;
+      const toggleCenter = toggleRect.left + toggleRect.width / 2;
+      setToggleOffset(headerCenter - toggleCenter);
+    } else {
+      setToggleOffset(0);
+    }
+  }, [toggleTried, revealMode]);
 
   const handleToggleEasy = () => {
     setEasy(e => !e);
@@ -3367,7 +3589,7 @@ function App(){
         {phase==="main"&&
           <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,overflow:"hidden"}}>
             {/* Header */}
-            <div style={{padding:"52px 16px 6px",borderBottom:`1px solid ${C.border}`,flexShrink:0,background:C.bg1,position:"relative"}}>
+            <div ref={headerRef} style={{padding:"52px 16px 6px",borderBottom:`1px solid ${C.border}`,flexShrink:0,background:C.bg1,position:"relative",zIndex:50}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 {/* アプリ名：クイズ後かつ未試行時は完全透明 */}
                 <div style={{
@@ -3377,13 +3599,14 @@ function App(){
                   <div style={{color:C.t1,fontWeight:700,fontSize:13}}>🏙️ 君の代わりに全部やってあげるよアプリ</div>
                   <div style={{color:C.t3,fontSize:10,marginTop:1}}>{profile.town||""}</div>
                 </div>
-                {/* トグルエリア：クイズ後(revealMode=true)かつ未試行時だけ中央にスライド */}
-                <div style={{
+
+                {/* トグルエリア：実測した距離でtransform */}
+                <div ref={toggleRef} style={{
                   display:"flex", alignItems:"center", gap:6,
-                  transform: (!toggleTried && revealMode) ? "translateX(calc(-50vw + 80px))" : "translateX(0)",
+                  transform: (!toggleTried && revealMode) ? `translateX(${toggleOffset}px)` : "translateX(0)",
                   transition: toggleTried
-                    ? "transform .4s cubic-bezier(.4,0,1,1)"    // 帰り：早め
-                    : "transform 1.2s cubic-bezier(.16,1,.3,1)", // 行き：ゆっくり
+                    ? "transform .4s cubic-bezier(.4,0,1,1)"
+                    : "transform 1.2s cubic-bezier(.16,1,.3,1)",
                 }}>
                   <span style={{
                     fontSize: (!toggleTried && revealMode) ? 11 : 9,
@@ -3427,8 +3650,9 @@ function App(){
                   {(!toggleTried && revealMode) && (
                     <div style={{
                       position:"absolute",
-                      top:"calc(100% + 4px)",
-                      right:16,
+                      top:"calc(100% + 6px)",
+                      left:"50%",
+                      transform:"translateX(-50%)",
                       background:C.blue,
                       borderRadius:8,
                       padding:"3px 10px",
@@ -3521,6 +3745,19 @@ function App(){
                 setPhase("splash");
                 showToast("🗑️ すべてのデータをリセットしました");
               }}
+              onTestNewItems={()=>{
+                // ダミー新着を強制表示
+                const dummyIds = allItems.slice(0,2).map(it=>it.id);
+                if(dummyIds.length===0){showToast("制度データがありません");return;}
+                setNewItems(dummyIds);
+                setShowNewPop(true);
+              }}
+              onTestLike={()=>{
+                // 全制度にいいねを追加
+                const ids = allItems.map(it=>it.id);
+                setLiked(ids);
+                showToast(`❤️ ${ids.length}件にいいねしました`);
+              }}
               darkMode={darkMode} setDarkMode={toggleDark}/>}
 
             {/* 管理モーダル */}
@@ -3543,6 +3780,10 @@ function App(){
                 newItemIds={newItems}
                 allItems={allItems}
                 onClose={markNewItemsRead}
+                profile={profile}
+                setProfile={setProfile}
+                onLike={(id)=>setLiked(l=>l.includes(id)?l:[...l,id])}
+                onOpenDetail={(item)=>{setNotifDetail(item);markNewItemsRead();}}
               />
             )}
 
@@ -3550,6 +3791,54 @@ function App(){
               notifCount={liked.length+reminded.length+newItems.length}
               festivalCount={festivalNotified.length}/>
             <Toast msg={toast.msg} visible={toast.visible}/>
+
+            {/* 通知起動ポップ */}
+            {notifLaunch && notifLaunch.notifyLevel === "mid" && (
+              <NotifLaunchQuiz
+                item={notifLaunch.item}
+                quizText={notifLaunch.miniQuizText}
+                categoryHint={notifLaunch.categoryHint}
+                onYes={() => {
+                  if (notifLaunch.miniQuizKey) {
+                    setProfile(p => ({...p, [notifLaunch.miniQuizKey]: true}));
+                  }
+                  setNotifDetail(notifLaunch.item);
+                  setNotifLaunch(null);
+                }}
+                onNo={() => {
+                  if (notifLaunch.miniQuizKey) {
+                    setProfile(p => ({...p, [notifLaunch.miniQuizKey]: false}));
+                  }
+                  setNotifLaunch(null);
+                }}
+              />
+            )}
+            {notifLaunch && notifLaunch.notifyLevel === "high" && (() => {
+              if (notifLaunch.item) {
+                setTimeout(() => {
+                  setNotifDetail(notifLaunch.item);
+                  setNotifLaunch(null);
+                }, 0);
+              }
+              return null;
+            })()}
+
+            {/* 通知起動からのDetailModal */}
+            {notifDetail && (
+              <DetailModal
+                item={notifDetail}
+                onClose={()=>setNotifDetail(null)}
+                liveData={liveData[notifDetail.id]||undefined}
+                conf={getConfidence(notifDetail,profile)}
+                profile={profile} setProfile={setProfile}
+                onHide={(id)=>{setHidden(h=>[...h,id]);setNotifDetail(null);}}
+                liked={liked} reminded={reminded}
+                onLike={(id)=>setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id])}
+                onRemind={(id)=>setReminded(r=>r.includes(id)?r.filter(x=>x!==id):[...r,id])}
+                done={done} onDone={(id)=>setDone(d=>d.includes(id)?d.filter(x=>x!==id):[...d,id])}
+                easy={easy}
+              />
+            )}
 
             {/* 通知許可モーダル */}
             {notifModal && (
