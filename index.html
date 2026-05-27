@@ -3517,6 +3517,12 @@ function App(){
     // IndexedDB にも同期（Service Worker がプロフィール照合に使う）
     if (window.saveProfileToIDB) window.saveProfileToIDB(profile);
   },[profile]);
+  // ライフステージ変更時に push-worker KV を更新（Cron送信時刻に反映）
+  useEffect(()=>{
+    if (profile.stage && Notification.permission === "granted") {
+      updatePushStage(profile.stage);
+    }
+  },[profile.stage]);
   useEffect(()=>{ lsSave(LS_LIKED, liked); },[liked]);
   useEffect(()=>{ lsSave(LS_REMINDED, reminded); },[reminded]);
   useEffect(()=>{ lsSave(LS_DONE, done); },[done]);
@@ -3977,7 +3983,7 @@ function urlB64ToUint8Array(base64String) {
   return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
 }
 
-// Push通知の購読登録
+// Push通知の購読登録（ライフステージも一緒に送る）
 async function subscribePush(sw, type = "user") {
   try {
     let sub = await sw.pushManager.getSubscription();
@@ -3987,15 +3993,34 @@ async function subscribePush(sw, type = "user") {
         applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
       });
     }
-    // Workerにendpointを送信
+    // ライフステージをプロフィールから取得（Cron送信時刻の決定に使用）
+    const stage = lsLoad("mgov_profile", {}).stage || "";
     await fetch(`${PUSH_WORKER_URL}/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(sub.toJSON()),
+      body: JSON.stringify({ ...sub.toJSON(), stage }),
     });
     console.log("✅ Push通知登録完了");
   } catch (e) {
     console.warn("Push通知登録失敗:", e.message);
+  }
+}
+
+// ライフステージ変更時に Worker の KV を更新する
+async function updatePushStage(stage) {
+  try {
+    const reg = window._swReg || (await navigator.serviceWorker?.ready);
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await fetch(`${PUSH_WORKER_URL}/update-profile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: sub.endpoint, stage }),
+    });
+    console.log("✅ Push stage 更新:", stage);
+  } catch (e) {
+    console.warn("Push stage 更新失敗:", e.message);
   }
 }
 

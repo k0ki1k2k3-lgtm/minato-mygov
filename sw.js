@@ -241,16 +241,35 @@ function evalCond(cond, profile) {
   return true;
 }
 
-// ── 通知タップ → アプリを開く ──
+// ── 通知タップ → アプリを開く + NOTIF_OPEN postMessage ──
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const url = event.notification.data?.url || APP_URL;
+  const data = event.notification.data || {};
+  const { itemId, notifyLevel, miniQuizKey, miniQuizText, categoryHint, url } = data;
+  const openUrl = itemId
+    ? `${APP_URL}?notif_item=${encodeURIComponent(itemId)}&notif_level=${encodeURIComponent(notifyLevel || "mid")}`
+    : (url || APP_URL);
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
-      // すでにアプリが開いていればフォーカス
       const existing = clientList.find(c => c.url.startsWith(APP_URL));
-      if (existing) return existing.focus();
-      return clients.openWindow(url);
+      if (existing) {
+        existing.focus();
+        // アプリが開いていれば postMessage で直接制度を開かせる
+        if (itemId) {
+          existing.postMessage({
+            type:         "NOTIF_OPEN",
+            itemId,
+            notifyLevel:  notifyLevel  || "mid",
+            miniQuizKey:  miniQuizKey  || "",
+            miniQuizText: miniQuizText || "",
+            categoryHint: categoryHint || "",
+          });
+        }
+        return existing;
+      }
+      // アプリが閉じていれば URL パラメーター付きで開く
+      return clients.openWindow(openUrl);
     })
   );
 });
