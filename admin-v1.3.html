@@ -35,6 +35,48 @@ const GITHUB_DB_PATH = "items-db.json";
 const GITHUB_DRAFTS_PATH = "data/drafts.json";
 const ADMIN_PASSWORD = "minato-admin-2024"; // 必要に応じて変更
 
+/* ── Push通知設定（草稿通知を管理者端末で受け取る） ── */
+const PUSH_WORKER_URL = "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev";
+const VAPID_PUBLIC_KEY = "BF4XLgKASTOesypO8_4x4AOQ9AimeIY3781caVoxI-r-dEHzneDlF8K_10hUnspXuTK-kYSkT9hHqEZOP66BhDM";
+
+function urlB64ToUint8Array(b64) {
+  const padding = "=".repeat((4 - (b64.length % 4)) % 4);
+  const base64 = (b64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+// 管理者端末を push 購読し role:"admin" で登録 → 草稿生成時に admin-draft 通知が届く
+async function enableAdminPush(showToast) {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      showToast("⚠️ この端末/ブラウザは通知に未対応です"); return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { showToast("⚠️ 通知が許可されませんでした"); return; }
+    // アプリと同じ sw.js をルートscopeで登録（admin-v1.3.html はルート配置）
+    const reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    const j = sub.toJSON();
+    const res = await fetch(`${PUSH_WORKER_URL}/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys, role: "admin" }),
+    });
+    if (res.ok) showToast("✅ 草稿通知を有効化しました（この端末に届きます）");
+    else showToast("❌ 登録に失敗: " + res.status);
+  } catch (e) {
+    showToast("❌ 通知有効化エラー: " + e.message);
+  }
+}
+
 /* ── DB_PATH: items-db.json の相対パス（ローカル参照用） ── */
 const DB_PATH = "../items-db.json";
 
@@ -423,6 +465,11 @@ function App() {
             </NavBtn>
             <NavBtn id="proposals" current={tab} setTab={()=>{setTab("proposals");loadDrafts();}}>🧩 拡張提案</NavBtn>
             <NavBtn id="extract" current={tab} setTab={setTab}>🤖 AI抽出</NavBtn>
+            <button
+              onClick={()=>enableAdminPush(showToast)}
+              style={{background:C.purple+"15",color:C.purple,border:`1px solid ${C.purple}44`,borderRadius:8,padding:"8px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              🔔 草稿通知ON
+            </button>
             <button
               onClick={downloadDb}
               style={{background:"none",color:C.t2,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>

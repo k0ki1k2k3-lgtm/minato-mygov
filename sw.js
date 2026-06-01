@@ -7,7 +7,7 @@ const DB_VERSION = 1;
 
 // scope = "https://k0ki1k2k3-lgtm.github.io/minato-mygov/"
 const APP_URL   = self.registration.scope;
-const ADMIN_URL = self.registration.scope + "admin/";
+const ADMIN_URL = self.registration.scope + "admin-v1.3.html";
 const ICON      = self.registration.scope + "icon-192.png";
 const BADGE     = self.registration.scope + "icon-72.png";
 
