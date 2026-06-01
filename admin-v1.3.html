@@ -421,6 +421,7 @@ function App() {
             <NavBtn id="drafts" current={tab} setTab={()=>{setTab("drafts");loadDrafts();}}>
               📥 草稿{drafts.length>0?` (${drafts.length})`:""}
             </NavBtn>
+            <NavBtn id="proposals" current={tab} setTab={()=>{setTab("proposals");loadDrafts();}}>🧩 拡張提案</NavBtn>
             <NavBtn id="extract" current={tab} setTab={setTab}>🤖 AI抽出</NavBtn>
             <button
               onClick={downloadDb}
@@ -455,6 +456,16 @@ function App() {
             existingIds={db.items.map(x=>x.id)}
             onSave={saveItem}
             onCancel={() => { setEditItem(null); setTab("list"); }}
+            showToast={showToast}
+          />
+        )}
+
+        {/* プロフィール拡張提案タブ */}
+        {tab === "proposals" && (
+          <ProposalsTab
+            drafts={drafts}
+            loading={draftsLoading}
+            onReload={loadDrafts}
             showToast={showToast}
           />
         )}
@@ -516,6 +527,57 @@ function NavBtn({id, current, setTab, children}) {
 /* ════════════════════════════════════════════════════════
    制度一覧タブ
    ════════════════════════════════════════════════════════ */
+/* ── exclude/eligibility 自動検証（4-4 バッジ用） ── */
+const OLD_INCOME_SET = ["～200万円","200～400万円","400～600万円","600～800万円","800万円～"];
+function validateEligibility(item) {
+  const el = item.eligibility || {};
+  const errors = [], warnings = [];
+  const certain = el.certain || [], exclude = el.exclude || [];
+
+  // チェック3：旧income区分の検出（certain / exclude / matchRules）
+  const scanIncome = (arr) => (arr || []).forEach(c => {
+    const cc = c.if || c;
+    const inc = cc.income;
+    const vals = Array.isArray(inc) ? inc : (inc && inc.notIn ? inc.notIn : []);
+    vals.forEach(v => { if (OLD_INCOME_SET.includes(v)) errors.push(`旧年収区分「${v}」を検出`); });
+  });
+  scanIncome(certain); scanIncome(exclude); scanIncome(el.matchRules);
+
+  // チェック1・2：certainに年齢/stageがあるのにexcludeが無い
+  const realCertain = certain.filter(c => !c._always && !c._alwaysExclude);
+  const hasAgeStage = realCertain.some(c => "ageMin" in c || "ageMax" in c || "stage" in c);
+  if (realCertain.length > 0 && exclude.length === 0) {
+    if (hasAgeStage) errors.push("certainに年齢/stage条件があるのにexcludeが空（除外漏れ）");
+    else warnings.push("certainあり・excludeなし（除外漏れの可能性）");
+  }
+
+  // チェック4：missingForが判定条件（certain/exclude/profileCheck）に繋がっていない
+  const usedKeys = new Set();
+  [...certain, ...exclude].forEach(c => Object.keys(c.if || c).forEach(k => usedKeys.add(k)));
+  (el.profileCheck || []).forEach(pc => usedKeys.add(pc.field));
+  (el.missingFor || []).forEach(k => { if (!usedKeys.has(k)) warnings.push(`missingFor「${k}」が判定条件に未接続`); });
+
+  const level = errors.length ? "error" : warnings.length ? "warn" : "ok";
+  return { level, messages: [...errors, ...warnings] };
+}
+
+function ValidationBadge({ item }) {
+  const v = validateEligibility(item);
+  const map = {
+    ok:    { color: C.green,            label: "🟢 問題なし" },
+    warn:  { color: "#f0a030",          label: "🟡 警告" },
+    error: { color: C.red,              label: "🔴 要修正" },
+  };
+  const m = map[v.level];
+  return (
+    <span title={v.messages.join("\n") || "検証OK"}
+      style={{background:m.color+"1f",color:m.color,border:`1px solid ${m.color}55`,
+        borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,cursor:v.messages.length?"help":"default"}}>
+      {m.label}{v.messages.length ? `(${v.messages.length})` : ""}
+    </span>
+  );
+}
+
 function ListTab({items, allItems, search, setSearch, onEdit, onDelete}) {
   const govColors = {"国":C.blue,"東京都":C.green,"港区":C.purple};
 
@@ -540,6 +602,7 @@ function ListTab({items, allItems, search, setSearch, onEdit, onDelete}) {
                 <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>{item.tag}</span>
                 <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11,fontFamily:"monospace"}}>{item.id}</span>
                 {item.urgent && <span style={{background:C.red+"22",color:C.red,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>⚠️ 期限注意</span>}
+                <ValidationBadge item={item} />
               </div>
               <div style={{fontWeight:700,fontSize:15,color:C.t1,marginBottom:2}}>{item.title}</div>
               <div style={{color:C.t2,fontSize:13,marginBottom:4}}>{item.catch}</div>
@@ -697,6 +760,8 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
             <EligibilityBuilder
               eligibility={form.eligibility}
               onChange={el => setForm(f => ({...f, eligibility: el}))}
+              ctx={form}
+              showToast={showToast}
             />
           </Section>
         </div>
@@ -924,7 +989,7 @@ const PROFILE_KEY_DEFS = [
   { key:"stage",           label:"ライフステージ",         type:"multiselect",
     opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","年金生活者","その他・無職"] },
   { key:"income",          label:"世帯年収",               type:"multiselect",
-    opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"] },
+    opts:["100万円未満","100〜150万円","150〜250万円","250〜350万円","350〜450万円","450〜600万円","600〜800万円","800〜1000万円","1000万円以上"] },
   { key:"housing",         label:"住居形態",               type:"multiselect",
     opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"] },
   { key:"marital",         label:"婚姻状況",               type:"select",
@@ -1304,7 +1369,123 @@ function BaseScoreEditor({ value, onChange }) {
 }
 
 // ── メインの EligibilityBuilder ──────────────────────────
-function EligibilityBuilder({ eligibility, onChange }) {
+/* ── profileCheck エディタ（対象確認ミニ質問） ── */
+function ProfileCheckEditor({ profileCheck, onChange, ctx, showToast }) {
+  const [aiIdx, setAiIdx] = useState(-1);
+  const list = profileCheck || [];
+  // 質問に使えるキー（選択肢を持つもののみ。年齢・_always等は除外）
+  const usableDefs = PROFILE_KEY_DEFS.filter(d => Array.isArray(d.opts) && d.opts.length > 0);
+
+  const add = () => onChange([...list, { field:"", type:"select", question:"", options:[], match:[] }]);
+  const removeAt = (i) => onChange(list.filter((_, idx) => idx !== i));
+  const updateAt = (i, patch) => onChange(list.map((q, idx) => idx === i ? {...q, ...patch} : q));
+
+  const setField = (i, field) => {
+    const def = PROFILE_KEY_DEFS.find(d => d.key === field);
+    updateAt(i, { field, options: def?.opts || [], match: [] });
+  };
+  const toggleMatch = (i, opt) => {
+    const m = list[i].match || [];
+    updateAt(i, { match: m.includes(opt) ? m.filter(x => x !== opt) : [...m, opt] });
+  };
+
+  const genQuestion = async (i) => {
+    const q = list[i];
+    const def = PROFILE_KEY_DEFS.find(d => d.key === q.field);
+    if (!q.field) { showToast("⚠️ 先にフィールドを選択してください"); return; }
+    setAiIdx(i);
+    const prompt = `以下の行政制度について、対象者かどうかを1問で確認するユーザー向け質問文を生成してください。
+制度名: ${ctx?.officialName || ctx?.title || ""}
+説明: ${ctx?.body || ""}
+対象フィールド: ${def?.label || q.field}（選択肢: ${(def?.opts||[]).join("／")}）
+対象となる値: ${(q.match||[]).join("／") || "未指定"}
+質問は簡潔・日本語・絵文字1つ付き・30文字以内。質問文のみを返してください（引用符・前置き不要）。`;
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key": sessionStorage.getItem("anthropic_key")||""},
+        body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:120, messages:[{role:"user",content:prompt}] }),
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).map(b=>b.text).join("").trim().replace(/^["「]|["」]$/g,"");
+      if (!text) throw new Error("空の応答");
+      updateAt(i, { question: text });
+      showToast("✅ 質問文を生成しました");
+    } catch(e) {
+      showToast("❌ AI生成失敗: " + e.message);
+    }
+    setAiIdx(-1);
+  };
+
+  return (
+    <div style={{marginTop:14,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <span style={{color:C.t2,fontWeight:700,fontSize:12}}>🔍 対象確認ミニ質問（profileCheck）</span>
+        <button onClick={add}
+          style={{background:C.blue+"22",color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:6,
+            padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>＋ 質問を追加</button>
+      </div>
+      <div style={{color:C.t3,fontSize:11,marginBottom:10}}>
+        未回答ならアプリ側でミニクイズを出し、一致で「対象確実」・不一致で「対象外」に判定します（最大2問推奨）。
+      </div>
+      {list.length >= 3 && (
+        <div style={{background:"#f0a03018",border:"1px solid #f0a03055",borderRadius:8,padding:"8px 12px",
+          color:"#b8740f",fontSize:11,marginBottom:10}}>
+          ⚠️ 3問以上にすると確定判定されず「関係あるかも」に固定されます。
+        </div>
+      )}
+      {list.map((q, i) => {
+        const def = PROFILE_KEY_DEFS.find(d => d.key === q.field);
+        return (
+          <div key={i} style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:10,padding:12,marginBottom:10}}>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <select value={q.field||""} onChange={e=>setField(i, e.target.value)}
+                style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none"}}>
+                <option value="">— フィールド選択 —</option>
+                {usableDefs.map(d => <option key={d.key} value={d.key}>{d.label}（{d.key}）</option>)}
+              </select>
+              <select value={q.type||"select"} onChange={e=>updateAt(i, {type:e.target.value})}
+                style={{width:110,border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none"}}>
+                <option value="select">select</option>
+                <option value="yesno">yesno</option>
+              </select>
+              <button onClick={()=>removeAt(i)}
+                style={{background:C.red+"18",color:C.red,border:`1px solid ${C.red}44`,borderRadius:6,padding:"0 10px",fontSize:13,cursor:"pointer"}}>🗑</button>
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <input value={q.question||""} onChange={e=>updateAt(i, {question:e.target.value})}
+                placeholder="質問文（例: 保育施設に通わせていますか？🏫）"
+                style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none"}}/>
+              <button onClick={()=>genQuestion(i)} disabled={aiIdx===i}
+                style={{background:aiIdx===i?C.t3:C.purple,color:"#fff",border:"none",borderRadius:6,padding:"0 12px",fontSize:12,fontWeight:700,cursor:aiIdx===i?"not-allowed":"pointer",whiteSpace:"nowrap"}}>
+                {aiIdx===i ? "⏳" : "🤖 質問生成"}
+              </button>
+            </div>
+            {def && (
+              <div>
+                <div style={{color:C.t3,fontSize:11,marginBottom:4}}>対象となる値（match）</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {def.opts.map(opt => {
+                    const on = (q.match||[]).includes(opt);
+                    return (
+                      <button key={opt} onClick={()=>toggleMatch(i, opt)}
+                        style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${on?C.green:C.border}`,
+                          background:on?C.green+"22":"none",color:on?C.green:C.t2,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>
+                        {on?"✓ ":""}{opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EligibilityBuilder({ eligibility, onChange, ctx, showToast }) {
   const el = eligibility || { certain:[], exclude:[], matchRules:[], baseScore:0, missingFor:[], excludeReasons:{}, hints:{} };
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showJson, setShowJson] = useState(false);
@@ -1332,6 +1513,7 @@ function EligibilityBuilder({ eligibility, onChange }) {
   const excludeCount = el.exclude?.length || 0;
   const matchCount = el.matchRules?.length || 0;
   const missingCount = el.missingFor?.length || 0;
+  const pcCount = el.profileCheck?.length || 0;
 
   return (
     <div>
@@ -1342,6 +1524,7 @@ function EligibilityBuilder({ eligibility, onChange }) {
           [excludeCount, "❌ 除外条件", C.red],
           [matchCount,   "🎯 スコアルール", C.purple],
           [missingCount, "❓ ミニクイズ", C.blue],
+          [pcCount,      "🔍 対象確認", C.orange||"#f0a030"],
         ].map(([n, label, color]) => (
           <span key={label} style={{background:color+"15",color,border:`1px solid ${color}33`,
             borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>
@@ -1381,6 +1564,14 @@ function EligibilityBuilder({ eligibility, onChange }) {
       <MissingForEditor
         missingFor={el.missingFor||[]}
         onChange={v => upd("missingFor", v)}
+      />
+
+      {/* 🔍 profileCheck（対象確認ミニ質問） */}
+      <ProfileCheckEditor
+        profileCheck={el.profileCheck||[]}
+        onChange={v => upd("profileCheck", v.length ? v : undefined)}
+        ctx={ctx}
+        showToast={showToast}
       />
 
       {/* 詳細（excludeReasons / hints）アコーディオン */}
@@ -1504,6 +1695,106 @@ function SubsidyRulesEditor({rules, labelRules, onChange}) {
 }
 
 /* EligibilityPreview → EligibilityBuilder に統合 */
+
+/* ════════════════════════════════════════════════════════
+   プロフィール拡張提案タブ（crawlerが付与した suggestedKeys を一覧）
+   ════════════════════════════════════════════════════════ */
+function ProposalsTab({ drafts, loading, onReload, showToast }) {
+  const LS_KEY = "mgov_proposal_decisions";
+  const [decisions, setDecisions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch(e) { return {}; }
+  });
+  const persist = (next) => {
+    setDecisions(next);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch(e) {}
+  };
+  const decide = (pid, val) => persist({ ...decisions, [pid]: val });
+
+  // drafts.json の各草稿に付いた suggestedKeys を集約
+  const proposals = [];
+  (drafts || []).forEach((d) => {
+    (d.suggestedKeys || []).forEach((sk, i) => {
+      proposals.push({
+        pid: `${d.id || d._source || "draft"}:${sk.key}:${i}`,
+        key: sk.key,
+        reason: sk.reason || "",
+        affectedItem: sk.affectedItem || d.id || "",
+        warning: d.adminWarning || "",
+      });
+    });
+  });
+  const pending = proposals.filter(p => !decisions[p.pid]);
+  const handled = proposals.filter(p => decisions[p.pid]);
+
+  const Card = ({ p, done }) => (
+    <div style={{background:C.bg1,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+        <span style={{background:C.purple+"22",color:C.purple,borderRadius:6,padding:"2px 10px",fontSize:13,fontWeight:700,fontFamily:"monospace"}}>{p.key}</span>
+        {p.affectedItem && <span style={{background:C.bg2,color:C.t3,borderRadius:6,padding:"2px 8px",fontSize:11}}>影響制度: {p.affectedItem}</span>}
+        {done && <span style={{color:done==="accepted"?C.green:C.red,fontSize:12,fontWeight:700}}>{done==="accepted"?"✅ 採用":"🚫 却下"}</span>}
+      </div>
+      <div style={{color:C.t2,fontSize:13,lineHeight:1.6,marginBottom:done?0:10}}>{p.reason}</div>
+      {!done && (
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>{decide(p.pid,"accepted");showToast("採用としてマーク（index.html の UNIFIED_GROUPS へ追加を検討してください）");}}
+            style={{background:C.green+"22",color:C.green,border:`1px solid ${C.green}44`,borderRadius:8,padding:"6px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+            採用してUNIFIED_GROUPSに追加
+          </button>
+          <button onClick={()=>decide(p.pid,"rejected")}
+            style={{background:C.red+"11",color:C.red,border:`1px solid ${C.red}33`,borderRadius:8,padding:"6px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+            却下
+          </button>
+        </div>
+      )}
+      {done && (
+        <button onClick={()=>{const n={...decisions};delete n[p.pid];persist(n);}}
+          style={{marginTop:8,background:"none",color:C.t3,border:`1px solid ${C.border}`,borderRadius:8,padding:"4px 12px",fontSize:12,cursor:"pointer"}}>
+          ↩ 取り消す
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <div>
+          <div style={{color:C.t1,fontWeight:700,fontSize:18}}>🧩 プロフィール拡張提案</div>
+          <div style={{color:C.t3,fontSize:12,marginTop:2}}>
+            収集AIが既存プロフィールキーで表現できない条件を検出した提案です（crawlerの suggestedKeys）。
+          </div>
+        </div>
+        <button onClick={onReload} disabled={loading}
+          style={{background:C.blue+"22",color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"⏳ 読込中…":"🔄 再読込"}
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{color:C.t2,fontSize:13}}>drafts.json を読み込み中…</div>
+      ) : proposals.length === 0 ? (
+        <div style={{background:C.bg1,border:`1px dashed ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.t3,fontSize:13}}>
+          未対応の拡張提案はありません。<br/>新しい制度収集時に未定義キーが見つかると、ここに表示されます。
+        </div>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <div style={{marginBottom:20}}>
+              <div style={{color:C.t2,fontWeight:700,fontSize:13,marginBottom:8}}>未対応（{pending.length}）</div>
+              {pending.map(p => <Card key={p.pid} p={p} />)}
+            </div>
+          )}
+          {handled.length > 0 && (
+            <div>
+              <div style={{color:C.t3,fontWeight:700,fontSize:13,marginBottom:8}}>対応済み（{handled.length}）</div>
+              {handled.map(p => <Card key={p.pid} p={p} done={decisions[p.pid]} />)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 /* ════════════════════════════════════════════════════════
    草稿レビュータブ（crawlerのdrafts.jsonから読み込み・承認）

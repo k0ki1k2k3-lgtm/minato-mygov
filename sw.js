@@ -64,7 +64,20 @@ async function handlePush(event) {
   }
 
   // tag または type で振り分け（Worker は tag を送る、旧コードとの互換で type も見る）
-  const tag = data.tag || data.type || "";
+  const tag  = data.tag || data.type || "";
+  const type = data.type || "";
+
+  // 再確認・季節・テスト通知：ペイロードをそのまま表示（新着差分ロジックを通さない）
+  if (type === "RECHECK" || type === "SEASONAL" || type === "TEST") {
+    await self.registration.showNotification(data.title || "港区からのお知らせ", {
+      body:  data.body || "",
+      icon:  ICON,
+      badge: BADGE,
+      tag:   data.tag || type,
+      data:  { url: APP_URL, type, field: data.field || "", value: data.value || "" },
+    });
+    return;
+  }
 
   // 管理者向け通知（admin-draft / new_drafts 両対応）
   if (tag === "admin-draft" || tag === "new_drafts") {

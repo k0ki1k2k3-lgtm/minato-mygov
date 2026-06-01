@@ -107,9 +107,125 @@ let TOWN_COORDS = [
   {name:"港南",   lat:35.6273,lng:139.7455},{name:"芝浦",   lat:35.6393,lng:139.7432},
 ];
 
+// ── 中間状態（申請中・購入予定など）。確定判定の対象外にする値 ──
+const INTERIM_VALUES = ["申請中","購入予定","購入予定（軽自動車）","購入予定（普通車）","購入予定（EV）","飼育予定"];
+
+// 中間状態ごとの再確認までの待機日数
+const RECHECK_AFTER_DAYS = {
+  "申請中": 28, "購入予定（軽自動車）": 56, "購入予定（EV）": 56,
+  "購入予定（普通車）": 56, "購入予定": 84, "飼育予定": 42,
+};
+function recheckMessage(field){
+  if(field==="hasMynumber") return "マイナンバーカードは届きましたか？";
+  if(field==="vehicleType") return "車のご予定はその後どうなりましたか？";
+  if(field==="housingDetail") return "お住まいのご予定はその後どうなりましたか？";
+  if(field==="petType") return "ペットのお迎えはその後どうなりましたか？";
+  return "その後、状況に変化はありましたか？";
+}
+const LS_RECHECKS = "mgov_rechecks";
+function registerRechecks(profile){
+  const list = lsLoad(LS_RECHECKS, []); const now = Date.now(); let changed=false;
+  for(const [field, raw] of Object.entries(profile)){
+    const vals = Array.isArray(raw) ? raw : [raw];
+    for(const v of vals){
+      if(!INTERIM_VALUES.includes(v)) continue;
+      if(list.some(r=>r.field===field && r.value===v && r.dueAt>now)) continue;
+      const days = RECHECK_AFTER_DAYS[v] ?? 42;
+      list.push({ field, value:v, dueAt: now+days*86400000, msg: recheckMessage(field) });
+      changed=true;
+      if(typeof Notification!=="undefined" && Notification.permission==="granted")
+        scheduleServerRecheck(field, v, now+days*86400000, recheckMessage(field));
+    }
+  }
+  const cleaned = list.filter(r=>{ const cur=profile[r.field]; const vals=Array.isArray(cur)?cur:[cur]; return vals.includes(r.value); });
+  if(changed || cleaned.length!==list.length) lsSave(LS_RECHECKS, cleaned);
+}
+function getDueRecheck(){ const now=Date.now(); return lsLoad(LS_RECHECKS,[]).find(r=>r.dueAt<=now)||null; }
+function clearRecheck(field,value){ lsSave(LS_RECHECKS, lsLoad(LS_RECHECKS,[]).filter(r=>!(r.field===field&&r.value===value))); }
+async function scheduleServerRecheck(field,value,dueAt,msg){
+  try{ const reg=window._swReg||(await navigator.serviceWorker?.ready); const sub=reg&&await reg.pushManager.getSubscription(); if(!sub) return;
+    await fetch(`${PUSH_WORKER_URL}/schedule-recheck`,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({endpoint:sub.endpoint,field,value,dueAt,message:msg})}); }catch(e){}
+}
+
+// ── 誕生日(YYYY-MM-DD)/生まれ年月(YYYY-MM)から年齢を算出 ──
+function ageFromBirthday(bd){
+  if(!bd) return null;
+  const [y,m,d] = String(bd).split("-").map(Number);
+  if(!y) return null;
+  const n=new Date(); let a=n.getFullYear()-y;
+  const cm=n.getMonth()+1, cd=n.getDate();
+  if(m){ if(cm<m || (cm===m && d && cd<d)) a--; }
+  return a<0?null:a;
+}
+
+// ── 世帯人数（本人＋同居者） ──
+function householdSize(profile){
+  if(!Array.isArray(profile.household) || profile.household.length===0) return 1;
+  return profile.household.filter(m=>m.isSelf||m.cohabit).length || 1;
+}
+
+// ── 住民税非課税の近似判定（全国共通の式・35万/人ベース） ──
+function isLikelyTaxExempt(profile){
+  // taxStatus を直接申告していればそれを最優先（確定）
+  if(profile.taxStatus==="非課税") return true;
+  if(profile.taxStatus==="課税世帯") return false;
+  // 年収区分（新9段階）→ 給与年収のおおよその上限(万円)
+  const incomeTop = {
+    "100万円未満":99,"100〜150万円":150,"150〜250万円":250,"250〜350万円":350,
+    "350〜450万円":450,"450〜600万円":600,"600〜800万円":800,"800〜1000万円":1000,"1000万円以上":1200,
+    // 旧区分フォールバック
+    "～200万円":200,"200～400万円":400,"400～600万円":600,"600～800万円":800,"800万円～":1000,
+  }[profile.income];
+  if(incomeTop===undefined) return false;
+  const size = householdSize(profile);
+  const threshold = 110 + (size-1)*50; // 単身110万・1人増ごと+50万
+  return incomeTop <= threshold;
+}
+
+// ── 値が中間状態か ──
+function isInterim(pv){
+  const arr = Array.isArray(pv) ? pv : [pv];
+  return arr.some(v => INTERIM_VALUES.includes(v));
+}
+
+// ── 世帯構成から属性別人数を集計する仮想キー ──
+function calcHouseholdStats(profile){
+  const hh = Array.isArray(profile.household) ? profile.household : [];
+  const cohabit = hh.filter(m=>m.isSelf||m.cohabit);
+  // 子どもの人数（同居・別居問わず。rel=child で登録されている人）
+  const childCount = hh.filter(m=>m.rel==="child").length;
+  // 同居している子どもの人数
+  const childCohabitCount = cohabit.filter(m=>m.rel==="child").length;
+  // 同居の高齢者（65歳以上）
+  const elderCount = cohabit.filter(m=>{ const a=ageFromBirthday(`${m.birthYear}-${m.birthMonth||1}`); return a!==null&&a>=65; }).length;
+  // 障害がある同居メンバーの人数
+  const disabledCount = cohabit.filter(m=>m.disability&&m.disability!=="なし"&&m.disability!=="").length;
+  // 収入がある同居メンバーの人数（本人含む・収入なし以外）
+  const incomeCount = cohabit.filter(m=>m.work&&m.work!=="収入なし").length;
+  return { childCount, childCohabitCount, elderCount, disabledCount, incomeCount };
+}
+
+// 数値比較ヘルパー（{ gte:2 } / { lte:1 } / { eq:0 } / 数値直接指定）
+function matchCount(actual, expected){
+  if(typeof expected === "number") return actual === expected;
+  if(typeof expected === "object"){
+    if("gte" in expected && actual < expected.gte) return false;
+    if("lte" in expected && actual > expected.lte) return false;
+    if("gt"  in expected && actual <= expected.gt)  return false;
+    if("lt"  in expected && actual >= expected.lt)  return false;
+    if("eq"  in expected && actual !== expected.eq)  return false;
+  }
+  return true;
+}
+
 // ── データ駆動型条件評価 ──────────────────────────────────
 function evalCondition(cond, profile) {
-  const a = profile.ageNum ? Number(profile.ageNum) : null;
+  // 年齢は birthday があれば自動算出を優先
+  const autoAge = ageFromBirthday(profile.birthday);
+  const a = (autoAge!==null) ? autoAge : (profile.ageNum ? Number(profile.ageNum) : null);
+  // 世帯構成集計（毎回計算するが軽い）
+  const hhStats = calcHouseholdStats(profile);
   for (const [key, val] of Object.entries(cond)) {
     // 特殊キー
     if (key === "_always") return val === true;
@@ -117,16 +233,28 @@ function evalCondition(cond, profile) {
     if (key === "ageMin") { if (a === null || a < val) return false; continue; }
     if (key === "ageMax") { if (a === null || a > val) return false; continue; }
     if (key === "ageBetween") { if (a === null || a < val[0] || a >= val[1]) return false; continue; }
-    // 通常キー
+    // 仮想条件：住民税非課税の見込み
+    if (key === "taxExemptLikely") { if (isLikelyTaxExempt(profile) !== (val===true)) return false; continue; }
+    // 仮想条件：世帯人数
+    if (key === "householdMin") { if (householdSize(profile) < val) return false; continue; }
+    if (key === "householdMax") { if (householdSize(profile) > val) return false; continue; }
+    // 仮想条件：世帯構成集計キー
+    if (key === "householdChildCount")        { if (!matchCount(hhStats.childCount, val))        return false; continue; }
+    if (key === "householdChildCohabitCount") { if (!matchCount(hhStats.childCohabitCount, val)) return false; continue; }
+    if (key === "householdElderCount")        { if (!matchCount(hhStats.elderCount, val))        return false; continue; }
+    if (key === "householdDisabledCount")     { if (!matchCount(hhStats.disabledCount, val))     return false; continue; }
+    if (key === "householdIncomeCount")       { if (!matchCount(hhStats.incomeCount, val))       return false; continue; }
+    // 通常キー（配列値にも対応）
     const pv = profile[key];
-    if (val === null || val === undefined) { if (pv !== null && pv !== undefined) return false; continue; }
-    if (typeof val === "string") { if (pv !== val) return false; continue; }
-    if (Array.isArray(val)) { if (!val.includes(pv)) return false; continue; }
+    const pvArr = (pv===null||pv===undefined) ? [] : (Array.isArray(pv) ? pv : [pv]);
+    if (val === null || val === undefined) { if (pvArr.length>0) return false; continue; }
+    if (typeof val === "string") { if (!pvArr.includes(val)) return false; continue; }
+    if (Array.isArray(val)) { if (!val.some(v=>pvArr.includes(v))) return false; continue; }
     if (typeof val === "object") {
-      if ("not" in val) { if (pv === val.not) return false; continue; }
+      if ("not" in val) { if (pvArr.includes(val.not)) return false; continue; }
       if ("notIn" in val) {
-        if (val.ifSet && (!pv || pv === "")) continue; // 未設定なら無視
-        if (val.notIn.includes(pv)) return false; continue;
+        if (val.ifSet && pvArr.length===0) continue; // 未設定なら無視
+        if (val.notIn.some(v=>pvArr.includes(v))) return false; continue;
       }
     }
   }
@@ -140,17 +268,86 @@ function evalCondArray(condArray, profile, mode = "and") {
   return false;
 }
 
+// ── profileCheck（対象確認ミニ質問）の判定 ──────────────────
+// フィールドごとの再質問間隔（日）。回答が古くなったら再度確認する
+const PROFILE_RECHECK_DAYS = {
+  vehicleType:730, housingDetail:730, housingLoan:730, housing:730,
+  disabilityType:1825, nationalityStatus:1825,
+  leaveStatus:365, petType:365, taxStatus:365, childcareStatus:365,
+  pregnancyStatus:90, hasMynumber:180,
+};
+// その field を（再）質問すべきか：未回答→true / 回答済み記録なし→false / 記録が古い→true
+function shouldAsk(field, profile){
+  const v = profile[field];
+  const answered = !(v===undefined || v===null || v==="");
+  if(!answered) return true;
+  const at = profile.profileAnsweredAt && profile.profileAnsweredAt[field];
+  if(!at) return false;
+  return Date.now()-at > (PROFILE_RECHECK_DAYS[field] ?? 365)*86400000;
+}
+// 回答済みの profileCheck をマッチ評価： true / false / "interim" / null(未回答あり)
+function evaluateProfileCheckMatch(pcList, profile){
+  if(!pcList || !pcList.length) return null;
+  const results = pcList.map(check=>{
+    const saved = profile[check.field];
+    if(saved===undefined || saved===null || saved==="") return null; // 未回答
+    const values = Array.isArray(saved) ? saved : [saved];
+    if(values.some(v=>INTERIM_VALUES.includes(v))) return "interim";
+    const match = check.match || [];
+    if(check.type==="yesno" && match.length===0) return saved==="true" || saved===true;
+    return match.some(m=>values.includes(m));
+  });
+  if(results.some(r=>r===null)) return null;
+  if(results.some(r=>r==="interim")) return "interim";
+  return results.every(r=>r===true);
+}
+// profileCheck の総合ステータス： skip / certain / excluded / maybe / maybe_forced / needs_quiz
+function checkProfileQuiz(el, profile){
+  const pc = (el && el.profileCheck) || [];
+  if(!pc.length) return {status:"skip"};
+  if(pc.length>=3) return {status:"maybe_forced"}; // 3問以上は確定させず「関係あるかも」固定
+  const missing = pc.filter(c => shouldAsk(c.field, profile));
+  if(missing.length===0){
+    const r = evaluateProfileCheckMatch(pc, profile);
+    if(r==="interim" || r===null) return {status:"maybe"};
+    return {status: r ? "certain" : "excluded"};
+  }
+  return {status:"needs_quiz", questions:missing};
+}
+
 // ── 制度判定 ──────────────────────────────────────────────
 function calcEligibilityData(profile, el) {
   if (!el) return { certain: false, matchScore: 0, missing: [] };
   // exclude チェック（1つでもtrueなら非表示）
   if (el.exclude && el.exclude.some(c => evalCondition(c, profile)))
     return { certain: false, matchScore: 0, missing: [] };
+
+  // profileCheck（対象確認ミニ質問）による判定
+  const pq = checkProfileQuiz(el, profile);
+  // profileCheck で対象外が確定 → 非表示
+  if (pq.status === "excluded")
+    return { certain: false, matchScore: 0, missing: [] };
+  // profileCheck の未回答質問はキーとして missing に合流させ、クイズで聞く
+  const pcMissing = pq.status === "needs_quiz" ? pq.questions.map(q => q.field) : [];
+  // profileCheck が無い(skip) か、回答が一致(certain)した場合のみ「確定」を許可
+  const pcOK = pq.status === "skip" || pq.status === "certain";
+
   // certain チェック（全条件AND）
-  const certain = !!(el.certain && el.certain.length > 0 && evalCondArray(el.certain, profile, "and"));
-  if (certain) return { certain: true, matchScore: 100, missing: [] };
-  // missing キー検出
-  const missing = (el.missingFor || []).filter(k => !profile[k] || profile[k] === "");
+  const certainMatch = !!(el.certain && el.certain.length > 0 && evalCondArray(el.certain, profile, "and"));
+  if (certainMatch && pcOK && pcMissing.length === 0) {
+    // certain条件が参照するキーが「中間状態（申請中・購入予定）」なら確定させず保留
+    const refsInterim = (el.certain||[]).some(cond =>
+      Object.keys(cond).some(k => isInterim(profile[k]))
+    );
+    if (refsInterim) {
+      // 中間状態 → 「関係あるかも」（やや高めのスコア）
+      return { certain: false, matchScore: 60, missing: [], interim: true };
+    }
+    return { certain: true, matchScore: 100, missing: [] };
+  }
+  // missing キー検出（missingFor ＋ profileCheck 未回答を統合）
+  const baseMissing = (el.missingFor || []).filter(k => !profile[k] || profile[k] === "");
+  const missing = Array.from(new Set([...baseMissing, ...pcMissing]));
   // スコア計算
   let score = el.baseScore !== undefined ? el.baseScore : 40;
   if (el.matchRules) {
@@ -158,6 +355,9 @@ function calcEligibilityData(profile, el) {
       if (rule["if"] && evalCondition(rule["if"], profile)) score += rule.score;
     });
   }
+  // profileCheck が3問以上 or 中間状態などで保留(maybe) のときは最低限のスコアを確保
+  if (pq.status === "maybe_forced" || pq.status === "maybe")
+    score = Math.max(score, 50);
   return { certain: false, matchScore: Math.min(score, 95), missing };
 }
 
@@ -172,9 +372,13 @@ function getConfidenceData(item, profile) {
 
 function getMissingQuestionsData(item, profile) {
   const el = item.eligibility;
-  if (!el || !el.missingFor) return [];
-  return el.missingFor
-    .filter(k => !profile[k] || profile[k] === "")
+  if (!el) return [];
+  const keys = [];
+  (el.missingFor || []).forEach(k => { if (!profile[k] || profile[k] === "") keys.push(k); });
+  // profileCheck の未回答も質問対象に合流
+  const pq = checkProfileQuiz(el, profile);
+  if (pq.status === "needs_quiz") pq.questions.forEach(q => { if (!keys.includes(q.field)) keys.push(q.field); });
+  return keys
     .map(k => ALL_PROFILE_QUESTIONS[k] ? { key: k, ...ALL_PROFILE_QUESTIONS[k] } : null)
     .filter(Boolean);
 }
@@ -244,6 +448,7 @@ const LS_REMINDED     = "mgov_reminded";
 const LS_HIDDEN       = "mgov_hidden";
 const LS_DONE         = "mgov_done";
 const LS_PHASE        = "mgov_phase";
+const LS_SEASONAL_AT  = "mgov_seasonal_at"; // 季節ポップ最終表示（YYYY-Q）
 
 function lsSave(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
@@ -351,7 +556,8 @@ function getEligibilityHint(item, profile) { return getEligibilityHintData(item,
 // ── 全プロフィール質問定義（ミニクイズ用） ──────────────────
 const ALL_PROFILE_QUESTIONS = {
   housing:     {label:"住居形態",         opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
-  income:      {label:"世帯年収",         opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
+  housingDetail:{label:"住居の詳細",      opts:["一戸建て（持ち家）","マンション（分譲）","マンション（賃貸）","アパート（賃貸）","公営住宅","社宅・寮","その他","購入予定"]},
+  income:      {label:"世帯年収",         opts:["100万円未満","100〜150万円","150〜250万円","250〜350万円","350〜450万円","450〜600万円","600〜800万円","800〜1000万円","1000万円以上"]},
   kidsAge:     {label:"お子さんの年齢（最年少）", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
   marital:     {label:"婚姻状況",         opts:["未婚","既婚","離婚・死別"]},
   disability:  {label:"障がいの有無",     opts:["あり","なし","回答しない"]},
@@ -361,10 +567,13 @@ const ALL_PROFILE_QUESTIONS = {
   childcareStatus:{label:"お子さんの保育状況",opts:["在宅育児","認可保育園","認可外保育園","幼稚園","認定こども園","未定"]},
   schoolType:  {label:"在学校の種別",     opts:["公立","私立","国立","通信制","その他"]},
   pregnancyStatus:{label:"妊娠の状況",    opts:["妊娠中","妊娠中でない"]},
+  leaveStatus: {label:"休職・休業の状況", opts:["通常勤務","育児休業中","介護休業中","傷病手当金受給中","休職中","その他"]},
   housingLoan: {label:"住宅ローン",       opts:["あり","なし"]},
-  hasMynumber: {label:"マイナンバーカード",opts:["持っている","持っていない"]},
+  hasMynumber: {label:"マイナンバーカード",opts:["持っている","申請中","持っていない"]},
   isUnemployed:{label:"求職中かどうか",   opts:["求職中","求職中でない"]},
   careLevel:   {label:"介護認定の有無",   opts:["非該当","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"]},
+  vehicleType: {label:"車両",             opts:["なし","普通車","軽自動車","EV・PHV","二輪・原付","複数所有","購入予定（軽自動車）","購入予定（EV）"]},
+  petType:     {label:"ペットの種類",     opts:["いない","猫","犬","鳥","爬虫類","小動物","その他","飼育予定"]},
 };
 
 const BOOL_KEYS = {
@@ -1353,7 +1562,7 @@ function InfoCard({item,profile,liked,reminded,hidden,onLike,onRemind,onHide,onC
   );
 }
 
-function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked,reminded,onLike,onRemind,done,onDone,easy,setEasy}){
+function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked,reminded,onLike,onRemind,done,onDone,easy,setEasy,onGoProfile}){
   const [miniQuiz,setMiniQuiz]=useState(false);
   const [hideConfirmed,setHideConfirmed]=useState(false);
   const [showRepeatConfirm,setShowRepeatConfirm]=useState(false);
@@ -1463,6 +1672,15 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
           <div style={{color:C.t3,fontSize:12,textAlign:"center",marginBottom:20,lineHeight:1.7}}>
             ホームに戻って、他の対象制度を確認しましょう
           </div>
+
+          {/* 状況が変わったらプロフィール更新へ誘導 */}
+          {onGoProfile&&(
+            <button
+              style={{width:"100%",...S.btn(C.blue,false),fontSize:13,fontWeight:700,marginBottom:10}}
+              onClick={e=>{e.stopPropagation();onGoProfile();onClose();}}>
+              🔄 状況が変わった場合はプロフィールを更新
+            </button>
+          )}
 
           {/* ボタン群 */}
           <div style={{display:"flex",gap:10,width:"100%"}}>
@@ -1983,7 +2201,7 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
         </button>
       </>}
 
-      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy}/>}
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy} onGoProfile={onGoProfile}/>}
 
       {/* 繰り返し使える制度の確認ポップ */}
       {repeatConfirmItem&&(
@@ -2024,7 +2242,7 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
   );
 }
 
-function NotifTab({liked,reminded,done,onLike,onRemind,onUndone,onDone,items,liveData,profile,setProfile,onHide}){
+function NotifTab({liked,reminded,done,onLike,onRemind,onUndone,onDone,items,liveData,profile,setProfile,onHide,onGoProfile}){
   const [seg,setSeg]=useState("liked");
   const [detail,setDetail]=useState(null);
   const likedItems=items.filter(it=>liked.includes(it.id));
@@ -2094,7 +2312,7 @@ function NotifTab({liked,reminded,done,onLike,onRemind,onUndone,onDone,items,liv
           ))}
         </>}
       </div>
-      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide&&onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={false}/>}
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide&&onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={false} onGoProfile={onGoProfile}/>}
     </div>
   );
 }
@@ -2304,7 +2522,7 @@ const PROFILE_FIELDS=[
   {key:"hasKids", label:"子どもの有無",   emoji:"👶", opts:["いる（または予定あり）","いない"]},
   {key:"town",    label:"居住地区",       emoji:"📍", useTownPicker:true},
   {key:"housing", label:"住居形態",       emoji:"🏠", opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
-  {key:"income",  label:"世帯年収",       emoji:"💰", opts:["～200万円","200～400万円","400～600万円","600～800万円","800万円～"]},
+  {key:"income",  label:"世帯年収",       emoji:"💰", opts:["100万円未満","100〜150万円","150〜250万円","250〜350万円","350〜450万円","450〜600万円","600〜800万円","800〜1000万円","1000万円以上"]},
   {key:"kidsAge", label:"子の年齢（最年少）", emoji:"🧒", opts:["0〜2歳","3〜5歳","6〜12歳","13〜15歳","16〜18歳"]},
   {key:"gender",  label:"性別",           emoji:"🪪", opts:["男性","女性","その他・回答しない"]},
   {key:"marital", label:"婚姻状況",       emoji:"💍", opts:["未婚","既婚","離婚・死別"]},
@@ -2345,17 +2563,92 @@ const DETAIL_FIELD_GROUPS = [
     id:"assets", label:"資産・インフラ", emoji:"🏡",
     fields:[
       {key:"housingLoan",    label:"住宅ローン",       emoji:"🏦", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+      {key:"housingDetail",  label:"住居の詳細",       emoji:"🏠", opts:["一戸建て（持ち家）","マンション（分譲）","マンション（賃貸）","アパート（賃貸）","公営住宅","社宅・寮","その他","購入予定"]},
       {key:"housingBuiltYear",label:"建築年（西暦）",  emoji:"📅", inputType:"year"},
-      {key:"vehicleType",    label:"車両",             emoji:"🚗", opts:["なし","普通車","軽自動車","EV・PHV","二輪・原付","複数所有"]},
+      {key:"vehicleType",    label:"車両",             emoji:"🚗", opts:["なし","普通車","軽自動車","EV・PHV","二輪・原付","複数所有","購入予定（軽自動車）","購入予定（EV）"], multi:true},
+      {key:"petType",        label:"ペットの種類",     emoji:"🐾", opts:["いない","猫","犬","鳥","爬虫類","小動物","その他","飼育予定"], multi:true},
       {key:"hasBicycle",     label:"自転車",           emoji:"🚲", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
-      {key:"hasDog",         label:"犬の飼育",         emoji:"🐕", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
     ],
   },
   {
     id:"other", label:"その他・行政手続き", emoji:"🗂️",
     fields:[
-      {key:"hasMynumber",    label:"マイナンバーカード",emoji:"🪪", opts:["持っている","持っていない"], boolKeys:{"持っている":"true","持っていない":"false"}},
+      {key:"hasMynumber",    label:"マイナンバーカード",emoji:"🪪", opts:["持っている","申請中","持っていない"], boolKeys:{"持っている":"true","持っていない":"false"}},
       {key:"nationalityStatus",label:"在留状況",       emoji:"🌏", opts:["日本国籍","永住者","特別永住者","就労ビザ","留学ビザ","その他"]},
+    ],
+  },
+];
+
+// ── 統合プロフィールグループ（プロフィール画面の表示構造） ──
+// キー・opts・boolKeys は既存定義を維持。表示位置だけ7グループに再編。
+// special:"household"|"birthday"|"kids" は専用シートを開く特別行。
+const UNIFIED_GROUPS = [
+  {
+    id:"you", label:"あなたのこと", emoji:"👤",
+    fields:[
+      {key:"birthday", label:"誕生日（年齢を自動更新）", emoji:"🎂", special:"birthday"},
+      {key:"gender",  label:"性別",           emoji:"🪪", opts:["男性","女性","その他・回答しない"]},
+      {key:"marital", label:"婚姻状況",       emoji:"💍", opts:["未婚","既婚","離婚・死別"]},
+      {key:"stage",   label:"ライフステージ", emoji:"💼", opts:["学生","社会人（会社員）","社会人（フリーランス・自営）","育休・産休中","主婦・主夫","年金生活者","その他・無職"]},
+      {key:"studentLevel", label:"学校種別（学生のみ）", emoji:"🎒", studentOnly:true, opts:["小学生","中学生","高校生","大学生・専門学生"]},
+      {key:"nationalityStatus",label:"在留状況",emoji:"🌏", opts:["日本国籍","永住者","特別永住者","就労ビザ","留学ビザ","その他"]},
+    ],
+  },
+  {
+    id:"money", label:"お金・仕事", emoji:"💰",
+    fields:[
+      {key:"income",  label:"世帯年収",       emoji:"💰", opts:["100万円未満","100〜150万円","150〜250万円","250〜350万円","350〜450万円","450〜600万円","600〜800万円","800〜1000万円","1000万円以上"]},
+      {key:"taxStatus",      label:"住民税の課税状況", emoji:"🏛️", opts:["課税世帯","均等割のみ課税","非課税","わからない"]},
+      {key:"healthInsurance",label:"社会保険の種類",   emoji:"🏥", opts:["協会けんぽ","健康保険組合","国民健康保険","後期高齢者医療","共済組合","未加入"]},
+      {key:"leaveStatus",    label:"休職・休業状況",   emoji:"🛌", opts:["通常勤務","育児休業中","介護休業中","傷病手当金受給中","休職中","その他"]},
+      {key:"isUnemployed",   label:"求職中",           emoji:"🔍", opts:["求職中","求職中でない"], boolKeys:{"求職中":"true","求職中でない":"false"}},
+    ],
+  },
+  {
+    id:"household", label:"世帯・住まい", emoji:"🏠",
+    fields:[
+      {key:"household", label:"世帯構成", emoji:"🏠", special:"household"},
+      {key:"town",    label:"居住地区",       emoji:"📍", useTownPicker:true},
+      {key:"housing", label:"住居形態",       emoji:"🏠", opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
+      {key:"housingDetail",  label:"住居の詳細",       emoji:"🏠", opts:["一戸建て（持ち家）","マンション（分譲）","マンション（賃貸）","アパート（賃貸）","公営住宅","社宅・寮","その他","購入予定"]},
+      {key:"housingLoan",    label:"住宅ローン",       emoji:"🏦", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+      {key:"housingBuiltYear",label:"建築年（西暦）",  emoji:"📅", inputType:"year"},
+    ],
+  },
+  {
+    id:"kids", label:"子育て・教育", emoji:"👶", showIf:(p)=>p.hasKids==="いる（または予定あり）"||(Array.isArray(p.kids)&&p.kids.length>0)||p.hasKids==="いない"||p.hasKids===undefined,
+    fields:[
+      {key:"hasKids", label:"子どもの有無",   emoji:"👶", opts:["いる（または予定あり）","いない"]},
+      {key:"kids",    label:"お子さんの情報", emoji:"👶", special:"kids", dependsOnKids:true},
+      {key:"childcareStatus",label:"保育状況",         emoji:"🏫", opts:["在宅育児","認可保育園","認可外保育園","幼稚園","認定こども園","地域型保育","未定"], dependsOnKids:true},
+      {key:"schoolType",     label:"在学校の種別",     emoji:"🏫", opts:["公立","私立","国立","通信制","その他"], dependsOnKids:true},
+      {key:"specialNeeds",   label:"特別支援ニーズ",   emoji:"🌈", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}, dependsOnKids:true},
+    ],
+  },
+  {
+    id:"belongings", label:"持ち物", emoji:"🚗",
+    fields:[
+      {key:"vehicleType",    label:"車両",             emoji:"🚗", opts:["なし","普通車","軽自動車","EV・PHV","二輪・原付","複数所有","購入予定（軽自動車）","購入予定（EV）"], multi:true},
+      {key:"petType",        label:"ペットの種類",     emoji:"🐾", opts:["いない","猫","犬","鳥","爬虫類","小動物","その他","飼育予定"], multi:true},
+      {key:"hasBicycle",     label:"自転車",           emoji:"🚲", opts:["あり","なし"], boolKeys:{"あり":"true","なし":"false"}},
+    ],
+  },
+  {
+    id:"procedure", label:"手続き", emoji:"🗂️",
+    fields:[
+      {key:"hasMynumber",    label:"マイナンバーカード",emoji:"🪪", opts:["持っている","申請中","持っていない"], boolKeys:{"持っている":"true","持っていない":"false"}},
+    ],
+  },
+  {
+    id:"health", label:"健康・福祉", emoji:"🏥",
+    fields:[
+      {key:"disability", label:"障がいの有無",emoji:"♿", opts:["あり","なし","回答しない"]},
+      {key:"disabilityGrade",label:"障がいの等級",     emoji:"♿", opts:["1-2級（重度）","3-4級","5-6級","対象外"]},
+      {key:"disabilityType", label:"手帳の種類",       emoji:"📋", opts:["身体障害者手帳","愛の手帳（知的）","精神障害者手帳","なし"]},
+      {key:"careLevel",      label:"介護認定",         emoji:"🧓", opts:["非該当","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"]},
+      {key:"pregnancyStatus",label:"妊娠の状況",       emoji:"🤰", opts:["妊娠中","妊娠中でない"], boolKeys:{"妊娠中":"pregnant","妊娠中でない":"not"}},
+      {key:"intractableDisease",label:"指定難病",      emoji:"💊", opts:["受給者証あり","なし"], boolKeys:{"受給者証あり":"true","なし":"false"}},
+      {key:"welfareStatus",  label:"生活保護",         emoji:"🤝", opts:["受給中","非受給"], boolKeys:{"受給中":"receiving","非受給":"not"}},
     ],
   },
 ];
@@ -2364,7 +2657,7 @@ const DETAIL_FIELD_GROUPS = [
 const DETAIL_DISPLAY_MAP = {
   isUnemployed:      {"true":"求職中","false":"求職中でない"},
   housingLoan:       {"true":"あり","false":"なし"},
-  hasMynumber:       {"true":"持っている","false":"持っていない"},
+  hasMynumber:       {"true":"持っている","false":"持っていない","申請中":"申請中"},
   hasBicycle:        {"true":"あり","false":"なし"},
   hasDog:            {"true":"あり","false":"なし"},
   specialNeeds:      {"true":"あり","false":"なし"},
@@ -2648,7 +2941,7 @@ function NotificationButton() {
   );
 }
 
-function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,onClearAll,onTestNewItems,onTestLike,darkMode,setDarkMode}){
+function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,onClearAll,onTestNewItems,onTestSeasonal,onTestRecheck,onTestPush,onProfileGain,darkMode,setDarkMode}){
   const [showHiddenList,setShowHiddenList]=useState(false);
   const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
   const [showDetailSection,setShowDetailSection]=useState(false);
@@ -2657,13 +2950,27 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
   const [sheet,setSheet]=useState(null);
   const [numInput,setNumInput]=useState("");
   const [numError,setNumError]=useState("");
+  const [showHousehold,setShowHousehold]=useState(false);
+  const [showBday,setShowBday]=useState(false);
+  const [showKids,setShowKids]=useState(false);
 
-  const visible=PROFILE_FIELDS.filter(f=>!f.studentOnly||profile.stage==="学生");
-  const allDetailFields=DETAIL_FIELD_GROUPS.flatMap(g=>g.fields);
-  const filledBasic=visible.filter(f=>profile[f.key]!==undefined&&profile[f.key]!==null&&profile[f.key]!=="").length;
-  const filledDetail=allDetailFields.filter(f=>profile[f.key]!==undefined&&profile[f.key]!==null&&profile[f.key]!=="").length;
-  const totalFields=visible.length+allDetailFields.length;
-  const pct=Math.round(((filledBasic+filledDetail)/totalFields)*100);
+  // 完成度：UNIFIED_GROUPS の全フィールドから算出
+  const allUnifiedFields = UNIFIED_GROUPS
+    .filter(g=>!g.showIf||g.showIf(profile))
+    .flatMap(g=>g.fields)
+    .filter(f=>{
+      if(f.studentOnly && profile.stage!=="学生") return false;
+      if(f.dependsOnKids && !(profile.hasKids==="いる（または予定あり）"||(Array.isArray(profile.kids)&&profile.kids.length>0))) return false;
+      return true;
+    });
+  const isFieldFilled=(f)=>{
+    if(f.special==="household") return Array.isArray(profile.household)&&profile.household.length>0;
+    if(f.special==="kids") return Array.isArray(profile.kids)&&profile.kids.length>0;
+    const v=profile[f.key]; return v!==undefined&&v!==null&&v!==""&&!(Array.isArray(v)&&v.length===0);
+  };
+  const filledCount=allUnifiedFields.filter(isFieldFilled).length;
+  const totalFields=allUnifiedFields.length||1;
+  const pct=Math.round((filledCount/totalFields)*100);
 
   const openSheet=(f)=>{
     setSheet(f);
@@ -2674,17 +2981,53 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
   const displayValue=(f)=>{
     const v=profile[f.key];
     if(v===undefined||v===null||v==="") return "未設定";
+    if(Array.isArray(v)) return v.length? v.join("・") : "未設定";
     if(f.key==="ageNum") return `${v}歳`;
     if(f.inputType==="year") return `${v}年築`;
     if(DETAIL_DISPLAY_MAP[f.key]&&DETAIL_DISPLAY_MAP[f.key][v]) return DETAIL_DISPLAY_MAP[f.key][v];
     return String(v);
   };
 
+  const stampAnswered=(prev,key)=>({...(prev.profileAnsweredAt||{}),[key]:Date.now()});
+
+  // 対象確定している制度数を数える（即フィードバック用）
+  const countCertain=(p)=>{
+    if(!allItems) return 0;
+    let n=0;
+    for(const it of allItems){
+      const el=it.eligibility; if(!el) continue;
+      try{ if(calcEligibilityData(p,el).certain) n++; }catch(e){}
+    }
+    return n;
+  };
+  // プロフィール更新＋対象増加をフィードバック
+  const applyProfile=(updater)=>{
+    setProfile(prev=>{
+      const before=countCertain(prev);
+      const next=typeof updater==="function"?updater(prev):updater;
+      const after=countCertain(next);
+      if(after>before && onProfileGain) onProfileGain(after-before);
+      return next;
+    });
+  };
+
   const saveSheetValue=(v)=>{
     const converted=sheet.boolKeys?(sheet.boolKeys[v]||v):v;
-    const next={...profile,[sheet.key]:converted};
-    if(sheet.key==="stage"&&v!=="学生") delete next.studentLevel;
-    setProfile(next);
+    if(sheet.multi){
+      const exclusive=["なし","いない"];
+      const cur=Array.isArray(profile[sheet.key])?[...profile[sheet.key]]:(profile[sheet.key]?[profile[sheet.key]]:[]);
+      let next;
+      if(exclusive.includes(v)) next=[v];
+      else { next=cur.filter(x=>!exclusive.includes(x));
+        next = next.includes(v)? next.filter(x=>x!==v) : [...next,v]; }
+      applyProfile(p=>({...p,[sheet.key]:next,profileAnsweredAt:stampAnswered(p,sheet.key)}));
+      return;
+    }
+    applyProfile(p=>{
+      const next={...p,[sheet.key]:converted,profileAnsweredAt:stampAnswered(p,sheet.key)};
+      if(sheet.key==="stage"&&v!=="学生") delete next.studentLevel;
+      return next;
+    });
     setSheet(null);
   };
 
@@ -2695,13 +3038,15 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
       <div style={{background:C.bg2,borderRadius:14,padding:12,marginBottom:12,border:`1px solid ${C.border}`}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
           <span style={{color:C.t1,fontWeight:700,fontSize:14}}>プロフィール完成度</span>
-          <span style={{color:C.blue,fontWeight:700}}>{pct}%</span>
+          <span style={{color:pct>=100?C.green:C.blue,fontWeight:700}}>{pct}%</span>
         </div>
         <div style={{background:C.bg3,borderRadius:4,height:6}}>
-          <div style={{background:C.blue,height:6,borderRadius:4,width:`${pct}%`,transition:"width .4s"}}/>
+          <div style={{background:pct>=100?C.green:C.blue,height:6,borderRadius:4,width:`${pct}%`,transition:"width .4s"}}/>
         </div>
-        <div style={{color:C.t3,fontSize:10,marginTop:5}}>
-          基本 {filledBasic}/{visible.length}件　詳細 {filledDetail}/{allDetailFields.length}件
+        <div style={{color:pct>=100?C.green:C.t3,fontSize:11,marginTop:6,fontWeight:pct>=100?700:400}}>
+          {pct>=100
+            ? "🎉 すべて入力済み！精度の高い判定ができます"
+            : `あと${totalFields-filledCount}件で、より正確な制度判定ができます`}
         </div>
       </div>
 
@@ -2749,88 +3094,75 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         </div>
       )}
 
-      {/* ── 基本プロフィール ── */}
-      <div style={{color:C.t3,fontSize:11,fontWeight:700,marginBottom:6,letterSpacing:0.5}}>基本情報</div>
-      {visible.map(f=>(
-        <div key={f.key} style={{...S.card,cursor:"pointer",marginBottom:8}} onClick={()=>openSheet(f)}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{color:C.t2,fontSize:11}}>{f.emoji} {f.label}</div>
-              <div style={{color:profile[f.key]?C.t1:C.t3,fontSize:14,marginTop:2,fontWeight:profile[f.key]?600:400}}>
-                {displayValue(f)}
+      {/* ── 統合プロフィールグループ ── */}
+      {UNIFIED_GROUPS.map(group=>{
+        if(group.showIf && !group.showIf(profile)) return null;
+        const visFields = group.fields.filter(f=>{
+          if(f.studentOnly && profile.stage!=="学生") return false;
+          if(f.dependsOnKids && !(profile.hasKids==="いる（または予定あり）"||(Array.isArray(profile.kids)&&profile.kids.length>0))) return false;
+          return true;
+        });
+        if(visFields.length===0) return null;
+        const isOpen=openDetailGroup===group.id;
+        const filled=visFields.filter(f=>{
+          if(f.special==="household") return Array.isArray(profile.household)&&profile.household.length>0;
+          if(f.special==="kids") return Array.isArray(profile.kids)&&profile.kids.length>0;
+          const v=profile[f.key]; return v!==undefined&&v!==null&&v!==""&&!(Array.isArray(v)&&v.length===0);
+        }).length;
+        return (
+          <div key={group.id} style={{marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:C.bg2,borderRadius:isOpen?"12px 12px 0 0":12,padding:"12px 14px",cursor:"pointer",border:`1px solid ${C.border}`}}
+              onClick={()=>setOpenDetailGroup(g=>g===group.id?null:group.id)}>
+              <div style={{color:C.t1,fontWeight:700,fontSize:14}}>{group.emoji} {group.label}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                {filled>=visFields.length
+                  ? <span style={{background:C.green+"22",color:C.green,borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>✅ 完了</span>
+                  : filled>0&&<span style={{background:C.blue+"22",color:C.blue,borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>{filled}/{visFields.length}</span>}
+                <div style={{color:C.t3,fontSize:16,transition:"transform .2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)"}}>›</div>
               </div>
             </div>
-            <div style={{color:C.t3,fontSize:18}}>›</div>
-          </div>
-        </div>
-      ))}
-
-      {/* ── 詳細設定アコーディオン ── */}
-      <div
-        style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",padding:"12px 0 8px",borderTop:`1px solid ${C.border}`,marginTop:4}}
-        onClick={()=>setShowDetailSection(s=>!s)}>
-        <div>
-          <div style={{color:C.t1,fontWeight:700,fontSize:14}}>🔬 詳細設定</div>
-          <div style={{color:C.t3,fontSize:11,marginTop:2}}>より精度の高い制度判定のために</div>
-        </div>
-        <div style={{color:C.blue,fontSize:20,transition:"transform .25s",transform:showDetailSection?"rotate(90deg)":"rotate(0deg)"}}>›</div>
-      </div>
-
-      {showDetailSection&&(
-        <div style={{animation:"fadeUp .2s ease"}}>
-          {DETAIL_FIELD_GROUPS.map(group=>{
-            const groupFilled=group.fields.filter(f=>profile[f.key]&&profile[f.key]!=="").length;
-            const isOpen=openDetailGroup===group.id;
-            return (
-              <div key={group.id} style={{marginBottom:8}}>
-                <div
-                  style={{
-                    display:"flex",alignItems:"center",justifyContent:"space-between",
-                    background:C.bg2,borderRadius:isOpen?"12px 12px 0 0":12,
-                    padding:"11px 14px",cursor:"pointer",
-                    border:`1px solid ${C.border}`,
-                    borderBottom:isOpen?`1px solid ${C.border}`:`1px solid ${C.border}`,
-                  }}
-                  onClick={()=>setOpenDetailGroup(g=>g===group.id?null:group.id)}>
-                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>
-                    {group.emoji} {group.label}
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    {groupFilled>0&&(
-                      <span style={{background:C.blue+"22",color:C.blue,borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>
-                        {groupFilled}/{group.fields.length}
-                      </span>
-                    )}
-                    <div style={{color:C.t3,fontSize:16,transition:"transform .2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)"}}>›</div>
-                  </div>
-                </div>
-                {isOpen&&(
-                  <div style={{border:`1px solid ${C.border}`,borderTop:"none",borderRadius:"0 0 12px 12px",overflow:"hidden"}}>
-                    {group.fields.map((f,i)=>(
-                      <div
-                        key={f.key}
-                        style={{
-                          display:"flex",justifyContent:"space-between",alignItems:"center",
-                          padding:"11px 14px",cursor:"pointer",
-                          background:i%2===0?C.bg1:C.bg2,
-                          borderTop:i>0?`1px solid ${C.border}`:"none",
-                        }}
-                        onClick={()=>openSheet(f)}>
-                        <div>
-                          <div style={{color:C.t2,fontSize:10}}>{f.emoji} {f.label}</div>
-                          <div style={{color:profile[f.key]?C.t1:C.t3,fontSize:13,marginTop:1,fontWeight:profile[f.key]?600:400}}>
-                            {displayValue(f)}
-                          </div>
-                        </div>
-                        <div style={{color:C.t3,fontSize:16}}>›</div>
+            {isOpen&&(
+              <div style={{border:`1px solid ${C.border}`,borderTop:"none",borderRadius:"0 0 12px 12px",overflow:"hidden"}}>
+                {visFields.map((f,i)=>{
+                  let valTxt;
+                  if(f.special==="household"){const h=profile.household;const n=Array.isArray(h)?h.filter(p=>p.isSelf||p.cohabit).length:1;valTxt=`${n||1}人`;}
+                  else if(f.special==="birthday"){valTxt=profile.birthday?`${profile.birthday}（${ageFromBirthday(profile.birthday)}歳）`:"未設定";}
+                  else if(f.special==="kids"){const ks=profile.kids;if(Array.isArray(ks)&&ks.length){const ag=ks.map(k=>ageFromBirthday(`${k.birthYear}-${k.birthMonth||1}`)).filter(a=>a!==null);valTxt=ag.length?ag.map(a=>`${a}歳`).join("・"):"生年月を登録";}else valTxt="生年月を登録";}
+                  else valTxt=displayValue(f);
+                  const isSet=valTxt!=="未設定"&&valTxt!=="生年月を登録";
+                  return (
+                    <div key={f.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",cursor:"pointer",background:i%2===0?C.bg1:C.bg2,borderTop:i>0?`1px solid ${C.border}`:"none"}}
+                      onClick={()=>{ if(f.special==="household")setShowHousehold(true); else if(f.special==="birthday")setShowBday(true); else if(f.special==="kids")setShowKids(true); else openSheet(f); }}>
+                      <div>
+                        <div style={{color:C.t2,fontSize:10}}>{f.emoji} {f.label}</div>
+                        <div style={{color:isSet?C.t1:C.t3,fontSize:13,marginTop:1,fontWeight:isSet?600:400}}>{valTxt}</div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div style={{color:C.t3,fontSize:16}}>›</div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* 世帯構成・誕生日・子どもシート描画 */}
+      {showHousehold&&(
+        <HouseholdPage
+          household={profile.household}
+          setHousehold={(fn)=>applyProfile(p=>({...p,household:typeof fn==="function"?fn(p.household||[{id:"self",isSelf:true,rel:"self",name:"あなた",emoji:"🧑"}]):fn}))}
+          onBack={()=>setShowHousehold(false)}/>
+      )}
+      {showBday&&(
+        <BirthdaySheetPop birthday={profile.birthday}
+          onClose={()=>setShowBday(false)}
+          onSave={(bd)=>{applyProfile(p=>({...p,birthday:bd,profileAnsweredAt:{...(p.profileAnsweredAt||{}),birthday:Date.now()}}));setShowBday(false);}}/>
+      )}
+      {showKids&&(
+        <KidsSheetPop kids={profile.kids}
+          onClose={()=>setShowKids(false)}
+          onSave={(l)=>{applyProfile(p=>({...p,kids:l}));setShowKids(false);}}/>
       )}
 
       {/* ── ボトムシート（基本・詳細共通） ── */}
@@ -2875,19 +3207,24 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
             </>}
 
             {sheet.opts&&<>
+              {sheet.multi&&<div style={{color:C.t2,fontSize:12,marginTop:6,marginBottom:2}}>複数選択できます</div>}
               <div style={{marginTop:8}}>
                 {sheet.opts.map(v=>{
                   const converted=sheet.boolKeys?(sheet.boolKeys[v]||v):v;
                   const cur=profile[sheet.key];
-                  const isSel=cur===converted||cur===v;
+                  const isSel=sheet.multi
+                    ? (Array.isArray(cur)?cur.includes(v):cur===v)
+                    : (cur===converted||cur===v);
                   return (
                     <button key={v}
-                      style={{...S.btn(isSel?C.blue:C.bg3),border:`1px solid ${isSel?C.blue:C.border}`,width:"100%",marginBottom:8,textAlign:"left"}}
+                      style={{...S.btn(isSel?C.blue:C.bg3),border:`1px solid ${isSel?C.blue:C.border}`,width:"100%",marginBottom:8,textAlign:"left",display:"flex",alignItems:"center",gap:8}}
                       onClick={()=>saveSheetValue(v)}>
+                      {sheet.multi&&<span style={{width:16,height:16,borderRadius:4,border:`2px solid ${isSel?"#fff":C.t3}`,background:isSel?"#fff":"transparent",color:C.blue,fontSize:12,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{isSel?"✓":""}</span>}
                       {v}
                     </button>
                   );
                 })}
+                {sheet.multi&&<button style={{...S.btn(C.blue),width:"100%",marginTop:4}} onClick={()=>setSheet(null)}>完了</button>}
               </div>
             </>}
 
@@ -2931,20 +3268,32 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
           ⚙️ 制度を追加・管理する
         </button>
         {/* 🧪 開発テスト */}
-        {(onTestNewItems||onTestLike) && (
+        {(onTestNewItems||onTestSeasonal||onTestRecheck) && (
           <div style={{marginTop:8,padding:"12px",background:C.bg2,borderRadius:12,border:`1px dashed ${C.border}`}}>
-            <div style={{color:C.t3,fontSize:10,marginBottom:8,fontWeight:600}}>🧪 開発テスト</div>
+            <div style={{color:C.t3,fontSize:10,marginBottom:8,fontWeight:600}}>🧪 開発テスト（通知・ポップ）</div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {onTestNewItems && (
-                <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                <button style={{flex:"1 1 calc(50% - 4px)",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
                   onClick={onTestNewItems}>
-                  新着ポップを出す
+                  新着ポップ
                 </button>
               )}
-              {onTestLike && (
-                <button style={{flex:1,...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
-                  onClick={onTestLike}>
-                  ダミーいいねを追加
+              {onTestSeasonal && (
+                <button style={{flex:"1 1 calc(50% - 4px)",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                  onClick={onTestSeasonal}>
+                  季節ポップ
+                </button>
+              )}
+              {onTestRecheck && (
+                <button style={{flex:"1 1 calc(50% - 4px)",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                  onClick={onTestRecheck}>
+                  再確認ポップ
+                </button>
+              )}
+              {onTestPush && (
+                <button style={{flex:"1 1 calc(50% - 4px)",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                  onClick={onTestPush}>
+                  テストPush送信
                 </button>
               )}
             </div>
@@ -3237,6 +3586,288 @@ function Gateway({profile, items, onEnter}){
 }
 
 
+/* ══════ 中間状態の再確認ポップ ══════ */
+function RecheckPopup({ recheck, profile, onResolve, onClose }){
+  // その項目の選択肢（中間状態を除いた確定値）を出す
+  const fieldDef = (function(){
+    for(const g of UNIFIED_GROUPS) for(const f of g.fields) if(f.key===recheck.field) return f;
+    return null;
+  })();
+  const opts = (fieldDef?.opts||[]).filter(o=>!INTERIM_VALUES.includes(o));
+  const pick=(opt)=>{
+    const bk = fieldDef?.boolKeys ? (fieldDef.boolKeys[opt]||opt) : opt;
+    onResolve(recheck.field, recheck.value, bk);
+  };
+  return (
+    <PopSheet onClose={onClose} z={320} maxH="auto">
+      <div style={{textAlign:"center",marginBottom:16}}>
+        <div style={{fontSize:28,marginBottom:6}}>🔔</div>
+        <div style={{fontSize:15,fontWeight:700,color:C.t1,lineHeight:1.5}}>{recheck.msg}</div>
+        <div style={{fontSize:12,color:C.t2,marginTop:6}}>現在の状況を選んでください</div>
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+        {opts.map(o=>(
+          <button key={o} onClick={()=>pick(o)}
+            style={{...S.btn(C.bg3),border:`1px solid ${C.border}`,color:C.t1,flex:"1 1 calc(50% - 4px)",fontSize:13}}>{o}</button>
+        ))}
+      </div>
+      <button onClick={onClose} style={{background:"none",border:"none",padding:6,color:C.t2,fontSize:13,fontWeight:600,cursor:"pointer",width:"100%"}}>まだ変わっていない</button>
+    </PopSheet>
+  );
+}
+
+/* ══════ 世帯構成（家族リスト＋メンバー詳細） ══════ */
+const HH_RELATIONS = {
+  spouse:{label:"配偶者",emoji:"💑"}, child:{label:"子ども",emoji:"👶"},
+  parent:{label:"親",emoji:"👴"}, grandparent:{label:"祖父母",emoji:"🧓"},
+  sibling:{label:"兄弟姉妹",emoji:"🧑"}, other:{label:"その他",emoji:"👤"},
+};
+const HH_SCHOOL=["未就園","保育園","幼稚園","認定こども園","小学校","中学校","高校","大学・専門","就学していない"];
+const HH_WORK=["収入なし","パート・アルバイト","会社員","自営・フリーランス","年金","その他"];
+const HH_DISABILITY=["なし","身体","知的","精神","難病"];
+const HH_CARE=["なし","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"];
+
+function MemberDetailSheet({member,onSave,onClose,onDelete}){
+  const [d,setD]=React.useState({...member});
+  const [showOther,setShowOther]=React.useState(!!(d.disability&&d.disability!=="なし")||!!(d.care&&d.care!=="なし"));
+  const rel=d.rel; const ty=new Date().getFullYear(); const years=[]; for(let y=ty;y>=ty-105;y--) years.push(y);
+  const months=[1,2,3,4,5,6,7,8,9,10,11,12]; const age=ageFromBirthday(`${d.birthYear}-${d.birthMonth||1}`);
+  const sel={background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 11px",color:C.t1,fontSize:14,width:"100%"};
+  const lab={fontSize:11,color:C.t2,marginBottom:5,marginTop:14};
+  const showSchool=rel==="child", showWork=["spouse","parent","grandparent","sibling"].includes(rel), showPreg=rel==="spouse";
+  return <PopSheet onClose={onClose} z={360}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+      <button onClick={onClose} style={{background:"none",border:"none",color:C.blue,fontSize:15,fontWeight:700,cursor:"pointer",padding:0}}>‹ 戻る</button>
+      {!d.isSelf&&<button onClick={onDelete} style={{background:"none",border:"none",color:C.t3,fontSize:13,cursor:"pointer"}}>削除</button>}
+    </div>
+    <div style={{fontSize:18,fontWeight:900,color:C.t1,marginBottom:2}}>{d.emoji} {d.name||HH_RELATIONS[rel]?.label}{age!==null&&<span style={{color:C.green,fontSize:14}}>（{age}歳）</span>}</div>
+    <div style={{fontSize:12,color:C.t2}}>{d.isSelf?"本人":HH_RELATIONS[rel]?.label}の情報</div>
+    <div style={lab}>ニックネーム（任意）</div>
+    <input type="text" value={d.name||""} placeholder={d.isSelf?"あなた":HH_RELATIONS[rel]?.label} onChange={e=>setD({...d,name:e.target.value})} style={sel}/>
+    <div style={lab}>生まれた年・月</div>
+    <div style={{display:"flex",gap:8}}>
+      <div style={{flex:1}}><div style={{fontSize:10,color:C.t3,marginBottom:3,paddingLeft:2}}>年</div>
+        <select value={d.birthYear||""} onChange={e=>setD({...d,birthYear:e.target.value})} style={sel}><option value="">年を選ぶ</option>{years.map(y=><option key={y} value={y}>{y}年</option>)}</select></div>
+      <div style={{flex:1}}><div style={{fontSize:10,color:C.t3,marginBottom:3,paddingLeft:2}}>月</div>
+        <select value={d.birthMonth||""} onChange={e=>setD({...d,birthMonth:e.target.value})} style={sel}><option value="">指定しない</option>{months.map(m=><option key={m} value={m}>{m}月</option>)}</select></div>
+    </div>
+    {!d.isSelf&&<React.Fragment><div style={lab}>住まいの状況</div>
+      <div style={{display:"flex",gap:8}}>{[["true","同じ家"],["false","別の家"]].map(([v,l])=>{const on=String(!!d.cohabit)===v;
+        return <button key={v} onClick={()=>setD({...d,cohabit:v==="true"})} style={{...S.btn(on?C.blue:C.bg3),border:`1px solid ${on?C.blue:C.border}`,flex:1,fontSize:13}}>{l}</button>;})}</div></React.Fragment>}
+    {showSchool&&<React.Fragment><div style={lab}>就学・通園状況</div><select value={d.school||""} onChange={e=>setD({...d,school:e.target.value})} style={sel}><option value="">選択しない</option>{HH_SCHOOL.map(o=><option key={o} value={o}>{o}</option>)}</select></React.Fragment>}
+    {showWork&&<React.Fragment><div style={lab}>収入・働き方</div><select value={d.work||""} onChange={e=>setD({...d,work:e.target.value})} style={sel}><option value="">選択しない</option>{HH_WORK.map(o=><option key={o} value={o}>{o}</option>)}</select></React.Fragment>}
+    {showPreg&&<React.Fragment><div style={lab}>妊娠の状況</div><div style={{display:"flex",gap:8}}>{[["preg","妊娠中"],["not","該当なし"]].map(([v,l])=>{const on=d.pregnancy===v;
+      return <button key={v} onClick={()=>setD({...d,pregnancy:v})} style={{...S.btn(on?C.blue:C.bg3),border:`1px solid ${on?C.blue:C.border}`,flex:1,fontSize:13}}>{l}</button>;})}</div></React.Fragment>}
+    <button onClick={()=>setShowOther(o=>!o)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",background:"none",border:"none",padding:"16px 2px 6px",cursor:"pointer"}}>
+      <span style={{fontSize:13,fontWeight:700,color:C.t2}}>その他</span><span style={{color:C.t3,fontSize:16,transform:showOther?"rotate(90deg)":"none",transition:"transform .2s"}}>›</span></button>
+    {showOther&&<div style={{borderTop:`1px solid ${C.border}`,paddingTop:6}}>
+      <div style={lab}>障害者手帳・難病</div><select value={d.disability||""} onChange={e=>setD({...d,disability:e.target.value})} style={sel}><option value="">選択しない</option>{HH_DISABILITY.map(o=><option key={o} value={o}>{o}</option>)}</select>
+      <div style={lab}>介護認定</div><select value={d.care||""} onChange={e=>setD({...d,care:e.target.value})} style={sel}><option value="">選択しない</option>{HH_CARE.map(o=><option key={o} value={o}>{o}</option>)}</select></div>}
+    <button onClick={()=>onSave({...d})} style={{...S.btn(C.blue),width:"100%",marginTop:18}}>保存する</button>
+  </PopSheet>;
+}
+
+function HouseholdPage({household,setHousehold,onBack}){
+  const [adding,setAdding]=React.useState(false); const [detailId,setDetailId]=React.useState(null);
+  const people=Array.isArray(household)&&household.length?household:[{id:"self",isSelf:true,rel:"self",name:"あなた",emoji:"🧑"}];
+  const cohabCount=people.filter(p=>p.isSelf||p.cohabit).length||1;
+  const add=(rel)=>{const r=HH_RELATIONS[rel];const id=Date.now();setHousehold(ps=>[...(ps||[]),{id,rel,name:"",emoji:r.emoji,cohabit:true}]);setAdding(false);setDetailId(id);};
+  const order={self:0,spouse:1,child:2,parent:3,grandparent:4,sibling:5,other:6};
+  const sorted=[...people].sort((a,b)=>(order[a.rel]??9)-(order[b.rel]??9));
+  return <div style={{position:"absolute",inset:0,background:C.bg0,zIndex:200,display:"flex",flexDirection:"column"}}>
+    <div style={{flexShrink:0,background:C.bg1,borderBottom:`1px solid ${C.border}`,padding:"14px 18px"}}>
+      <button onClick={onBack} style={{background:"none",border:"none",color:C.blue,fontSize:14,fontWeight:700,cursor:"pointer",padding:0,marginBottom:8}}>‹ プロフィール</button>
+      <div style={{fontSize:17,fontWeight:900,color:C.t1,marginBottom:3}}>世帯構成</div>
+      <div style={{fontSize:11.5,color:C.t2,lineHeight:1.5}}>一緒に住んでいる家族を登録すると、給付金など世帯で受けられる制度を正確に判定できます。</div>
+      <div style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:8,background:C.bg2,border:`1px solid ${C.border}`,borderRadius:9,padding:"5px 11px"}}>
+        <span style={{fontSize:14}}>🏠</span><span style={{fontSize:12,color:C.t2}}>同居している世帯人数</span><span style={{fontSize:14,fontWeight:900,color:C.blue}}>{cohabCount}人</span></div>
+    </div>
+    <div style={{flex:1,overflowY:"auto",padding:"14px 16px 120px"}}>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {sorted.map(p=>{const cohab=p.isSelf||p.cohabit; const age=ageFromBirthday(`${p.birthYear}-${p.birthMonth||1}`);
+          return <div key={p.id} onClick={()=>setDetailId(p.id)} style={{display:"flex",alignItems:"center",gap:12,background:C.bg1,border:`1px solid ${C.border}`,borderRadius:14,padding:"13px 15px",cursor:"pointer"}}>
+            <span style={{fontSize:24}}>{p.emoji}</span>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:15,fontWeight:700,color:C.t1}}>{p.name||HH_RELATIONS[p.rel]?.label}
+              {p.isSelf&&<span style={{fontSize:10,fontWeight:700,color:"#fff",background:C.blue,padding:"1px 7px",borderRadius:6,marginLeft:7,verticalAlign:"middle"}}>本人</span>}</div>
+              <div style={{fontSize:12,color:C.t2,marginTop:2}}>{p.isSelf?"本人":HH_RELATIONS[p.rel]?.label}{(age!=null)&&` ・ ${age}歳`}</div></div>
+            {!p.isSelf&&cohab&&<span style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:8,color:C.blue,background:C.blue+"22"}}>同居</span>}
+            <span style={{color:C.t3,fontSize:18}}>›</span></div>;})}
+      </div>
+      {!adding?<button onClick={()=>setAdding(true)} style={{width:"100%",background:"none",border:`1px dashed ${C.border}`,borderRadius:13,padding:13,color:C.blue,fontSize:14,fontWeight:700,cursor:"pointer",marginTop:10}}>＋ 家族を追加</button>
+        :<div style={{marginTop:10,background:C.bg1,border:`1px solid ${C.border}`,borderRadius:13,padding:12}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.t2,marginBottom:8,paddingLeft:2}}>続柄を選んでください</div>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{Object.entries(HH_RELATIONS).map(([k,r])=>
+            <button key={k} onClick={()=>add(k)} style={{flex:"1 1 calc(33% - 5px)",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 6px",fontSize:12.5,fontWeight:600,color:C.t1,cursor:"pointer"}}>{r.emoji} {r.label}</button>)}</div>
+          <button onClick={()=>setAdding(false)} style={{width:"100%",background:"none",border:"none",padding:"8px 0 2px",color:C.t2,fontSize:12,cursor:"pointer"}}>キャンセル</button></div>}
+    </div>
+    <div style={{position:"absolute",left:0,right:0,bottom:0,padding:"10px 16px 18px",background:`linear-gradient(to top, ${C.bg0} 72%, transparent)`}}>
+      <div style={{textAlign:"center",fontSize:11.5,color:C.green,fontWeight:700,marginBottom:8}}>✨ 家族を登録すると対象になる制度が増えます</div>
+      <button onClick={onBack} style={{...S.btn(C.blue),width:"100%"}}>保存する</button>
+    </div>
+    {detailId!=null&&(()=>{const m=people.find(p=>p.id===detailId);if(!m)return null;
+      return <MemberDetailSheet member={m} onClose={()=>setDetailId(null)}
+        onDelete={()=>{setHousehold(ps=>ps.filter(p=>p.id!==detailId));setDetailId(null);}}
+        onSave={(nd)=>{setHousehold(ps=>ps.map(p=>p.id===detailId?{...p,...nd}:p));setDetailId(null);}}/>;})()}
+  </div>;
+}
+
+/* ══════ 季節の確認ポップ（年4回・変わりやすい項目の確認） ══════ */
+// 表示すべきか判定（四半期ごとに1回）
+function currentSeasonKey(){
+  const n=new Date();
+  // 半年ごと：4〜9月はH1、10〜3月はH2
+  const half = n.getMonth() < 6 ? "H1" : "H2";
+  const year = n.getMonth() < 6 ? n.getFullYear() : (n.getMonth() < 10 ? n.getFullYear() : n.getFullYear());
+  return `${n.getFullYear()}-${half}`;
+}
+function shouldShowSeasonal(){
+  return lsLoad(LS_SEASONAL_AT,null) !== currentSeasonKey();
+}
+function seasonGreeting(){
+  const m=new Date().getMonth()+1;
+  // 4〜9月（春夏）
+  if(m>=4&&m<=9) return {emoji:"🌸",text:"新年度になりました。状況に変化はありましたか？"};
+  // 10〜3月（秋冬）
+  return {emoji:"🍁",text:"秋になりました。最近、変化はありましたか？"};
+}
+const SEASONAL_KIDS_UNDER13 = (p)=>{
+  if(Array.isArray(p.kids)&&p.kids.length) return p.kids.some(k=>{const a=ageFromBirthday(`${k.birthYear}-${k.birthMonth||1}`);return a!==null&&a<=12;});
+  return ["0〜2歳","3〜5歳","6〜12歳"].includes(p.kidsAge);
+};
+const SEASONAL_FIELDS = [
+  {key:"income",always:true},
+  {key:"housing",always:true},
+  {key:"stage",always:true},
+  {key:"childcareStatus",showIf:p=>SEASONAL_KIDS_UNDER13(p)},
+  {key:"leaveStatus",showIf:p=>p.leaveStatus&&p.leaveStatus!=="通常勤務"},
+  {key:"pregnancyStatus",showIf:p=>p.pregnancyStatus==="pregnant"},
+];
+const SEASONAL_DEFS = {
+  income:{label:"世帯年収",emoji:"💰"},
+  housing:{label:"住居形態",emoji:"🏠"},
+  stage:{label:"ライフステージ",emoji:"🧭"},
+  childcareStatus:{label:"保育・通園状況",emoji:"🏫"},
+  leaveStatus:{label:"休職・休業状況",emoji:"🛌"},
+  pregnancyStatus:{label:"妊娠の状況",emoji:"🤰"},
+};
+const seasonalHasKids = (p)=> p.hasKids==="いる（または予定あり）" || (Array.isArray(p.kids)&&p.kids.length>0);
+
+// 共通ボトムシート枠
+function PopSheet({children,onClose,z=300,maxH="85%"}){
+  return (
+    <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.55)",zIndex:z,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:"10px 18px 24px",width:"100%",maxHeight:maxH,overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:38,height:4,borderRadius:4,background:C.t3,opacity:.5,margin:"6px auto 14px"}}/>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// 本人の誕生日シート（年月日）
+function BirthdaySheetPop({birthday,onSave,onClose}){
+  const [bd,setBd]=React.useState(birthday||"");
+  const a=ageFromBirthday(bd);
+  return <PopSheet onClose={onClose} z={340} maxH="auto">
+    <button onClick={onClose} style={{background:"none",border:"none",color:C.blue,fontSize:15,fontWeight:700,cursor:"pointer",padding:0,marginBottom:8}}>‹ 戻る</button>
+    <div style={{fontSize:17,fontWeight:900,color:C.t1,marginBottom:4}}>🎂 誕生日</div>
+    <div style={{fontSize:12,color:C.t2,marginBottom:16,lineHeight:1.6}}>年齢の自動更新に使います。毎年聞き直す必要がなくなります。</div>
+    <input type="date" value={bd} onChange={e=>setBd(e.target.value)} style={{width:"100%",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:12,color:C.t1,fontSize:15,marginBottom:10}}/>
+    {a!==null&&<div style={{textAlign:"center",fontSize:14,fontWeight:700,color:C.green,marginBottom:14}}>現在 {a}歳</div>}
+    <button onClick={()=>onSave(bd)} disabled={!bd} style={{...S.btn(bd?C.blue:C.bg3),width:"100%",color:bd?"#fff":C.t3}}>保存する</button>
+  </PopSheet>;
+}
+
+// 子ども詳細シート（ニックネーム＋年月）
+function KidsSheetPop({kids,onSave,onClose}){
+  const init=(Array.isArray(kids)&&kids.length)?kids.map(k=>({nickname:k.nickname||"",birthYear:k.birthYear||"",birthMonth:k.birthMonth||""})):[{nickname:"",birthYear:"",birthMonth:""}];
+  const [list,setList]=React.useState(init);
+  const upd=(i,k,v)=>{const c=[...list];c[i]={...c[i],[k]:v};setList(c);};
+  const ty=new Date().getFullYear(); const years=[]; for(let y=ty;y>=ty-22;y--) years.push(y);
+  const months=[1,2,3,4,5,6,7,8,9,10,11,12];
+  const sel={background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 11px",color:C.t1,fontSize:14,width:"100%"};
+  return <PopSheet onClose={onClose} z={340}>
+    <button onClick={onClose} style={{background:"none",border:"none",color:C.blue,fontSize:15,fontWeight:700,cursor:"pointer",padding:0,marginBottom:8}}>‹ 戻る</button>
+    <div style={{fontSize:17,fontWeight:900,color:C.t1,marginBottom:4}}>👶 お子さんの情報</div>
+    <div style={{fontSize:12,color:C.t2,marginBottom:16,lineHeight:1.6}}>生まれた年月を入れると年齢が自動更新され、毎年聞き直す必要がなくなります。</div>
+    <div style={{display:"flex",flexDirection:"column",gap:14,marginBottom:16}}>
+      {list.map((k,i)=>{const a=ageFromBirthday(`${k.birthYear}-${k.birthMonth||1}`);
+        return <div key={i} style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"13px 14px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span style={{fontSize:13,fontWeight:700,color:C.t1}}>{(k.nickname||"").trim()||`${i+1}人目`}{a!==null&&<span style={{color:C.green}}>（{a}歳）</span>}</span>
+            {list.length>1&&<button onClick={()=>setList(list.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:C.t3,fontSize:13,cursor:"pointer"}}>削除</button>}
+          </div>
+          <div style={{fontSize:11,color:C.t2,marginBottom:5}}>ニックネーム（任意）</div>
+          <input type="text" value={k.nickname} placeholder="たろう" onChange={e=>upd(i,"nickname",e.target.value)} style={{...sel,marginBottom:10}}/>
+          <div style={{fontSize:11,color:C.t2,marginBottom:5}}>生まれた年・月</div>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{flex:1}}><div style={{fontSize:10,color:C.t3,marginBottom:3,paddingLeft:2}}>年</div>
+              <select value={k.birthYear} onChange={e=>upd(i,"birthYear",e.target.value)} style={sel}><option value="">年を選ぶ</option>{years.map(y=><option key={y} value={y}>{y}年</option>)}</select></div>
+            <div style={{flex:1}}><div style={{fontSize:10,color:C.t3,marginBottom:3,paddingLeft:2}}>月</div>
+              <select value={k.birthMonth} onChange={e=>upd(i,"birthMonth",e.target.value)} style={sel}><option value="">指定しない</option>{months.map(m=><option key={m} value={m}>{m}月</option>)}</select></div>
+          </div>
+        </div>;})}
+      <button onClick={()=>setList([...list,{nickname:"",birthYear:"",birthMonth:""}])} style={{background:"none",border:`1px dashed ${C.border}`,color:C.blue,borderRadius:12,padding:11,fontSize:13,fontWeight:700,cursor:"pointer"}}>＋ お子さんを追加</button>
+    </div>
+    <button onClick={()=>onSave(list.filter(k=>k.birthYear))} style={{...S.btn(C.blue),width:"100%"}}>保存する</button>
+  </PopSheet>;
+}
+
+function SeasonalPopup({profile,onSave,onClose,onOpenProfile}){
+  const [draft,setDraft]=React.useState(profile);
+  const [editing,setEditing]=React.useState(null);
+  const [kidsSheet,setKidsSheet]=React.useState(false);
+  const [bdaySheet,setBdaySheet]=React.useState(false);
+  const greet=seasonGreeting();
+  const rows=[];
+  if(!draft.birthday) rows.push("birthday");
+  SEASONAL_FIELDS.forEach(f=>{ if(f.always||(f.showIf&&f.showIf(draft))) rows.push(f.key); });
+  const kidsRow=seasonalHasKids(draft)&&!(Array.isArray(draft.kids)&&draft.kids.length&&draft.kids.every(k=>k.birthYear));
+  if(kidsRow) rows.push("kids");
+  const stamp=(p,k)=>({...(p.profileAnsweredAt||{}),[k]:Date.now()});
+  const dv=(k)=>{ if(k==="birthday")return draft.birthday||"未設定";
+    if(k==="kids"){ if(Array.isArray(draft.kids)&&draft.kids.length){const ag=draft.kids.map(x=>ageFromBirthday(`${x.birthYear}-${x.birthMonth||1}`)).filter(a=>a!==null);if(ag.length)return ag.map(a=>`${a}歳`).join("・");} return "登録する"; }
+    const v=draft[k]; if(DETAIL_DISPLAY_MAP[k]&&DETAIL_DISPLAY_MAP[k][v]) return DETAIL_DISPLAY_MAP[k][v];
+    return v||"未設定"; };
+  return <React.Fragment>
+    <PopSheet onClose={onClose} z={300} maxH="85%">
+      <div style={{textAlign:"center",marginBottom:18}}>
+        <div style={{fontSize:30,marginBottom:6}}>{greet.emoji}</div>
+        <div style={{fontSize:15,fontWeight:700,color:C.t1,lineHeight:1.5}}>{greet.text}</div>
+        <div style={{fontSize:12,color:C.t2,marginTop:6}}>変わった項目があればタップして更新してください</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+        {rows.map(k=>{
+          const def=k==="kids"?{label:"お子さんの情報",emoji:"👶"}:k==="birthday"?{label:"誕生日",emoji:"🎂"}:SEASONAL_DEFS[k];
+          const opts=ALL_PROFILE_QUESTIONS[k]?.opts;
+          const isOpen=editing===k; const isPrompt=(k==="birthday"&&!draft.birthday)||k==="kids";
+          return <div key={k} style={{background:C.bg2,borderRadius:14,border:`1px solid ${isPrompt?C.blue+"66":C.border}`,overflow:"hidden"}}>
+            <div onClick={()=>{ if(k==="kids"){setKidsSheet(true);return;} if(k==="birthday"){setBdaySheet(true);return;} setEditing(isOpen?null:k); }}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"13px 14px",cursor:"pointer"}}>
+              <span style={{fontSize:18}}>{def.emoji}</span>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,color:C.t2,marginBottom:1}}>{def.label}</div>
+                <div style={{fontSize:14,fontWeight:700,color:(dv(k)==="未設定"||dv(k)==="登録する")?C.t2:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{dv(k)}</div></div>
+              {k==="kids"?<span style={{fontSize:11,fontWeight:700,color:C.blue,background:C.blue+"22",padding:"4px 9px",borderRadius:8,whiteSpace:"nowrap"}}>詳しく →</span>
+                :isPrompt?<span style={{fontSize:11,fontWeight:700,color:C.blue,background:C.blue+"22",padding:"4px 9px",borderRadius:8,whiteSpace:"nowrap"}}>年齢自動更新に使います</span>
+                :<span style={{color:C.t2,fontSize:18,transform:isOpen?"rotate(90deg)":"none",transition:"transform .2s"}}>›</span>}
+            </div>
+            {isOpen&&opts&&<div style={{display:"flex",flexWrap:"wrap",gap:7,padding:"0 14px 13px"}} onClick={e=>e.stopPropagation()}>
+              {opts.map(opt=>{const bk=BOOL_KEYS[k]?BOOL_KEYS[k][opt]:opt; const sel=draft[k]===bk||draft[k]===opt;
+                return <button key={opt} onClick={()=>{setDraft(d=>({...d,[k]:bk,profileAnsweredAt:stamp(d,k)}));setEditing(null);}}
+                  style={{...S.btn(sel?C.blue:C.bg3),border:`1px solid ${sel?C.blue:C.border}`,fontSize:13,padding:"8px 13px"}}>{opt}</button>;})}
+            </div>}
+          </div>;
+        })}
+      </div>
+      <button onClick={()=>onSave(draft)} style={{...S.btn(C.blue),width:"100%",marginBottom:9}}>更新して閉じる</button>
+      <button onClick={onOpenProfile} style={{...S.btn(C.bg2),border:`1px solid ${C.border}`,color:C.t1,width:"100%",marginBottom:9}}>他のプロフィールも確認する →</button>
+      <button onClick={onClose} style={{background:"none",border:"none",padding:6,color:C.t2,fontSize:13,fontWeight:600,cursor:"pointer",width:"100%"}}>変化なし・閉じる</button>
+    </PopSheet>
+    {kidsSheet&&<KidsSheetPop kids={draft.kids} onClose={()=>setKidsSheet(false)} onSave={(l)=>{setDraft(d=>({...d,kids:l}));setKidsSheet(false);}}/>}
+    {bdaySheet&&<BirthdaySheetPop birthday={draft.birthday} onClose={()=>setBdaySheet(false)} onSave={(bd)=>{setDraft(d=>({...d,birthday:bd}));setBdaySheet(false);}}/>}
+  </React.Fragment>;
+}
+
 /* ── 新着ポップアップ ─────────────────────────────────────── */
 function NewItemsPopup({ newItemIds, allItems, onClose, profile, setProfile, onLike, onOpenDetail }) {
   const newItems = allItems.filter(it => newItemIds.includes(it.id));
@@ -3446,6 +4077,8 @@ function App(){
   const [newItems, setNewItems] = useState([]);
   const [showNewPop, setShowNewPop] = useState(false);
   const [dbUpdatedAt, setDbUpdatedAt] = useState("");
+  const [showSeasonal, setShowSeasonal] = useState(false);
+  const [dueRecheck, setDueRecheck] = useState(null);
 
   useEffect(()=>{
     loadItemsDB().then(result=>{
@@ -3461,7 +4094,17 @@ function App(){
       const savedProfile = lsLoad(LS_PROFILE, {});
       const hasProfile = savedPhase === "main" && Object.keys(savedProfile).length > 0;
       setPhase(hasProfile ? "main" : "splash");
-      if (hasProfile) setTab("home");
+      if (hasProfile) {
+        setTab("home");
+        // 中間状態の再確認：期限が来ていれば最優先で出す
+        const due = getDueRecheck();
+        if (due) {
+          setTimeout(()=>setDueRecheck(due), 800);
+        } else if (shouldShowSeasonal() && NEW_ITEMS_SINCE_LAST.length === 0) {
+          // 季節の確認ポップ：四半期ごとに1回・新着ポップが無いときだけ
+          setTimeout(()=>setShowSeasonal(true), 800);
+        }
+      }
     });
   },[]);
 
@@ -3525,14 +4168,39 @@ function App(){
     navigator.serviceWorker?.addEventListener("message", handler);
     return () => navigator.serviceWorker?.removeEventListener("message", handler);
   }, []);
+  // ── birthday → ageNum、kids[] → kidsAge（最年少帯）を自動同期 ──
+  function syncDerivedProfile(p){
+    const next={...p};
+    // 本人の年齢：birthday があれば自動算出して ageNum に反映
+    const a=ageFromBirthday(p.birthday);
+    if(a!==null) next.ageNum=a;
+    // 子の最年少年齢帯：kids[] があれば自動算出
+    if(Array.isArray(p.kids)&&p.kids.length){
+      const ages=p.kids.map(k=>ageFromBirthday(`${k.birthYear}-${k.birthMonth||1}`)).filter(x=>x!==null);
+      if(ages.length){
+        const min=Math.min(...ages);
+        next.kidsAge = min<=2?"0〜2歳":min<=5?"3〜5歳":min<=12?"6〜12歳":min<=15?"13〜15歳":"16〜18歳";
+        if(!p.hasKids) next.hasKids="いる（または予定あり）";
+      }
+    }
+    // ペット種別に「犬」が含まれれば hasDog=true に同期（旧フィールド互換）
+    if(Array.isArray(p.petType)&&p.petType.includes("犬")) next.hasDog="true";
+    return next;
+  }
   useEffect(()=>{
+    const synced=syncDerivedProfile(profile);
+    // 算出値が変わったら profile を更新（無限ループ防止のため差分チェック）
+    if(synced.ageNum!==profile.ageNum || synced.kidsAge!==profile.kidsAge || synced.hasKids!==profile.hasKids || synced.hasDog!==profile.hasDog){
+      setProfile(synced); return;
+    }
     lsSave(LS_PROFILE, profile);
-    // IndexedDB にも同期（Service Worker がプロフィール照合に使う）
     if (window.saveProfileToIDB) window.saveProfileToIDB(profile);
+    // 中間状態（申請中・購入予定）があれば再確認予定を登録
+    registerRechecks(profile);
   },[profile]);
   // ライフステージ変更時に push-worker KV を更新（Cron送信時刻に反映）
   useEffect(()=>{
-    if (profile.stage && Notification.permission === "granted") {
+    if (profile.stage && typeof Notification !== "undefined" && Notification.permission === "granted") {
       updatePushStage(profile.stage);
     }
   },[profile.stage]);
@@ -3789,6 +4457,7 @@ function App(){
               }}
               items={allItems} liveData={liveData} profile={profile} setProfile={setProfile}
               onHide={(id)=>{setHidden(h=>[...h,id]);showToast("非表示にしました");}}
+              onGoProfile={()=>setTab("profile")}
               done={done}
               onUndone={(id)=>{setDone(d=>d.filter(x=>x!==id));setHidden(h=>h.filter(x=>x!==id));}}
               onDone={(id,action)=>{
@@ -3828,12 +4497,28 @@ function App(){
                 setNewItems(dummyIds);
                 setShowNewPop(true);
               }}
-              onTestLike={()=>{
-                // 全制度にいいねを追加
-                const ids = allItems.map(it=>it.id);
-                setLiked(ids);
-                showToast(`❤️ ${ids.length}件にいいねしました`);
+              onTestRecheck={()=>{
+                // 中間状態の再確認ポップを即表示（実データがあればそれ、なければダミー）
+                const due = getDueRecheck() || lsLoad(LS_RECHECKS,[])[0];
+                if(due){ setDueRecheck(due); }
+                else {
+                  setDueRecheck({field:"hasMynumber",value:"申請中",dueAt:Date.now(),msg:"マイナンバーカードは届きましたか？"});
+                  showToast("ダミーの再確認を表示中");
+                }
               }}
+              onTestPush={async()=>{
+                // push-worker にテスト送信をリクエスト（本番のみ動作）
+                try{
+                  const reg = window._swReg || (await navigator.serviceWorker?.ready);
+                  const sub = reg && await reg.pushManager.getSubscription();
+                  if(!sub){ showToast("先に通知を許可してください"); return; }
+                  await fetch(`${PUSH_WORKER_URL}/test-push`,{method:"POST",headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({endpoint:sub.endpoint})});
+                  showToast("📨 テストPushを送信しました");
+                }catch(e){ showToast("送信失敗（本番環境で実行してください）"); }
+              }}
+              onTestSeasonal={()=>setShowSeasonal(true)}
+              onProfileGain={(n)=>showToast(`🎉 ${n}件の制度が新たに対象になりました`)}
               darkMode={darkMode} setDarkMode={toggleDark}/>}
 
             {/* 管理モーダル */}
@@ -3860,6 +4545,37 @@ function App(){
                 setProfile={setProfile}
                 onLike={(id)=>setLiked(l=>l.includes(id)?l:[...l,id])}
                 onOpenDetail={(item)=>{setNotifDetail(item);markNewItemsRead();}}
+              />
+            )}
+
+            {/* 季節の確認ポップ */}
+            {showSeasonal && phase==="main" && (
+              <SeasonalPopup
+                profile={profile}
+                onSave={(d)=>{ setProfile(d); lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); }}
+                onClose={()=>{ lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); }}
+                onOpenProfile={()=>{ lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); setTab("profile"); }}
+              />
+            )}
+
+            {/* 中間状態の再確認ポップ */}
+            {dueRecheck && phase==="main" && (
+              <RecheckPopup
+                recheck={dueRecheck}
+                profile={profile}
+                onResolve={(field,oldVal,newVal)=>{
+                  setProfile(p=>{
+                    const cur=p[field];
+                    let nv;
+                    if(Array.isArray(cur)) nv=cur.map(x=>x===oldVal?newVal:x);
+                    else nv=newVal;
+                    return {...p,[field]:nv,profileAnsweredAt:{...(p.profileAnsweredAt||{}),[field]:Date.now()}};
+                  });
+                  clearRecheck(field,oldVal);
+                  setDueRecheck(null);
+                  showToast("更新しました");
+                }}
+                onClose={()=>{ setDueRecheck(null); }}
               />
             )}
 
@@ -4016,7 +4732,6 @@ async function subscribePush(sw, type = "user") {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...sub.toJSON(), stage }),
     });
-    console.log("✅ Push通知登録完了");
   } catch (e) {
     console.warn("Push通知登録失敗:", e.message);
   }
@@ -4034,7 +4749,6 @@ async function updatePushStage(stage) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint: sub.endpoint, stage }),
     });
-    console.log("✅ Push stage 更新:", stage);
   } catch (e) {
     console.warn("Push stage 更新失敗:", e.message);
   }
@@ -4050,12 +4764,10 @@ async function initSW() {
     const basePath = window.location.pathname.replace(/\/[^/]*$/, "/");
     const swPath = basePath + "sw.js";
     const reg = await navigator.serviceWorker.register(swPath, { scope: basePath });
-    console.log("✅ Service Worker登録完了:", swPath, "scope:", basePath);
-    console.log("✅ Service Worker登録完了:", swPath);
     window._swReg = reg;
 
     // 既に許可済みなら即座に購読
-    if (Notification.permission === "granted") {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       await subscribePush(reg, "user");
     }
   } catch (e) {
@@ -4074,7 +4786,6 @@ window.requestPushPermission = async () => {
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
       await subscribePush(reg, "user");
-      console.log("✅ Push通知登録完了");
       return true;
     } else {
       console.warn("通知が拒否されました");

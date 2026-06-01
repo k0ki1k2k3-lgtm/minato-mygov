@@ -1,3696 +1,4091 @@
-{
-  "_meta": {
-    "version": "1.4",
-    "updatedAt": "2026-05-26T13:26:17.302Z",
-    "totalItems": 50,
-    "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
-  },
-  "items": [
-    {
-      "id": "jidouteate",
-      "gov": "国",
-      "icon": "👶",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "児童手当（拡充版）",
-      "officialName": "児童手当",
-      "catch": "高校生まで！所得制限なし",
-      "body": "2024年10月から大幅拡充。0〜18歳（高校生年代）が対象、所得制限撤廃。第1・2子：3歳未満月1.5万円、3歳〜月1万円。第3子以降：全年齢月3万円。年6回（偶数月）支給。",
-      "officialBody": "児童手当法及び子ども・子育て支援法の一部を改正する法律（令和6年法律第47号）に基づき、令和6年10月分（令和6年12月支給分）から制度が改正されました。支給対象年齢が中学生（15歳到達後最初の年度末まで）から高校生年代（18歳到達後最初の年度末まで）に延長されるとともに、所得制限が撤廃されました。第1子・第2子については3歳未満月額15,000円、3歳以上月額10,000円。第3子以降については年齢にかかわらず月額30,000円。支給は年6回（偶数月の10日）。認定請求は住所地の市区町村窓口にて行うものとします。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyFixed": 120000,
-      "subsidyRules": [
+[
+  {
+    "id": "jidouteate",
+    "gov": "国",
+    "icon": "👶",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "児童手当（拡充版）",
+    "officialName": "児童手当",
+    "catch": "高校生まで！所得制限なし",
+    "body": "2024年10月から大幅拡充。0〜18歳（高校生年代）が対象、所得制限撤廃。第1・2子：3歳未満月1.5万円、3歳〜月1万円。第3子以降：全年齢月3万円。年6回（偶数月）支給。",
+    "officialBody": "児童手当法及び子ども・子育て支援法の一部を改正する法律（令和6年法律第47号）に基づき、令和6年10月分（令和6年12月支給分）から制度が改正されました。支給対象年齢が中学生（15歳到達後最初の年度末まで）から高校生年代（18歳到達後最初の年度末まで）に延長されるとともに、所得制限が撤廃されました。第1子・第2子については3歳未満月額15,000円、3歳以上月額10,000円。第3子以降については年齢にかかわらず月額30,000円。支給は年6回（偶数月の10日）。認定請求は住所地の市区町村窓口にて行うものとします。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyFixed": 120000,
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "amount": 120000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "label": "年約12万円〜"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 360000,
+    "potentialLabel": "第3子なら年36万円",
+    "reminderLabel": "申請・現況届の確認",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/jidoteate.html",
+    "easyTitle": "子どもがいる家庭に毎月お金が振り込まれる制度",
+    "eligibility": {
+      "certain": [
         {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "amount": 120000
+          "hasKids": "いる（または予定あり）"
         },
         {
-          "default": true,
-          "amount": 0
+          "kidsAge": [
+            "0〜2歳",
+            "3〜5歳",
+            "6〜12歳",
+            "13〜15歳",
+            "16〜18歳"
+          ]
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "label": "年約12万円〜"
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
         },
         {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 360000,
-      "potentialLabel": "第3子なら年36万円",
-      "reminderLabel": "申請・現況届の確認",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/jidoteate.html",
-      "easyTitle": "子どもがいる家庭に毎月お金が振り込まれる制度",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          },
-          {
-            "kidsAge": [
+          "kidsAge": {
+            "notIn": [
               "0〜2歳",
               "3〜5歳",
               "6〜12歳",
               "13〜15歳",
               "16〜18歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 60
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "18歳を超えたお子さんのみの場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "shussan",
+    "gov": "国",
+    "icon": "🍼",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "出産育児一時金",
+    "officialName": "出産育児一時金",
+    "catch": "出産1回につき50万円",
+    "body": "健康保険・国民健康保険加入者が出産した場合に50万円支給。直接支払制度で医療機関への支払いに充当可能。産科医療補償制度対象外施設は48.8万円。",
+    "officialBody": "健康保険法第101条及び国民健康保険法第58条に基づき、被保険者又はその被扶養者が出産したとき、出産育児一時金として50万円（産科医療補償制度に未加入の医療機関等における出産は488,000円）を支給します。直接支払制度を利用することにより、医療機関等が被保険者に代わって保険者に請求することができます。申請期限は出産日の翌日から2年以内。",
+    "deadline": "出産後2年以内に申請",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        },
+        "amount": 500000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        },
+        "label": "50万円"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 500000,
+    "potentialLabel": "50万円",
+    "reminderLabel": "出産後は速やかに健保組合・区役所に申請",
+    "sourceUrl": "https://www.mhlw.go.jp/content/12400000/001085202.pdf",
+    "easyTitle": "赤ちゃんが生まれたら50万円もらえる",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 50
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {
+        "hasKids": "出産予定がある場合は対象になります"
+      }
+    }
+  },
+  {
+    "id": "nenkin_men",
+    "gov": "国",
+    "icon": "💰",
+    "colorKey": "green",
+    "tag": "生活",
+    "title": "年金の支払い、学生は猶予できる",
+    "officialName": "国民年金保険料学生納付特例制度",
+    "catch": "学生なら年金保険料（年約20万円）の支払いを卒業まで先送りできる",
+    "body": "学生納付特例：在学中の国民年金保険料（月約1.7万円）を猶予。20歳以上の学生が対象。所得に応じた全額・半額免除制度も。免除期間は受給資格期間に算入（受給額は減額）。毎年度申請が必要。",
+    "officialBody": "国民年金法第90条の3の規定に基づく学生納付特例制度により、大学・大学院・短期大学・高等専門学校・専修学校等に在学する20歳以上の第1号被保険者は、前年所得が一定額以下の場合、在学期間中の保険料の納付が猶予されます。猶予期間は受給資格期間に算入されますが、老齢基礎年金額の計算においては反映されません。毎年度、住所地の市区町村窓口またはねんきんネットにて申請が必要です。",
+    "deadline": "毎年4月〜翌年3月分",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "stage": "学生",
+          "ageMin": 20
+        },
+        "amount": 200000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "stage": "学生",
+          "ageMin": 20
+        },
+        "label": "年約20万円節約"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 200000,
+    "potentialLabel": "年約20万円節約",
+    "reminderLabel": "毎年4月に市区町村窓口で更新申請",
+    "sourceUrl": "https://www.nenkin.go.jp/service/kokunen/menjo/20150428.html",
+    "easyTitle": "【学生限定】年金1.6万円/月を卒業まで後回しにする方法",
+    "eligibility": {
+      "certain": [
+        {
+          "stage": "学生"
+        },
+        {
+          "ageMin": 20
+        }
+      ],
+      "exclude": [
+        {
+          "stage": "年金生活者"
+        },
+        {
+          "income": [
+            "250〜350万円",
+            "350〜450万円",
+            "450〜600万円",
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "income": [
+              "100万円未満",
+              "100〜150万円"
             ]
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
           },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳",
-                "3〜5歳",
-                "6〜12歳",
-                "13〜15歳",
-                "16〜18歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 60
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "18歳を超えたお子さんのみの場合は対象外です"
+          "score": 70
         },
-        "hints": {}
-      }
-    },
-    {
-      "id": "shussan",
-      "gov": "国",
-      "icon": "🍼",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "出産育児一時金",
-      "officialName": "出産育児一時金",
-      "catch": "出産1回につき50万円",
-      "body": "健康保険・国民健康保険加入者が出産した場合に50万円支給。直接支払制度で医療機関への支払いに充当可能。産科医療補償制度対象外施設は48.8万円。",
-      "officialBody": "健康保険法第101条及び国民健康保険法第58条に基づき、被保険者又はその被扶養者が出産したとき、出産育児一時金として50万円（産科医療補償制度に未加入の医療機関等における出産は488,000円）を支給します。直接支払制度を利用することにより、医療機関等が被保険者に代わって保険者に請求することができます。申請期限は出産日の翌日から2年以内。",
-      "deadline": "出産後2年以内に申請",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
         {
           "if": {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
+            "income": [
+              "150〜250万円"
+            ]
           },
-          "amount": 500000
+          "score": 40
         },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
         {
           "if": {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          },
-          "label": "50万円"
-        },
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 500000,
-      "potentialLabel": "50万円",
-      "reminderLabel": "出産後は速やかに健保組合・区役所に申請",
-      "sourceUrl": "https://www.mhlw.go.jp/content/12400000/001085202.pdf",
-      "easyTitle": "赤ちゃんが生まれたら50万円もらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 50
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {
-          "hasKids": "出産予定がある場合は対象になります"
-        }
-      }
-    },
-    {
-      "id": "nenkin_men",
-      "gov": "国",
-      "icon": "💰",
-      "colorKey": "green",
-      "tag": "生活",
-      "title": "年金の支払い、学生は猶予できる",
-      "officialName": "国民年金保険料学生納付特例制度",
-      "catch": "学生なら年金保険料（年約20万円）の支払いを卒業まで先送りできる",
-      "body": "学生納付特例：在学中の国民年金保険料（月約1.7万円）を猶予。20歳以上の学生が対象。所得に応じた全額・半額免除制度も。免除期間は受給資格期間に算入（受給額は減額）。毎年度申請が必要。",
-      "officialBody": "国民年金法第90条の3の規定に基づく学生納付特例制度により、大学・大学院・短期大学・高等専門学校・専修学校等に在学する20歳以上の第1号被保険者は、前年所得が一定額以下の場合、在学期間中の保険料の納付が猶予されます。猶予期間は受給資格期間に算入されますが、老齢基礎年金額の計算においては反映されません。毎年度、住所地の市区町村窓口またはねんきんネットにて申請が必要です。",
-      "deadline": "毎年4月〜翌年3月分",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "if": {
-            "stage": "学生",
-            "ageMin": 20
-          },
-          "amount": 200000
-        },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "if": {
-            "stage": "学生",
-            "ageMin": 20
-          },
-          "label": "年約20万円節約"
-        },
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 200000,
-      "potentialLabel": "年約20万円節約",
-      "reminderLabel": "毎年4月に市区町村窓口で更新申請",
-      "sourceUrl": "https://www.nenkin.go.jp/service/kokunen/menjo/20150428.html",
-      "easyTitle": "【学生限定】年金1.6万円/月を卒業まで後回しにする方法",
-      "eligibility": {
-        "certain": [
-          {
             "stage": "学生"
           },
-          {
-            "ageMin": 20
-          }
-        ],
-        "exclude": [
-          {
-            "stage": "年金生活者"
-          },
-          {
-            "income": [
-              "800万円～"
-            ]
-          },
-          {
-            "income": [
-              "400～600万円",
-              "600～800万円"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 40
-          },
-          {
-            "if": {
-              "stage": "学生"
-            },
-            "score": 30
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "income"
-        ],
-        "excludeReasons": {
-          "stage": "年金生活者は対象外です",
-          "income": "中〜高所得の場合は対象外です"
-        },
-        "hints": {
-          "income": "低所得・学生なら免除申請できます"
+          "score": 30
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "income"
+      ],
+      "excludeReasons": {
+        "stage": "年金生活者は対象外です",
+        "income": "中〜高所得の場合は対象外です"
+      },
+      "hints": {
+        "income": "低所得・学生なら免除申請できます"
       }
-    },
-    {
-      "id": "reskilling",
-      "gov": "国",
-      "icon": "📚",
-      "colorKey": "purple",
-      "tag": "キャリア",
-      "title": "学び直し費用、最大80%国が払ってくれる",
-      "officialName": "教育訓練給付制度",
-      "catch": "資格取得・スキルアップの授業料を国が最大80%負担。年最大56万円",
-      "body": "雇用保険加入者が対象。一般教育訓練給付：費用の20%（上限10万円）。特定一般：40%（上限20万円）。専門実践：最大80%（年上限56万円・最長4年）。ハローワークで受講前に申請必須。",
-      "officialBody": "雇用保険法第60条の2の規定に基づき、厚生労働大臣が指定する教育訓練を修了した場合に、支払った教育訓練経費の一定割合を支給します。一般教育訓練：経費の20%（上限10万円）。特定一般教育訓練：経費の40%（上限20万円）。専門実践教育訓練：経費の50%（年上限40万円）、さらに受講修了後に資格取得等で就職した場合は20%の追加支給あり（合計最大80%、年上限56万円・最長4年）。受講開始1か月前までにハローワークへの申請が義務付けられています。",
-      "deadline": "通年（受講前に申請要）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 560000,
-      "potentialLabel": "年最大56万円",
-      "reminderLabel": "ハローワークで受講前申請を忘れずに",
-      "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/kyouiku.html",
-      "easyTitle": "スキルアップの費用を国が最大8割負担してくれる",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "stage": "学生",
-            "ageMax": 21
-          },
-          {
-            "stage": "年金生活者"
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "stage": "社会人（会社員）"
-            },
-            "score": 40
-          },
-          {
-            "if": {
-              "stage": "育休・産休中"
-            },
-            "score": 30
-          },
-          {
-            "if": {
-              "stage": "社会人（フリーランス・自営）"
-            },
-            "score": 10
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "stage": "年金生活者・学生（22歳未満）は対象外です"
-        },
-        "hints": {
-          "stage": "就職すると教育訓練給付の対象になります"
-        }
+    }
+  },
+  {
+    "id": "reskilling",
+    "gov": "国",
+    "icon": "📚",
+    "colorKey": "purple",
+    "tag": "キャリア",
+    "title": "学び直し費用、最大80%国が払ってくれる",
+    "officialName": "教育訓練給付制度",
+    "catch": "資格取得・スキルアップの授業料を国が最大80%負担。年最大56万円",
+    "body": "雇用保険加入者が対象。一般教育訓練給付：費用の20%（上限10万円）。特定一般：40%（上限20万円）。専門実践：最大80%（年上限56万円・最長4年）。ハローワークで受講前に申請必須。",
+    "officialBody": "雇用保険法第60条の2の規定に基づき、厚生労働大臣が指定する教育訓練を修了した場合に、支払った教育訓練経費の一定割合を支給します。一般教育訓練：経費の20%（上限10万円）。特定一般教育訓練：経費の40%（上限20万円）。専門実践教育訓練：経費の50%（年上限40万円）、さらに受講修了後に資格取得等で就職した場合は20%の追加支給あり（合計最大80%、年上限56万円・最長4年）。受講開始1か月前までにハローワークへの申請が義務付けられています。",
+    "deadline": "通年（受講前に申請要）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "scholarship",
-      "gov": "国",
-      "icon": "🎓",
-      "colorKey": "purple",
-      "tag": "教育",
-      "title": "給付型奨学金（JASSO）",
-      "officialName": "給付型奨学金（日本学生支援機構）",
-      "catch": "返さなくていい奨学金・月最大7.5万円",
-      "body": "住民税非課税・準非課税世帯の大学・専門学校生が対象。第I区分（非課税）：国公立自宅月2.9万円〜私立自宅外月7.5万円。授業料・入学金の免除または減額も併用可。在籍大学の窓口で申込。",
-      "deadline": "各大学の募集時期（毎年4〜5月頃）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 900000,
-      "potentialLabel": "月最大7.5万円",
-      "reminderLabel": "在籍大学の奨学金担当窓口に確認",
-      "sourceUrl": "https://www.jasso.go.jp/shogakukin/kyufu/",
-      "easyTitle": "返さなくていい奨学金（月最大7.5万円）",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "income": [
-              "800万円～"
-            ]
-          },
-          {
-            "income": [
-              "400～600万円",
-              "600～800万円"
-            ]
-          },
-          {
-            "stage": {
-              "not": "学生"
-            }
-          },
-          {
-            "ageMax": 17
-          },
-          {
-            "ageMin": 31
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 50
-          }
-        ],
-        "baseScore": 15,
-        "missingFor": [
-          "income"
-        ],
-        "excludeReasons": {
-          "income": "世帯年収が高い場合は対象外です（目安：400万円超）",
-          "stage": "大学・専門学校生が対象です"
-        },
-        "hints": {
-          "income": "世帯収入が減った場合は対象になる可能性があります"
-        }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
       }
-    },
-    {
-      "id": "ikuji_kyufu",
-      "gov": "国",
-      "icon": "👨‍👩‍👧",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "育児休業給付金（厚生労働省）",
-      "officialName": "育児休業給付金",
-      "catch": "育休中も給与の実質8割が雇用保険から支給",
-      "body": "雇用保険加入の会社員・パートが対象。育休開始から180日は休業前賃金の67%、以降は50%を支給。社会保険料免除も加わり実質手取りの約8割相当。2025年4月から出生後休業支援給付金（両親同時育休で実質10割）も新設。",
-      "deadline": "育休開始後2ヶ月ごとにハローワークへ申請",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    ],
+    "potentialSubsidy": 560000,
+    "potentialLabel": "年最大56万円",
+    "reminderLabel": "ハローワークで受講前申請を忘れずに",
+    "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/jinzaikaihatsu/kyouiku.html",
+    "easyTitle": "スキルアップの費用を国が最大8割負担してくれる",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
         {
-          "default": true,
-          "amount": 0
+          "stage": "学生",
+          "ageMax": 21
+        },
+        {
+          "stage": "年金生活者"
         }
       ],
-      "subsidyLabelRules": [
+      "matchRules": [
         {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "申請は勤務先の人事部経由でハローワークへ",
-      "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158800.html",
-      "easyTitle": "育休中も給与の約8割が支給される",
-      "eligibility": {
-        "certain": [
-          {
+          "if": {
+            "stage": "社会人（会社員）"
+          },
+          "score": 40
+        },
+        {
+          "if": {
             "stage": "育休・産休中"
-          }
-        ],
-        "exclude": [
-          {
-            "stage": "年金生活者"
           },
-          {
-            "stage": "学生",
-            "ageMax": 21
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "stage": "育休・産休中"
-            },
-            "score": 55
-          },
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）",
-              "stage": "社会人（会社員）"
-            },
-            "score": 40
-          },
-          {
-            "if": {
-              "stage": "社会人（会社員）"
-            },
-            "score": 25
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "stage": "育休取得者（雇用保険加入）が対象です"
+          "score": 30
         },
-        "hints": {
-          "stage": "育休取得時に申請できます"
-        }
-      }
-    },
-    {
-      "id": "kougaku_ryoyo",
-      "gov": "国",
-      "icon": "🏨",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "医療費が高額になっても、一定額以上は戻ってくる",
-      "officialName": "高額療養費制度",
-      "catch": "入院・手術などで医療費が高額になっても、月8.7万円程度を超えた分は戻ってくる",
-      "body": "健康保険加入者が対象。月の医療費自己負担が所得に応じた上限額（一般的な会社員は月約8.7万円）を超えた場合、超過分を健保が還付。入院・手術で高額になる場合は「限度額適用認定証」で事前に窓口負担を抑えることも可能。",
-      "deadline": "診療月の翌月1日から2年以内に申請",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
         {
           "if": {
-            "stage": [
-              "社会人（会社員）",
-              "育休・産休中"
-            ]
-          },
-          "amount": 30000
-        },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "if": {
-            "stage": [
-              "社会人（会社員）",
-              "育休・産休中"
-            ]
-          },
-          "label": "高額医療時に還付"
-        },
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "入院予定があれば事前に「限度額適用認定証」を申請",
-      "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryouhoken/juuyou/kougakuiryou/index.html",
-      "easyTitle": "医療費が高額になっても上限で返ってくる制度",
-      "eligibility": {
-        "certain": [
-          {
-            "stage": [
-              "社会人（会社員）",
-              "育休・産休中"
-            ]
-          }
-        ],
-        "exclude": [],
-        "matchRules": [
-          {
-            "if": {
-              "stage": "年金生活者"
-            },
-            "score": 25
-          },
-          {
-            "if": {
-              "stage": "社会人（フリーランス・自営）"
-            },
-            "score": 15
-          }
-        ],
-        "baseScore": 30,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {}
-      }
-    },
-    {
-      "id": "shogai_kyufu",
-      "gov": "国",
-      "icon": "🏥",
-      "colorKey": "blue",
-      "tag": "キャリア",
-      "title": "病気・ケガで働けない間も、給与の2/3が支給される",
-      "officialName": "傷病手当金",
-      "catch": "病気やケガで仕事を休んだとき、最大18ヶ月間、給与の約2/3が保険から支給される",
-      "body": "健康保険加入の会社員が対象（国民健康保険は対象外）。業務外の病気・ケガで4日以上連続休業し給与が出ない場合、標準報酬日額の2/3を最長1年6ヶ月支給。退職後も要件を満たせば継続受給可能。",
-      "deadline": "療養開始日の翌日から2年以内",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "休業4日目から申請可。勤務先・健保組合へ相談",
-      "sourceUrl": "https://www.kyoukaikenpo.or.jp/g3/cat310/sb3040/",
-      "easyTitle": "病気・ケガで働けない間も給与の2/3が入る",
-      "eligibility": {
-        "certain": [
-          {
-            "stage": [
-              "社会人（会社員）",
-              "育休・産休中"
-            ]
-          }
-        ],
-        "exclude": [
-          {
             "stage": "社会人（フリーランス・自営）"
           },
-          {
-            "stage": "学生"
+          "score": 10
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {
+        "stage": "年金生活者・学生（22歳未満）は対象外です"
+      },
+      "hints": {
+        "stage": "就職すると教育訓練給付の対象になります"
+      }
+    }
+  },
+  {
+    "id": "scholarship",
+    "gov": "国",
+    "icon": "🎓",
+    "colorKey": "purple",
+    "tag": "教育",
+    "title": "給付型奨学金（JASSO）",
+    "officialName": "給付型奨学金（日本学生支援機構）",
+    "catch": "返さなくていい奨学金・月最大7.5万円",
+    "body": "住民税非課税・準非課税世帯の大学・専門学校生が対象。第I区分（非課税）：国公立自宅月2.9万円〜私立自宅外月7.5万円。授業料・入学金の免除または減額も併用可。在籍大学の窓口で申込。",
+    "deadline": "各大学の募集時期（毎年4〜5月頃）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 900000,
+    "potentialLabel": "月最大7.5万円",
+    "reminderLabel": "在籍大学の奨学金担当窓口に確認",
+    "sourceUrl": "https://www.jasso.go.jp/shogakukin/kyufu/",
+    "easyTitle": "返さなくていい奨学金（月最大7.5万円）",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
+        {
+          "income": [
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        },
+        {
+          "stage": {
+            "not": "学生"
+          }
+        },
+        {
+          "ageMax": 17
+        },
+        {
+          "ageMin": 31
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "income": [
+              "100万円未満",
+              "100〜150万円"
+            ]
           },
-          {
+          "score": 80
+        },
+        {
+          "if": {
+            "income": [
+              "150〜250万円"
+            ]
+          },
+          "score": 60
+        },
+        {
+          "if": {
+            "income": [
+              "250〜350万円"
+            ]
+          },
+          "score": 45
+        },
+        {
+          "if": {
+            "income": [
+              "350〜450万円",
+              "450〜600万円"
+            ]
+          },
+          "score": 30
+        }
+      ],
+      "baseScore": 15,
+      "missingFor": [
+        "income"
+      ],
+      "excludeReasons": {
+        "income": "世帯年収が高い場合は対象外です（目安：400万円超）",
+        "stage": "大学・専門学校生が対象です"
+      },
+      "hints": {
+        "income": "世帯収入が減った場合は対象になる可能性があります"
+      }
+    }
+  },
+  {
+    "id": "ikuji_kyufu",
+    "gov": "国",
+    "icon": "👨‍👩‍👧",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "育児休業給付金（厚生労働省）",
+    "officialName": "育児休業給付金",
+    "catch": "育休中も給与の実質8割が雇用保険から支給",
+    "body": "雇用保険加入の会社員・パートが対象。育休開始から180日は休業前賃金の67%、以降は50%を支給。社会保険料免除も加わり実質手取りの約8割相当。2025年4月から出生後休業支援給付金（両親同時育休で実質10割）も新設。",
+    "deadline": "育休開始後2ヶ月ごとにハローワークへ申請",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "申請は勤務先の人事部経由でハローワークへ",
+    "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158800.html",
+    "easyTitle": "育休中も給与の約8割が支給される",
+    "eligibility": {
+      "certain": [
+        {
+          "stage": "育休・産休中"
+        }
+      ],
+      "exclude": [
+        {
+          "stage": "年金生活者"
+        },
+        {
+          "stage": "学生",
+          "ageMax": 21
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "stage": "育休・産休中"
+          },
+          "score": 55
+        },
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "stage": "社会人（会社員）"
+          },
+          "score": 40
+        },
+        {
+          "if": {
+            "stage": "社会人（会社員）"
+          },
+          "score": 25
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {
+        "stage": "育休取得者（雇用保険加入）が対象です"
+      },
+      "hints": {
+        "stage": "育休取得時に申請できます"
+      },
+      "profileCheck": [
+        {
+          "field": "leaveStatus",
+          "type": "select",
+          "question": "現在の就業状況は？",
+          "options": [
+            "通常勤務",
+            "育児休業中",
+            "介護休業中",
+            "傷病手当金受給中",
+            "休職中",
+            "その他"
+          ],
+          "match": [
+            "育児休業中"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "kougaku_ryoyo",
+    "gov": "国",
+    "icon": "🏨",
+    "colorKey": "green",
+    "tag": "健康",
+    "title": "医療費が高額になっても、一定額以上は戻ってくる",
+    "officialName": "高額療養費制度",
+    "catch": "入院・手術などで医療費が高額になっても、月8.7万円程度を超えた分は戻ってくる",
+    "body": "健康保険加入者が対象。月の医療費自己負担が所得に応じた上限額（一般的な会社員は月約8.7万円）を超えた場合、超過分を健保が還付。入院・手術で高額になる場合は「限度額適用認定証」で事前に窓口負担を抑えることも可能。",
+    "deadline": "診療月の翌月1日から2年以内に申請",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "stage": [
+            "社会人（会社員）",
+            "育休・産休中"
+          ]
+        },
+        "amount": 30000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "stage": [
+            "社会人（会社員）",
+            "育休・産休中"
+          ]
+        },
+        "label": "高額医療時に還付"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "入院予定があれば事前に「限度額適用認定証」を申請",
+    "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryouhoken/juuyou/kougakuiryou/index.html",
+    "easyTitle": "医療費が高額になっても上限で返ってくる制度",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
+        {
+          "stage": "学生",
+          "ageMax": 21
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "healthInsurance": [
+              "協会けんぽ",
+              "健康保険組合",
+              "国民健康保険",
+              "共済組合"
+            ]
+          },
+          "score": 30
+        },
+        {
+          "if": {
+            "stage": [
+              "社会人（会社員）",
+              "育休・産休中"
+            ]
+          },
+          "score": 20
+        },
+        {
+          "if": {
             "stage": "年金生活者"
           },
-          {
-            "income": [
-              "800万円～"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "stage": [
-                "社会人（会社員）",
-                "育休・産休中"
-              ]
-            },
-            "score": 40
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "income"
-        ],
-        "excludeReasons": {
-          "stage": "健康保険（協会けんぽ・健保組合）加入の会社員が対象です。国保は対象外。",
-          "income": "高所得の場合は対象外です"
-        },
-        "hints": {
-          "stage": "就職して健康保険に加入した場合は対象になります"
+          "score": 15
         }
+      ],
+      "baseScore": 55,
+      "missingFor": [
+        "healthInsurance"
+      ],
+      "excludeReasons": {},
+      "hints": {}
+    }
+  },
+  {
+    "id": "shogai_kyufu",
+    "gov": "国",
+    "icon": "🏥",
+    "colorKey": "blue",
+    "tag": "キャリア",
+    "title": "病気・ケガで働けない間も、給与の2/3が支給される",
+    "officialName": "傷病手当金",
+    "catch": "病気やケガで仕事を休んだとき、最大18ヶ月間、給与の約2/3が保険から支給される",
+    "body": "健康保険加入の会社員が対象（国民健康保険は対象外）。業務外の病気・ケガで4日以上連続休業し給与が出ない場合、標準報酬日額の2/3を最長1年6ヶ月支給。退職後も要件を満たせば継続受給可能。",
+    "deadline": "療養開始日の翌日から2年以内",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "ninpu_kyufu",
-      "gov": "国",
-      "icon": "🤱",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "妊婦のための支援給付金",
-      "officialName": "出産・子育て応援交付金（国）",
-      "catch": "妊娠時5万円＋出産後5万円＝計10万円",
-      "body": "国の制度を港区が実施。妊娠届出時に「妊婦支援給付金」5万円、出産後に「子育て支援給付金」5万円（子1人あたり）を支給。面談を経てギフトカード等で交付。申請は港区子ども家庭支援センターへ。",
-      "deadline": "妊娠届出後・出産後に面談申込み",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "休業4日目から申請可。勤務先・健保組合へ相談",
+    "sourceUrl": "https://www.kyoukaikenpo.or.jp/g3/cat310/sb3040/",
+    "easyTitle": "病気・ケガで働けない間も給与の2/3が入る",
+    "eligibility": {
+      "certain": [
+        {
+          "stage": [
+            "社会人（会社員）",
+            "育休・産休中"
+          ]
+        }
+      ],
+      "exclude": [
+        {
+          "stage": "社会人（フリーランス・自営）"
+        },
+        {
+          "stage": "学生"
+        },
+        {
+          "stage": "年金生活者"
+        },
+        {
+          "income": [
+            "1000万円以上",
+            "800〜1000万円"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "stage": [
+              "社会人（会社員）",
+              "育休・産休中"
+            ]
+          },
+          "score": 40
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "income"
+      ],
+      "excludeReasons": {
+        "stage": "健康保険（協会けんぽ・健保組合）加入の会社員が対象です。国保は対象外。",
+        "income": "高所得の場合は対象外です"
+      },
+      "hints": {
+        "stage": "就職して健康保険に加入した場合は対象になります"
+      }
+    }
+  },
+  {
+    "id": "ninpu_kyufu",
+    "gov": "国",
+    "icon": "🤱",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "妊婦のための支援給付金",
+    "officialName": "出産・子育て応援交付金（国）",
+    "catch": "妊娠時5万円＋出産後5万円＝計10万円",
+    "body": "国の制度を港区が実施。妊娠届出時に「妊婦支援給付金」5万円、出産後に「子育て支援給付金」5万円（子1人あたり）を支給。面談を経てギフトカード等で交付。申請は港区子ども家庭支援センターへ。",
+    "deadline": "妊娠届出後・出産後に面談申込み",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "amount": 100000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "label": "計10万円"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 100000,
+    "potentialLabel": "計10万円",
+    "reminderLabel": "妊娠届出後すぐに子ども家庭支援センターへ連絡",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
+    "easyTitle": "妊娠中〜育児中の方に計10万円給付",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "tashi_musho",
+    "gov": "国",
+    "icon": "🎓",
+    "colorKey": "purple",
+    "tag": "教育",
+    "title": "子ども3人以上の家庭：大学の授業料がタダに",
+    "officialName": "多子世帯大学等修学支援制度",
+    "catch": "2025年度から。子ども3人以上いる家庭は、所得に関係なく大学・専門学校の授業料が無償",
+    "body": "2025年度から開始。扶養する子どもが3人以上いる世帯は所得制限なく大学・短大・高専・専門学校の授業料・入学金が無償化。2024年度以前からの在学生も対象。在籍校の学生支援窓口で申請。",
+    "deadline": "在籍校の申請時期に準じる（毎年度）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 700000,
+    "potentialLabel": "年最大70万円程度（授業料全額）",
+    "reminderLabel": "在籍する大学の学生支援窓口へ確認を",
+    "sourceUrl": "https://www.mext.go.jp/a_menu/koutou/hutankeigen/index.htm",
+    "easyTitle": "子ども3人以上なら大学の授業料がタダになる",
+    "eligibility": {
+      "certain": [
+        {
+          "householdChildCount": {
+            "gte": 3
+          }
+        }
+      ],
+      "exclude": [
+        {
+          "householdChildCount": {
+            "lte": 2
+          }
+        }
+      ],
+      "matchRules": [
         {
           "if": {
             "hasKids": "いる（または予定あり）"
           },
-          "amount": 100000
+          "score": 40
         },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
         {
           "if": {
-            "hasKids": "いる（または予定あり）"
+            "ageMin": 35
           },
-          "label": "計10万円"
-        },
-        {
-          "default": true,
-          "label": null
+          "score": 20
         }
       ],
-      "potentialSubsidy": 100000,
-      "potentialLabel": "計10万円",
-      "reminderLabel": "妊娠届出後すぐに子ども家庭支援センターへ連絡",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
-      "easyTitle": "妊娠中〜育児中の方に計10万円給付",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {}
+      "baseScore": 30,
+      "missingFor": [],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です"
+      },
+      "hints": {
+        "hasKids": "子ども3人以上いる場合に大学授業料が無償化されます"
       }
-    },
-    {
-      "id": "tashi_musho",
-      "gov": "国",
-      "icon": "🎓",
-      "colorKey": "purple",
-      "tag": "教育",
-      "title": "子ども3人以上の家庭：大学の授業料がタダに",
-      "officialName": "多子世帯大学等修学支援制度",
-      "catch": "2025年度から。子ども3人以上いる家庭は、所得に関係なく大学・専門学校の授業料が無償",
-      "body": "2025年度から開始。扶養する子どもが3人以上いる世帯は所得制限なく大学・短大・高専・専門学校の授業料・入学金が無償化。2024年度以前からの在学生も対象。在籍校の学生支援窓口で申請。",
-      "deadline": "在籍校の申請時期に準じる（毎年度）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 700000,
-      "potentialLabel": "年最大70万円程度（授業料全額）",
-      "reminderLabel": "在籍する大学の学生支援窓口へ確認を",
-      "sourceUrl": "https://www.mext.go.jp/a_menu/koutou/hutankeigen/index.htm",
-      "easyTitle": "子ども3人以上なら大学の授業料がタダになる",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 35
-            },
-            "score": 20
-          },
-          {
-            "if": {
-              "ageBetween": [
-                25,
-                61
-              ]
-            },
-            "score": 10
-          }
-        ],
-        "baseScore": 30,
-        "missingFor": [],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です"
-        },
-        "hints": {
-          "hasKids": "子ども3人以上いる場合に大学授業料が無償化されます"
-        }
+    }
+  },
+  {
+    "id": "flat35_kosodate",
+    "gov": "国",
+    "icon": "🏡",
+    "colorKey": "green",
+    "tag": "住まい",
+    "title": "子どもがいると住宅ローン金利が下がる",
+    "officialName": "フラット35子育てプラス",
+    "catch": "子どもの人数に応じて住宅ローン金利を優遇。4人以上なら5年間1%引き下げ",
+    "body": "住宅金融支援機構「フラット35」の子育て・若者向け金利優遇。子1人で当初5年間0.25%引き下げ、4人以上で1.0%引き下げ。夫婦どちらかが40歳未満でも対象。新築・中古どちらも可。2024年2月から開始。",
+    "deadline": "通年受付",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "flat35_kosodate",
-      "gov": "国",
-      "icon": "🏡",
-      "colorKey": "green",
-      "tag": "住まい",
-      "title": "子どもがいると住宅ローン金利が下がる",
-      "officialName": "フラット35子育てプラス",
-      "catch": "子どもの人数に応じて住宅ローン金利を優遇。4人以上なら5年間1%引き下げ",
-      "body": "住宅金融支援機構「フラット35」の子育て・若者向け金利優遇。子1人で当初5年間0.25%引き下げ、4人以上で1.0%引き下げ。夫婦どちらかが40歳未満でも対象。新築・中古どちらも可。2024年2月から開始。",
-      "deadline": "通年受付",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 450000,
+    "potentialLabel": "借入3000万円の場合、5年間で最大約45万円節約",
+    "reminderLabel": "取扱金融機関または住宅金融支援機構に問い合わせを",
+    "sourceUrl": "https://www.flat35.com/loan/flat35s/kosodate.html",
+    "easyTitle": "子どもがいると住宅ローンの金利が下がる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "hasKids": "いる（または予定あり）"
+        },
+        {
+          "housing": [
+            "持ち家（戸建て）",
+            "持ち家（マンション）"
+          ]
+        },
+        {
+          "housingLoan": "true"
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 450000,
-      "potentialLabel": "借入3000万円の場合、5年間で最大約45万円節約",
-      "reminderLabel": "取扱金融機関または住宅金融支援機構に問い合わせを",
-      "sourceUrl": "https://www.flat35.com/loan/flat35s/kosodate.html",
-      "easyTitle": "子どもがいると住宅ローンの金利が下がる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          },
-          {
-            "housing": [
-              "持ち家（戸建て）",
-              "持ち家（マンション）"
-            ]
+          "hasKids": {
+            "not": "いる（または予定あり）"
           }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
+        },
+        {
+          "housing": "賃貸"
+        },
+        {
+          "income": [
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        },
+        {
+          "ageMin": 46
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "ageMax": 39
           },
-          {
+          "score": 25
+        },
+        {
+          "if": {
             "income": [
-              "800万円～"
+              "100〜150万円",
+              "100万円未満",
+              "150〜250万円",
+              "250〜350万円",
+              "350〜450万円"
             ]
           },
-          {
-            "ageMin": 46
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMax": 39
-            },
-            "score": 25
-          },
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 10
-          }
-        ],
-        "baseScore": 25,
-        "missingFor": [
-          "housing",
-          "housingLoan"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "income": "高所得の場合は対象外です",
-          "housing": "住宅ローン利用者が対象です"
-        },
-        "hints": {
-          "housingLoan": "住宅購入時にフラット35を利用する場合に対象になります"
+          "score": 10
         }
+      ],
+      "baseScore": 25,
+      "missingFor": [
+        "housing",
+        "housingLoan"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "income": "高所得の場合は対象外です",
+        "housing": "住宅ローン利用者が対象です"
+      },
+      "hints": {
+        "housingLoan": "住宅購入時にフラット35を利用する場合に対象になります"
+      },
+      "profileCheck": [
+        {
+          "field": "housingLoan",
+          "type": "yesno",
+          "question": "住宅ローンをお持ちですか？",
+          "match": [
+            "true"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "hoiku_muryou",
+    "gov": "東京都",
+    "icon": "🏫",
+    "colorKey": "green",
+    "tag": "子育て",
+    "title": "保育料無償化（第2子以降）",
+    "officialName": "幼児教育・保育の無償化",
+    "catch": "第2子から0〜2歳の保育料がゼロ",
+    "body": "東京都「018サポート」拡充。0〜2歳の第2子以降の認可保育所保育料が無償化、所得制限なし。3〜5歳は全国制度で無償。認可外保育施設は月最大7.7万円まで補助。",
+    "deadline": "通年（保育所入所と同時に適用）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "hoiku_muryou",
-      "gov": "東京都",
-      "icon": "🏫",
-      "colorKey": "green",
-      "tag": "子育て",
-      "title": "保育料無償化（第2子以降）",
-      "officialName": "幼児教育・保育の無償化",
-      "catch": "第2子から0〜2歳の保育料がゼロ",
-      "body": "東京都「018サポート」拡充。0〜2歳の第2子以降の認可保育所保育料が無償化、所得制限なし。3〜5歳は全国制度で無償。認可外保育施設は月最大7.7万円まで補助。",
-      "deadline": "通年（保育所入所と同時に適用）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 360000,
+    "potentialLabel": "年最大36万円節約",
+    "reminderLabel": "保育所入所申込時に区役所へ確認",
+    "sourceUrl": "https://www.metro.tokyo.lg.jp/",
+    "easyTitle": "2人目以降の保育料がゼロになる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "hasKids": "いる（または予定あり）"
+        },
+        {
+          "kidsAge": [
+            "0〜2歳",
+            "3〜5歳"
+          ]
+        },
+        {
+          "householdChildCount": {
+            "gte": 2
+          }
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 360000,
-      "potentialLabel": "年最大36万円節約",
-      "reminderLabel": "保育所入所申込時に区役所へ確認",
-      "sourceUrl": "https://www.metro.tokyo.lg.jp/",
-      "easyTitle": "2人目以降の保育料がゼロになる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          },
-          {
-            "kidsAge": [
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
               "0〜2歳",
               "3〜5歳"
+            ],
+            "ifSet": true
+          }
+        },
+        {
+          "householdChildCount": {
+            "lte": 1
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "income": [
+              "100〜150万円",
+              "100万円未満",
+              "150〜250万円",
+              "250〜350万円",
+              "350〜450万円"
             ]
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
           },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳",
-                "3〜5歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 10
-          },
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 40
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "childcareStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜5歳以外のお子さんのみの場合は対象外です"
+          "score": 10
         },
-        "hints": {
-          "childcareStatus": "保育園・幼稚園に通わせている場合に適用されます"
-        }
-      }
-    },
-    {
-      "id": "silver_pass",
-      "gov": "東京都",
-      "icon": "🚌",
-      "colorKey": "green",
-      "tag": "生活",
-      "title": "東京都シルバーパス",
-      "officialName": "東京都シルバーパス",
-      "catch": "70歳以上：都内バス・都営地下鉄が乗り放題",
-      "body": "70歳以上の都内在住者はバス・都営交通が乗り放題（住民税非課税者は年1,000円、課税者は年20,510円）。誕生月に都バス営業所または地下鉄駅で申請。",
-      "deadline": "誕生月に申請",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
         {
           "if": {
-            "ageMin": 70
+            "hasKids": "いる（または予定あり）"
           },
-          "amount": 20000
-        },
-        {
-          "default": true,
-          "amount": 0
+          "score": 40
         }
       ],
-      "subsidyLabelRules": [
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "childcareStatus"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜5歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {
+        "childcareStatus": "保育園・幼稚園に通わせている場合に適用されます"
+      },
+      "profileCheck": [
+        {
+          "field": "childcareStatus",
+          "type": "select",
+          "question": "保育施設に通わせていますか？",
+          "options": [
+            "認可保育園",
+            "認可外保育園",
+            "幼稚園",
+            "認定こども園",
+            "在宅育児",
+            "未定"
+          ],
+          "match": [
+            "認可保育園",
+            "認可外保育園",
+            "幼稚園",
+            "認定こども園"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "silver_pass",
+    "gov": "東京都",
+    "icon": "🚌",
+    "colorKey": "green",
+    "tag": "生活",
+    "title": "東京都シルバーパス",
+    "officialName": "東京都シルバーパス",
+    "catch": "70歳以上：都内バス・都営地下鉄が乗り放題",
+    "body": "70歳以上の都内在住者はバス・都営交通が乗り放題（住民税非課税者は年1,000円、課税者は年20,510円）。誕生月に都バス営業所または地下鉄駅で申請。",
+    "deadline": "誕生月に申請",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "ageMin": 70
+        },
+        "amount": 20000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "ageMin": 70
+        },
+        "label": "年約2万円節約"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 20000,
+    "potentialLabel": "年約2万円節約",
+    "reminderLabel": "70歳の誕生月に都バス営業所で申請",
+    "sourceUrl": "https://www.kotsu.metro.tokyo.jp/other/silver/",
+    "easyTitle": "70歳以上：都バス・地下鉄が乗り放題になる",
+    "eligibility": {
+      "certain": [
+        {
+          "ageMin": 70
+        }
+      ],
+      "exclude": [
+        {
+          "ageMax": 64
+        }
+      ],
+      "matchRules": [
         {
           "if": {
-            "ageMin": 70
+            "ageMin": 65
           },
-          "label": "年約2万円節約"
-        },
-        {
-          "default": true,
-          "label": null
+          "score": 30
         }
       ],
-      "potentialSubsidy": 20000,
-      "potentialLabel": "年約2万円節約",
-      "reminderLabel": "70歳の誕生月に都バス営業所で申請",
-      "sourceUrl": "https://www.kotsu.metro.tokyo.jp/other/silver/",
-      "easyTitle": "70歳以上：都バス・地下鉄が乗り放題になる",
-      "eligibility": {
-        "certain": [
-          {
-            "ageMin": 70
-          }
-        ],
-        "exclude": [
-          {
-            "ageMax": 64
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 65
-            },
-            "score": 30
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "ageNum": "65歳未満は対象外です"
-        },
-        "hints": {
-          "ageNum": "65歳になると一部割引、70歳になると乗り放題になります"
-        }
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {
+        "ageNum": "65歳未満は対象外です"
+      },
+      "hints": {
+        "ageNum": "65歳になると一部割引、70歳になると乗り放題になります"
       }
-    },
-    {
-      "id": "solar_tokyo",
-      "gov": "東京都",
-      "icon": "☀️",
-      "colorKey": "green",
-      "tag": "住まい",
-      "title": "太陽光パネルの設置費、都から最大36万円もらえる",
-      "officialName": "太陽光パネル設置費補助（東京都断熱・太陽光住宅普及拡大事業）",
-      "catch": "持ち家（戸建て・マンション共通）に太陽光パネルを設置すると、東京都から最大36万円の補助金がもらえる",
-      "body": "クール・ネット東京「断熱・太陽光住宅普及拡大事業」。【戸建て】既存住宅：12万円/kW・上限36万円。新築：14万円/kW。蓄電池も別途最大120万円補助。【マンション】管理組合が申請主体。陸屋根への設置が対象で、架台設置・防水工事費の上乗せ補助あり。港区補助と併用可能。",
-      "deadline": "2026年度：申請受付中（予算上限に達し次第終了）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    }
+  },
+  {
+    "id": "solar_tokyo",
+    "gov": "東京都",
+    "icon": "☀️",
+    "colorKey": "green",
+    "tag": "住まい",
+    "title": "太陽光パネルの設置費、都から最大36万円もらえる",
+    "officialName": "太陽光パネル設置費補助（東京都断熱・太陽光住宅普及拡大事業）",
+    "catch": "持ち家（戸建て・マンション共通）に太陽光パネルを設置すると、東京都から最大36万円の補助金がもらえる",
+    "body": "クール・ネット東京「断熱・太陽光住宅普及拡大事業」。【戸建て】既存住宅：12万円/kW・上限36万円。新築：14万円/kW。蓄電池も別途最大120万円補助。【マンション】管理組合が申請主体。陸屋根への設置が対象で、架台設置・防水工事費の上乗せ補助あり。港区補助と併用可能。",
+    "deadline": "2026年度：申請受付中（予算上限に達し次第終了）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 360000,
+    "potentialLabel": "最大36万円",
+    "reminderLabel": "クール・ネット東京に事前申請が必要",
+    "sourceUrl": "https://www.tokyo-co2down.jp/subsidy/solar",
+    "easyTitle": "太陽光パネル設置で都から最大36万円もらえる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "housing": [
+            "持ち家（戸建て）",
+            "持ち家（マンション）"
+          ]
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
+          "stage": "学生",
+          "ageMax": 24
+        },
+        {
+          "housing": "賃貸"
         }
       ],
-      "potentialSubsidy": 360000,
-      "potentialLabel": "最大36万円",
-      "reminderLabel": "クール・ネット東京に事前申請が必要",
-      "sourceUrl": "https://www.tokyo-co2down.jp/subsidy/solar",
-      "easyTitle": "太陽光パネル設置で都から最大36万円もらえる",
-      "eligibility": {
-        "certain": [
-          {
+      "matchRules": [
+        {
+          "if": {
             "housing": [
               "持ち家（戸建て）",
               "持ち家（マンション）"
             ]
-          }
-        ],
-        "exclude": [
-          {
-            "stage": "学生",
-            "ageMax": 24
           },
-          {
-            "housing": "賃貸"
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "housing": [
-                "持ち家（戸建て）",
-                "持ち家（マンション）"
-              ]
-            },
-            "score": 50
-          }
-        ],
-        "baseScore": 40,
-        "missingFor": [
-          "housing"
-        ],
-        "excludeReasons": {
-          "housing": "持ち家でない場合は対象外です"
-        },
-        "hints": {
-          "housing": "持ち家に引っ越した場合は対象になります"
+          "score": 50
         }
+      ],
+      "baseScore": 40,
+      "missingFor": [
+        "housing"
+      ],
+      "excludeReasons": {
+        "housing": "持ち家でない場合は対象外です"
+      },
+      "hints": {
+        "housing": "持ち家に引っ越した場合は対象になります"
+      },
+      "profileCheck": [
+        {
+          "field": "housingDetail",
+          "type": "select",
+          "question": "お住まいの種類は？",
+          "options": [
+            "一戸建て（持ち家）",
+            "マンション（分譲）",
+            "マンション（賃貸）",
+            "アパート（賃貸）",
+            "購入予定"
+          ],
+          "match": [
+            "一戸建て（持ち家）",
+            "マンション（分譲）"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "shiritsu_muryou",
+    "gov": "東京都",
+    "icon": "🏫",
+    "colorKey": "green",
+    "tag": "教育",
+    "title": "私立高校授業料無償化（東京都）",
+    "officialName": "私立高等学校等授業料実質無償化（東京都）",
+    "catch": "年収910万円未満なら授業料が実質ゼロ",
+    "body": "東京都「私立高校授業料の実質無償化」。世帯年収910万円未満で授業料を全額補助（上限63.2万円/年）。所得制限なし拡大方向で推移。在籍校で毎年7〜9月に申請。",
+    "deadline": "毎年7〜9月に在籍校で申請",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "shiritsu_muryou",
-      "gov": "東京都",
-      "icon": "🏫",
-      "colorKey": "green",
-      "tag": "教育",
-      "title": "私立高校授業料無償化（東京都）",
-      "officialName": "私立高等学校等授業料実質無償化（東京都）",
-      "catch": "年収910万円未満なら授業料が実質ゼロ",
-      "body": "東京都「私立高校授業料の実質無償化」。世帯年収910万円未満で授業料を全額補助（上限63.2万円/年）。所得制限なし拡大方向で推移。在籍校で毎年7〜9月に申請。",
-      "deadline": "毎年7〜9月に在籍校で申請",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 469000,
+    "potentialLabel": "年最大46.9万円節約",
+    "reminderLabel": "在籍校の7〜9月の申請期間に注意",
+    "sourceUrl": "https://www.metro.tokyo.lg.jp/",
+    "easyTitle": "年収910万円未満なら私立高校の授業料がタダになる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "kidsAge": [
+            "13〜15歳",
+            "16〜18歳"
+          ]
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
+          "income": [
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        },
+        {
+          "stage": {
+            "not": "学生"
+          },
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
         }
       ],
-      "potentialSubsidy": 469000,
-      "potentialLabel": "年最大46.9万円節約",
-      "reminderLabel": "在籍校の7〜9月の申請期間に注意",
-      "sourceUrl": "https://www.metro.tokyo.lg.jp/",
-      "easyTitle": "年収910万円未満なら私立高校の授業料がタダになる",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "income": [
-              "800万円～"
+      "matchRules": [
+        {
+          "if": {
+            "studentLevel": "高校生"
+          },
+          "score": 70
+        },
+        {
+          "if": {
+            "kidsAge": [
+              "16〜18歳",
+              "13〜15歳"
             ]
           },
-          {
-            "stage": {
-              "not": "学生"
-            },
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "studentLevel": "高校生"
-            },
-            "score": 70
-          },
-          {
-            "if": {
-              "kidsAge": [
-                "16〜18歳",
-                "13〜15歳"
-              ]
-            },
-            "score": 45
-          },
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 20
-          },
-          {
-            "if": {
-              "income": [
-                "400～600万円",
-                "600～800万円"
-              ]
-            },
-            "score": 15
-          },
-          {
-            "if": {
-              "schoolType": "私立"
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "income",
-          "schoolType"
-        ],
-        "excludeReasons": {
-          "income": "世帯年収910万円以上の場合は対象外です",
-          "studentLevel": "高校生（または高校生の子を持つ親）が対象です"
+          "score": 45
         },
-        "hints": {
-          "income": "所得制限は年々緩和される傾向があります"
-        }
-      }
-    },
-    {
-      "id": "juken_challenge",
-      "gov": "東京都",
-      "icon": "📝",
-      "colorKey": "purple",
-      "tag": "教育",
-      "title": "塾代・受験料を無利子で借りられる（高校3年生）",
-      "officialName": "受験生チャレンジ支援貸付事業",
-      "catch": "塾・予備校の受講料や受験料を無利子で貸付",
-      "body": "東京都の制度。一定所得以下の世帯の中学3年生・高校3年生を対象に、学習塾等の受講料（上限20万円）や高校・大学等の受験料（上限7.5万円）を無利子で貸し付ける。合格すれば返済免除になる場合もあり。港区に住所がある方は港区立子ども家庭支援センターへ申請。令和8年度の港区申込期限は令和8年1月16日。",
-      "deadline": "令和8年1月16日（港区窓口）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
         {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 275000,
-      "potentialLabel": "受講料最大20万円＋受験料最大7.5万円",
-      "reminderLabel": "港区立子ども家庭支援センターへ申請。1月中旬が期限",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudantan/challenge.html",
-      "easyTitle": "塾代・受験料を無利子で借りられる（高校3年生）",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "_alwaysExclude": true
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "studentLevel": "高校生"
-            },
-            "score": 60
+          "if": {
+            "income": [
+              "100〜150万円",
+              "100万円未満",
+              "150〜250万円",
+              "250〜350万円",
+              "350〜450万円"
+            ]
           },
-          {
-            "if": {
-              "studentLevel": "中学生"
-            },
-            "score": 55
+          "score": 20
+        },
+        {
+          "if": {
+            "income": [
+              "350〜450万円",
+              "450〜600万円",
+              "600〜800万円"
+            ]
           },
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {},
-        "_note": "令和8年1月16日で期限切れ・一時非表示"
+          "score": 15
+        },
+        {
+          "if": {
+            "schoolType": "私立"
+          },
+          "score": 20
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "income",
+        "schoolType"
+      ],
+      "excludeReasons": {
+        "income": "世帯年収910万円以上の場合は対象外です",
+        "studentLevel": "高校生（または高校生の子を持つ親）が対象です"
+      },
+      "hints": {
+        "income": "所得制限は年々緩和される傾向があります"
       }
-    },
-    {
-      "id": "mutsumi_iryo",
-      "gov": "東京都",
-      "icon": "🩺",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "重度の障害がある人の医療費が大幅に減る",
-      "officialName": "重度心身障害者医療費助成制度（マル障）",
-      "catch": "重度障害者の医療費自己負担をほぼゼロに",
-      "body": "東京都の「マル障」制度。身体障害者手帳1〜3級、愛の手帳1〜2度、精神障害者保健福祉手帳1級などを持つ方の医療費自己負担分を助成。医療証を提示するだけで窓口負担が大幅に軽減される。所得制限あり。港区国保年金課給付係で申請。",
-      "deadline": "通年（随時申請）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    }
+  },
+  {
+    "id": "juken_challenge",
+    "gov": "東京都",
+    "icon": "📝",
+    "colorKey": "purple",
+    "tag": "教育",
+    "title": "塾代・受験料を無利子で借りられる（高校3年生）",
+    "officialName": "受験生チャレンジ支援貸付事業",
+    "catch": "塾・予備校の受講料や受験料を無利子で貸付",
+    "body": "東京都の制度。一定所得以下の世帯の中学3年生・高校3年生を対象に、学習塾等の受講料（上限20万円）や高校・大学等の受験料（上限7.5万円）を無利子で貸し付ける。合格すれば返済免除になる場合もあり。港区に住所がある方は港区立子ども家庭支援センターへ申請。令和8年度の港区申込期限は令和8年1月16日。",
+    "deadline": "令和8年1月16日（港区窓口）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 275000,
+    "potentialLabel": "受講料最大20万円＋受験料最大7.5万円",
+    "reminderLabel": "港区立子ども家庭支援センターへ申請。1月中旬が期限",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudantan/challenge.html",
+    "easyTitle": "塾代・受験料を無利子で借りられる（高校3年生）",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
         {
-          "default": true,
-          "amount": 0
+          "_alwaysExclude": true
         }
       ],
-      "subsidyLabelRules": [
+      "matchRules": [
         {
-          "default": true,
-          "label": null
+          "if": {
+            "studentLevel": "高校生"
+          },
+          "score": 60
+        },
+        {
+          "if": {
+            "studentLevel": "中学生"
+          },
+          "score": 55
+        },
+        {
+          "if": {
+            "income": [
+              "100〜150万円",
+              "100万円未満",
+              "150〜250万円",
+              "250〜350万円",
+              "350〜450万円"
+            ]
+          },
+          "score": 20
         }
       ],
-      "potentialSubsidy": 200000,
-      "potentialLabel": "医療費自己負担分を大幅軽減",
-      "reminderLabel": "国保年金課給付係（03-3578-2642）へ申請",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/iryo/iryohi.html",
-      "easyTitle": "重度障害者の医療費がほぼゼロになる制度",
-      "eligibility": {
-        "certain": [
-          {
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {},
+      "hints": {},
+      "_note": "令和8年1月16日で期限切れ・一時非表示"
+    }
+  },
+  {
+    "id": "mutsumi_iryo",
+    "gov": "東京都",
+    "icon": "🩺",
+    "colorKey": "green",
+    "tag": "健康",
+    "title": "重度の障害がある人の医療費が大幅に減る",
+    "officialName": "重度心身障害者医療費助成制度（マル障）",
+    "catch": "重度障害者の医療費自己負担をほぼゼロに",
+    "body": "東京都の「マル障」制度。身体障害者手帳1〜3級、愛の手帳1〜2度、精神障害者保健福祉手帳1級などを持つ方の医療費自己負担分を助成。医療証を提示するだけで窓口負担が大幅に軽減される。所得制限あり。港区国保年金課給付係で申請。",
+    "deadline": "通年（随時申請）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 200000,
+    "potentialLabel": "医療費自己負担分を大幅軽減",
+    "reminderLabel": "国保年金課給付係（03-3578-2642）へ申請",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/iryo/iryohi.html",
+    "easyTitle": "重度障害者の医療費がほぼゼロになる制度",
+    "eligibility": {
+      "certain": [
+        {
+          "disability": "あり"
+        },
+        {
+          "disabilityGrade": "1-2"
+        }
+      ],
+      "exclude": [
+        {
+          "disability": [
+            "なし",
+            "回答しない"
+          ]
+        },
+        {
+          "income": [
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
             "disability": "あり"
           },
-          {
-            "disabilityGrade": "1-2"
-          }
-        ],
-        "exclude": [
-          {
-            "disability": [
-              "なし",
-              "回答しない"
-            ]
-          },
-          {
-            "income": [
-              "800万円～"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "disability": "あり"
-            },
-            "score": 65
-          },
-          {
-            "if": {
-              "disabilityGrade": "1-2"
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "disability",
-          "disabilityGrade"
-        ],
-        "excludeReasons": {
-          "disability": "障がいがない場合は対象外です"
+          "score": 65
         },
-        "hints": {
-          "disabilityGrade": "重度（1〜3級等）の手帳所持者が主な対象です"
+        {
+          "if": {
+            "disabilityGrade": "1-2"
+          },
+          "score": 20
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "disability",
+        "disabilityGrade"
+      ],
+      "excludeReasons": {
+        "disability": "障がいがない場合は対象外です"
+      },
+      "hints": {
+        "disabilityGrade": "重度（1〜3級等）の手帳所持者が主な対象です"
       }
-    },
-    {
-      "id": "tokyo_point",
-      "gov": "東京都",
-      "icon": "🎯",
-      "colorKey": "blue",
-      "tag": "生活",
-      "title": "東京アプリに登録するだけで1.1万円相当のポイントがもらえる",
-      "officialName": "東京アプリ生活応援事業（東京ポイント）",
-      "catch": "マイナンバーカードを持つ15歳以上全員対象。登録するだけで11,000ポイント（1.1万円相当）付与",
-      "body": "「東京アプリ」をダウンロードしてマイナンバーカードで本人確認をするだけで11,000ポイント（1万1千円相当）が付与される。貯まったポイントはau PAY・dポイント・メルカリポイント・楽天ペイ・Vポイントなどに交換可能（PayPay・WAONは準備中）。2027年4月1日まで実施中。",
-      "deadline": "2027年4月1日まで",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    }
+  },
+  {
+    "id": "tokyo_point",
+    "gov": "東京都",
+    "icon": "🎯",
+    "colorKey": "blue",
+    "tag": "生活",
+    "title": "東京アプリに登録するだけで1.1万円相当のポイントがもらえる",
+    "officialName": "東京アプリ生活応援事業（東京ポイント）",
+    "catch": "マイナンバーカードを持つ15歳以上全員対象。登録するだけで11,000ポイント（1.1万円相当）付与",
+    "body": "「東京アプリ」をダウンロードしてマイナンバーカードで本人確認をするだけで11,000ポイント（1万1千円相当）が付与される。貯まったポイントはau PAY・dポイント・メルカリポイント・楽天ペイ・Vポイントなどに交換可能（PayPay・WAONは準備中）。2027年4月1日まで実施中。",
+    "deadline": "2027年4月1日まで",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 11000,
+    "potentialLabel": "11,000ポイント（1.1万円相当）即付与",
+    "reminderLabel": "「東京アプリ」をダウンロードしてマイナンバーカードで登録",
+    "sourceUrl": "https://www.tokyo.lg.jp/tosei/tosei/",
+    "easyTitle": "東京アプリに登録するだけで1.1万円分ポイントがもらえる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "ageMin": 15
+        },
+        {
+          "hasMynumber": "true"
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
+          "ageMax": 14
         }
       ],
-      "potentialSubsidy": 11000,
-      "potentialLabel": "11,000ポイント（1.1万円相当）即付与",
-      "reminderLabel": "「東京アプリ」をダウンロードしてマイナンバーカードで登録",
-      "sourceUrl": "https://www.tokyo.lg.jp/tosei/tosei/",
-      "easyTitle": "東京アプリに登録するだけで1.1万円分ポイントがもらえる",
-      "eligibility": {
-        "certain": [
-          {
+      "matchRules": [
+        {
+          "if": {
             "ageMin": 15
           },
-          {
+          "score": 60
+        },
+        {
+          "if": {
             "hasMynumber": "true"
-          }
-        ],
-        "exclude": [
-          {
-            "ageMax": 14
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 15
-            },
-            "score": 60
           },
-          {
-            "if": {
-              "hasMynumber": "true"
-            },
-            "score": 30
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "hasMynumber"
-        ],
-        "excludeReasons": {
-          "ageNum": "15歳未満は対象外です"
-        },
-        "hints": {
-          "hasMynumber": "マイナンバーカードがあると東京アプリに登録できます"
+          "score": 30
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "hasMynumber"
+      ],
+      "excludeReasons": {
+        "ageNum": "15歳未満は対象外です"
+      },
+      "hints": {
+        "hasMynumber": "マイナンバーカードがあると東京アプリに登録できます"
       }
-    },
-    {
-      "id": "akachan_first",
-      "gov": "東京都",
-      "icon": "👶",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "出産したら育児用品・サービスのギフトカードがもらえる",
-      "officialName": "赤ちゃんファースト事業（東京都）",
-      "catch": "令和7年4月以降に生まれた子の養育者に育児用品ギフトカードを提供",
-      "body": "令和7年4月1日〜令和8年3月31日に生まれた子どもを養育する方に、育児用品や子育て支援サービスが利用できるギフトカードを提供。利用登録期限は令和8年8月31日まで。対象期間外の方は各区市町村の類似事業を確認。",
-      "deadline": "令和8年8月31日（利用登録）",
-      "urgent": true,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 50000,
-      "potentialLabel": "ギフトカード相当額",
-      "reminderLabel": "東京都の特設サイトから利用登録が必要",
-      "sourceUrl": "https://www.akachan-first.metro.tokyo.lg.jp/",
-      "easyTitle": "出産後に育児グッズのギフトカードがもらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          },
-          {
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {}
+    }
+  },
+  {
+    "id": "akachan_first",
+    "gov": "東京都",
+    "icon": "👶",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "出産したら育児用品・サービスのギフトカードがもらえる",
+    "officialName": "赤ちゃんファースト事業（東京都）",
+    "catch": "令和7年4月以降に生まれた子の養育者に育児用品ギフトカードを提供",
+    "body": "令和7年4月1日〜令和8年3月31日に生まれた子どもを養育する方に、育児用品や子育て支援サービスが利用できるギフトカードを提供。利用登録期限は令和8年8月31日まで。対象期間外の方は各区市町村の類似事業を確認。",
+    "deadline": "令和8年8月31日（利用登録）",
+    "urgent": true,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "rs_vaccine",
-      "gov": "東京都",
-      "icon": "💉",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "妊娠中にRSウイルスワクチンを無料（定期）接種できる",
-      "officialName": "RSウイルス感染症定期予防接種",
-      "catch": "妊娠28〜36週の妊婦が対象。赤ちゃんの重症化を予防",
-      "body": "2025年度から定期接種に追加。妊娠28週0日〜妊娠36週6日の方が対象。母体へのワクチン接種により赤ちゃんへの母子免疫を付与し、生後のRSウイルス感染による重症化を予防。費用や接種場所の詳細は港区保健センターまたは各医療機関へ確認。",
-      "deadline": "通年（妊娠28〜36週の間）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 50000,
+    "potentialLabel": "ギフトカード相当額",
+    "reminderLabel": "東京都の特設サイトから利用登録が必要",
+    "sourceUrl": "https://www.akachan-first.metro.tokyo.lg.jp/",
+    "easyTitle": "出産後に育児グッズのギフトカードがもらえる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "hasKids": "いる（または予定あり）"
+        },
+        {
+          "kidsAge": "0〜2歳"
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
         }
       ],
-      "potentialSubsidy": 20000,
-      "potentialLabel": "接種費用相当額（定期接種のため無料または低額）",
-      "reminderLabel": "妊娠28週になったらかかりつけ医または港区保健センターへ相談",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/",
-      "easyTitle": "妊娠中にRSウイルスワクチンを無料で接種できる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          },
-          {
+      "matchRules": [],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "rs_vaccine",
+    "gov": "東京都",
+    "icon": "💉",
+    "colorKey": "green",
+    "tag": "健康",
+    "title": "妊娠中にRSウイルスワクチンを無料（定期）接種できる",
+    "officialName": "RSウイルス感染症定期予防接種",
+    "catch": "妊娠28〜36週の妊婦が対象。赤ちゃんの重症化を予防",
+    "body": "2025年度から定期接種に追加。妊娠28週0日〜妊娠36週6日の方が対象。母体へのワクチン接種により赤ちゃんへの母子免疫を付与し、生後のRSウイルス感染による重症化を予防。費用や接種場所の詳細は港区保健センターまたは各医療機関へ確認。",
+    "deadline": "通年（妊娠28〜36週の間）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 20000,
+    "potentialLabel": "接種費用相当額（定期接種のため無料または低額）",
+    "reminderLabel": "妊娠28週になったらかかりつけ医または港区保健センターへ相談",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/",
+    "easyTitle": "妊娠中にRSウイルスワクチンを無料で接種できる",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        },
+        {
+          "ageMax": 45
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        },
+        {
+          "ageMin": 46
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "kidsAge": "0〜2歳",
             "ageMax": 45
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
           },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          },
-          {
-            "ageMin": 46
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "kidsAge": "0〜2歳",
-              "ageMax": 45
-            },
-            "score": 60
-          },
-          {
-            "if": {
-              "pregnancyStatus": "pregnant"
-            },
-            "score": 40
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "pregnancyStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "ageNum": "46歳以上は対象外です"
+          "score": 60
         },
-        "hints": {
-          "pregnancyStatus": "妊娠中（28〜36週）の方が主な対象です"
-        }
-      }
-    },
-    {
-      "id": "hitorioya_telework",
-      "gov": "東京都",
-      "icon": "💻",
-      "colorKey": "purple",
-      "tag": "キャリア",
-      "title": "ひとり親がパソコンで在宅ワークを始められる支援",
-      "officialName": "ひとり親家庭等在宅就業推進事業",
-      "catch": "約10ヶ月間、在宅ワーク習得を無料サポート",
-      "body": "都内在住のひとり親で、パソコンを使った在宅ワークで収入確保を目指す方を対象に、一人ひとりに合わせたプランで約10ヶ月間サポート（令和9年3月まで）。申込締切は5月29日17時（応募多数の場合は選考）。費用無料。",
-      "deadline": "令和8年5月29日17時（申込締切）",
-      "urgent": true,
-      "subsidyType": "savings",
-      "subsidyRules": [
         {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": "在宅ワーク収入確保のスキル習得",
-      "reminderLabel": "東京都ひとり親家庭等就業・生活支援センターへ申込",
-      "sourceUrl": "https://www.tokyo-hitori.jp/",
-      "easyTitle": "ひとり親がパソコンで在宅ワークを始められる支援",
-      "eligibility": {
-        "certain": [
-          {
-            "marital": "離婚・死別"
+          "if": {
+            "pregnancyStatus": "pregnant"
           },
-          {
+          "score": 40
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "pregnancyStatus"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "ageNum": "46歳以上は対象外です"
+      },
+      "hints": {
+        "pregnancyStatus": "妊娠中（28〜36週）の方が主な対象です"
+      },
+      "profileCheck": [
+        {
+          "field": "pregnancyStatus",
+          "type": "yesno",
+          "question": "現在妊娠中ですか？",
+          "match": [
+            "pregnant"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "hitorioya_telework",
+    "gov": "東京都",
+    "icon": "💻",
+    "colorKey": "purple",
+    "tag": "キャリア",
+    "title": "ひとり親がパソコンで在宅ワークを始められる支援",
+    "officialName": "ひとり親家庭等在宅就業推進事業",
+    "catch": "約10ヶ月間、在宅ワーク習得を無料サポート",
+    "body": "都内在住のひとり親で、パソコンを使った在宅ワークで収入確保を目指す方を対象に、一人ひとりに合わせたプランで約10ヶ月間サポート（令和9年3月まで）。申込締切は5月29日17時（応募多数の場合は選考）。費用無料。",
+    "deadline": "令和8年5月29日17時（申込締切）",
+    "urgent": true,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": "在宅ワーク収入確保のスキル習得",
+    "reminderLabel": "東京都ひとり親家庭等就業・生活支援センターへ申込",
+    "sourceUrl": "https://www.tokyo-hitori.jp/",
+    "easyTitle": "ひとり親がパソコンで在宅ワークを始められる支援",
+    "eligibility": {
+      "certain": [
+        {
+          "marital": "離婚・死別"
+        },
+        {
+          "hasKids": "いる（または予定あり）"
+        }
+      ],
+      "exclude": [
+        {
+          "marital": {
+            "not": "離婚・死別"
+          }
+        },
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "income": [
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "marital": "離婚・死別",
             "hasKids": "いる（または予定あり）"
-          }
-        ],
-        "exclude": [
-          {
-            "marital": {
-              "not": "離婚・死別"
-            }
           },
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "marital": "離婚・死別",
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 85
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "marital"
-        ],
-        "excludeReasons": {
-          "marital": "ひとり親（離婚・死別）でお子さんがいる方が対象です"
-        },
-        "hints": {
-          "marital": "離婚・死別でひとり親になった場合に対象になります"
+          "score": 85
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "marital"
+      ],
+      "excludeReasons": {
+        "marital": "ひとり親（離婚・死別）でお子さんがいる方が対象です"
+      },
+      "hints": {
+        "marital": "離婚・死別でひとり親になった場合に対象になります"
       }
-    },
-    {
-      "id": "chintai_hojo",
-      "gov": "港区",
-      "icon": "🏠",
-      "colorKey": "blue",
-      "tag": "住まい",
-      "title": "失業・収入減で家賃が払えないとき、最大9ヶ月補助",
-      "officialName": "住居確保給付金",
-      "catch": "離職や休業で収入が減ったとき、家賃を最大9ヶ月間、港区が肩代わり",
-      "body": "離職・廃業・休業により住宅を失うおそれがある低所得者に、家賃相当額を最大9ヶ月支給。港区単身者の上限額は月約7万円。収入・資産要件あり。港区生活・就労支援センターへ要相談。",
-      "deadline": "通年（離職後2年以内）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    }
+  },
+  {
+    "id": "chintai_hojo",
+    "gov": "港区",
+    "icon": "🏠",
+    "colorKey": "blue",
+    "tag": "住まい",
+    "title": "失業・収入減で家賃が払えないとき、最大9ヶ月補助",
+    "officialName": "住居確保給付金",
+    "catch": "離職や休業で収入が減ったとき、家賃を最大9ヶ月間、港区が肩代わり",
+    "body": "離職・廃業・休業により住宅を失うおそれがある低所得者に、家賃相当額を最大9ヶ月支給。港区単身者の上限額は月約7万円。収入・資産要件あり。港区生活・就労支援センターへ要相談。",
+    "deadline": "通年（離職後2年以内）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 630000,
+    "potentialLabel": "月最大7万円×9ヶ月",
+    "reminderLabel": "港区生活・就労支援センター（03-6453-9032）に相談",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/seikatuhogo/02jyuukyokakuhokyuufukin.html",
+    "easyTitle": "家賃が払えない時、国が最大9ヶ月分肩代わりする",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
         {
-          "default": true,
-          "amount": 0
+          "income": [
+            "450〜600万円",
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        },
+        {
+          "housing": [
+            "持ち家（戸建て）",
+            "持ち家（マンション）"
+          ]
         }
       ],
-      "subsidyLabelRules": [
+      "matchRules": [
         {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 630000,
-      "potentialLabel": "月最大7万円×9ヶ月",
-      "reminderLabel": "港区生活・就労支援センター（03-6453-9032）に相談",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/seikatuhogo/02jyuukyokakuhokyuufukin.html",
-      "easyTitle": "家賃が払えない時、国が最大9ヶ月分肩代わりする",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
+          "if": {
+            "housing": "賃貸"
+          },
+          "score": 40
+        },
+        {
+          "if": {
+            "taxStatus": "非課税"
+          },
+          "score": 35
+        },
+        {
+          "if": {
             "income": [
-              "800万円～"
+              "100万円未満",
+              "100〜150万円",
+              "150〜250万円"
             ]
           },
-          {
-            "income": [
-              "400～600万円",
-              "600～800万円"
-            ]
-          },
-          {
-            "housing": [
-              "持ち家（戸建て）",
-              "持ち家（マンション）"
-            ]
-          },
-          {
-            "stage": "年金生活者",
-            "income": {
-              "not": [
-                "～200万円",
-                "200～400万円"
-              ]
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "housing": "賃貸"
-            },
-            "score": 30
-          },
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 30
-          },
-          {
-            "if": {
-              "stage": "その他・無職"
-            },
-            "score": 20
-          },
-          {
-            "if": {
-              "isUnemployed": "true"
-            },
-            "score": 15
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "housing",
-          "income"
-        ],
-        "excludeReasons": {
-          "income": "世帯年収が一定以上の場合は対象外です",
-          "housing": "持ち家の場合は対象外です"
+          "score": 35
         },
-        "hints": {
-          "income": "離職・休業で収入が下がった場合は対象になる可能性があります"
+        {
+          "if": {
+            "stage": "その他・無職"
+          },
+          "score": 25
+        },
+        {
+          "if": {
+            "isUnemployed": "true"
+          },
+          "score": 20
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "housing",
+        "income",
+        "taxStatus"
+      ],
+      "excludeReasons": {
+        "income": "世帯年収が一定以上の場合は対象外です",
+        "housing": "持ち家の場合は対象外です"
+      },
+      "hints": {
+        "income": "離職・休業で収入が下がった場合は対象になる可能性があります"
       }
-    },
-    {
-      "id": "sports_free",
-      "gov": "港区",
-      "icon": "🏊",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "区民スポーツセンター月2回無料",
-      "officialName": "港区スポーツセンター区民利用",
-      "catch": "港区民なら月2回タダで使える",
-      "body": "港区スポーツセンター（三田・高輪・赤坂・芝浦）を区民は月2回まで無料で利用可能。プール・トレーニングジム・アリーナなど。区民カード（住民票で発行）が必要。",
-      "officialBody": "港区スポーツセンター条例及び港区スポーツセンター条例施行規則に基づき、港区民は区内スポーツセンター（三田・高輪・赤坂・芝浦港南）のトレーニング室・温水プール等を、月2回を限度として無料で使用することができます。利用に際しては区民カードの提示が必要です。区民カードは区内各総合支所区民課及び支所にて住民票等を提示の上、申請・交付を受けてください。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 24000
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": "年2.4万円節約"
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "区民カードを取得して使い始めよう",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/sport/sport/04.html",
-      "easyTitle": "区のジムとプールが月2回タダで使える",
-      "eligibility": {
-        "certain": [
-          {
-            "_always": true
-          }
-        ],
-        "exclude": [],
-        "matchRules": [],
-        "baseScore": 100,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {}
+    }
+  },
+  {
+    "id": "sports_free",
+    "gov": "港区",
+    "icon": "🏊",
+    "colorKey": "green",
+    "tag": "健康",
+    "title": "区民スポーツセンター月2回無料",
+    "officialName": "港区スポーツセンター区民利用",
+    "catch": "港区民なら月2回タダで使える",
+    "body": "港区スポーツセンター（三田・高輪・赤坂・芝浦）を区民は月2回まで無料で利用可能。プール・トレーニングジム・アリーナなど。区民カード（住民票で発行）が必要。",
+    "officialBody": "港区スポーツセンター条例及び港区スポーツセンター条例施行規則に基づき、港区民は区内スポーツセンター（三田・高輪・赤坂・芝浦港南）のトレーニング室・温水プール等を、月2回を限度として無料で使用することができます。利用に際しては区民カードの提示が必要です。区民カードは区内各総合支所区民課及び支所にて住民票等を提示の上、申請・交付を受けてください。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 24000
       }
-    },
-    {
-      "id": "yoyou",
-      "gov": "港区",
-      "icon": "🏔️",
-      "colorKey": "green",
-      "tag": "生活",
-      "title": "箱根・熱海が格安で泊まれる",
-      "officialName": "港区民保養施設利用事業",
-      "catch": "港区民だけの特権。箱根・熱海・軽井沢など人気リゾートが1泊2万円以上安く泊まれる",
-      "body": "港区が契約する保養施設を区民価格で利用可能。施設一覧（2026年度）：【箱根】箱根湯本富士屋ホテル・箱根ハイランドホテル・ホテルはつはな・強羅環翠楼・箱根ホテル小涌園等、【熱海】熱海後楽園ホテル・ニューフジヤホテル等、【伊豆】伊豆長岡温泉ホテルサンバレー等、【鬼怒川】鬼怒川パークホテルズ等、【軽井沢・草津・那須】各契約施設。専用はがきまたは施設予約システムから申込（各月抽選制）。同一世帯・グループで複数申込は無効。夏季（7〜8月）は鬼怒川など追加施設あり。",
-      "deadline": "通年（月ごとに抽選申込）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 20000
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": "1泊最大2万円節約"
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "早めに予約しないと埋まりやすい",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/cate005/index.html",
-      "easyTitle": "箱根・熱海に格安で泊まれる（港区民限定）",
-      "eligibility": {
-        "certain": [
-          {
-            "_always": true
-          }
-        ],
-        "exclude": [],
-        "matchRules": [],
-        "baseScore": 100,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {}
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": "年2.4万円節約"
       }
-    },
-    {
-      "id": "iryo_free",
-      "gov": "港区",
-      "icon": "🏥",
-      "colorKey": "green",
-      "tag": "子育て",
-      "title": "子どもの医療費無料（中学まで）",
-      "officialName": "乳幼児・子ども医療費助成制度（港区）",
-      "catch": "中学生まで医療費の自己負担がゼロ",
-      "body": "港区「乳幼児・子ども医療費助成」。0歳〜中学3年生（15歳年度末まで）の医療費自己負担分を全額助成。所得制限なし。入院・通院・歯科・調剤すべて対象。マル子医療証が必要。",
-      "deadline": "出生後速やかに申請",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "区民カードを取得して使い始めよう",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/sport/sport/04.html",
+    "easyTitle": "区のジムとプールが月2回タダで使える",
+    "eligibility": {
+      "certain": [
         {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "amount": 50000
-        },
-        {
-          "if": {
-            "ageMax": 15
-          },
-          "amount": 50000
-        },
-        {
-          "default": true,
-          "amount": 0
+          "_always": true
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [],
+      "matchRules": [],
+      "baseScore": 100,
+      "missingFor": [],
+      "excludeReasons": {},
+      "hints": {}
+    }
+  },
+  {
+    "id": "yoyou",
+    "gov": "港区",
+    "icon": "🏔️",
+    "colorKey": "green",
+    "tag": "生活",
+    "title": "箱根・熱海が格安で泊まれる",
+    "officialName": "港区民保養施設利用事業",
+    "catch": "港区民だけの特権。箱根・熱海・軽井沢など人気リゾートが1泊2万円以上安く泊まれる",
+    "body": "港区が契約する保養施設を区民価格で利用可能。施設一覧（2026年度）：【箱根】箱根湯本富士屋ホテル・箱根ハイランドホテル・ホテルはつはな・強羅環翠楼・箱根ホテル小涌園等、【熱海】熱海後楽園ホテル・ニューフジヤホテル等、【伊豆】伊豆長岡温泉ホテルサンバレー等、【鬼怒川】鬼怒川パークホテルズ等、【軽井沢・草津・那須】各契約施設。専用はがきまたは施設予約システムから申込（各月抽選制）。同一世帯・グループで複数申込は無効。夏季（7〜8月）は鬼怒川など追加施設あり。",
+    "deadline": "通年（月ごとに抽選申込）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 20000
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": "1泊最大2万円節約"
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "早めに予約しないと埋まりやすい",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/cate005/index.html",
+    "easyTitle": "箱根・熱海に格安で泊まれる（港区民限定）",
+    "eligibility": {
+      "certain": [
         {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "label": "年約5万円節約"
-        },
-        {
-          "if": {
-            "ageMax": 15
-          },
-          "label": "年約5万円節約"
-        },
-        {
-          "default": true,
-          "label": null
+          "_always": true
         }
       ],
-      "potentialSubsidy": 50000,
-      "potentialLabel": "年約5万円節約",
-      "reminderLabel": "マル子医療証を区役所で取得（自動送付されることも）",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/kodomoiryo.html",
-      "easyTitle": "中学生以下の医療費が無料になる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": [
+      "exclude": [],
+      "matchRules": [],
+      "baseScore": 100,
+      "missingFor": [],
+      "excludeReasons": {},
+      "hints": {}
+    }
+  },
+  {
+    "id": "iryo_free",
+    "gov": "港区",
+    "icon": "🏥",
+    "colorKey": "green",
+    "tag": "子育て",
+    "title": "子どもの医療費無料（中学まで）",
+    "officialName": "乳幼児・子ども医療費助成制度（港区）",
+    "catch": "中学生まで医療費の自己負担がゼロ",
+    "body": "港区「乳幼児・子ども医療費助成」。0歳〜中学3年生（15歳年度末まで）の医療費自己負担分を全額助成。所得制限なし。入院・通院・歯科・調剤すべて対象。マル子医療証が必要。",
+    "deadline": "出生後速やかに申請",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "amount": 50000
+      },
+      {
+        "if": {
+          "ageMax": 15
+        },
+        "amount": 50000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "label": "年約5万円節約"
+      },
+      {
+        "if": {
+          "ageMax": 15
+        },
+        "label": "年約5万円節約"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 50000,
+    "potentialLabel": "年約5万円節約",
+    "reminderLabel": "マル子医療証を区役所で取得（自動送付されることも）",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/kodomoiryo.html",
+    "easyTitle": "中学生以下の医療費が無料になる",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": [
+            "0〜2歳",
+            "3〜5歳",
+            "6〜12歳",
+            "13〜15歳"
+          ]
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          },
+          "ageMin": 16
+        },
+        {
+          "kidsAge": {
+            "notIn": [
               "0〜2歳",
               "3〜5歳",
               "6〜12歳",
               "13〜15歳"
-            ]
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            },
-            "ageMin": 16
+            ],
+            "ifSet": true
           },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳",
-                "3〜5歳",
-                "6〜12歳",
-                "13〜15歳"
-              ],
-              "ifSet": true
-            },
-            "ageMin": 16
-          }
-        ],
-        "matchRules": [],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "中学生以下のお子さんがいない場合は対象外です"
-        },
-        "hints": {}
-      }
-    },
-    {
-      "id": "hoiku_mosikomi",
-      "gov": "港区",
-      "icon": "📋",
-      "colorKey": "t2",
-      "tag": "子育て",
-      "title": "保育所に入れたいなら11月が勝負",
-      "officialName": "港区認可保育所等利用申込",
-      "catch": "来年4月に入園したいなら11月が申込期限。人気の0〜2歳は特に早めの準備が必要",
-      "body": "港区の認可保育所・こども園の入園申込。1〜2歳は競争率が高い。4月入園希望は11〜12月に申込（締切厳守）。利用調整あり。認証保育所・小規模保育施設も選択肢に。",
-      "deadline": "4月入園：前年11〜12月申込",
-      "urgent": true,
-      "subsidyType": "info",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
+          "ageMin": 16
         }
       ],
-      "subsidyLabelRules": [
+      "matchRules": [],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "中学生以下のお子さんがいない場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "hoiku_mosikomi",
+    "gov": "港区",
+    "icon": "📋",
+    "colorKey": "t2",
+    "tag": "子育て",
+    "title": "保育所に入れたいなら11月が勝負",
+    "officialName": "港区認可保育所等利用申込",
+    "catch": "来年4月に入園したいなら11月が申込期限。人気の0〜2歳は特に早めの準備が必要",
+    "body": "港区の認可保育所・こども園の入園申込。1〜2歳は競争率が高い。4月入園希望は11〜12月に申込（締切厳守）。利用調整あり。認証保育所・小規模保育施設も選択肢に。",
+    "deadline": "4月入園：前年11〜12月申込",
+    "urgent": true,
+    "subsidyType": "info",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "label": "手続き情報"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "4月入園申込は11月初旬！期限を逃さないで",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
+    "easyTitle": "保育所に入れたいなら11月が勝負",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）"
+        },
+        {
+          "kidsAge": [
+            "0〜2歳",
+            "3〜5歳"
+          ]
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳",
+              "3〜5歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [
         {
           "if": {
             "hasKids": "いる（または予定あり）"
           },
-          "label": "手続き情報"
-        },
-        {
-          "default": true,
-          "label": null
+          "score": 50
         }
       ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "4月入園申込は11月初旬！期限を逃さないで",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
-      "easyTitle": "保育所に入れたいなら11月が勝負",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          },
-          {
-            "kidsAge": [
-              "0〜2歳",
-              "3〜5歳"
-            ]
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳",
-                "3〜5歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 50
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "childcareStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜5歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {}
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "childcareStatus"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜5歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {},
+      "profileCheck": [
+        {
+          "field": "childcareStatus",
+          "type": "select",
+          "question": "お子さんの保育状況は？",
+          "options": [
+            "在宅育児",
+            "認可保育園",
+            "認可外保育園",
+            "幼稚園",
+            "認定こども園",
+            "未定"
+          ],
+          "match": [
+            "在宅育児",
+            "未定"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "solar_minato",
+    "gov": "港区",
+    "icon": "⚡",
+    "colorKey": "green",
+    "tag": "住まい",
+    "title": "太陽光パネル、都＋区あわせて最大76万円補助",
+    "officialName": "創エネルギー・省エネルギー機器等設置費助成（港区）",
+    "catch": "東京都の補助（最大36万円）に港区の補助（最大40万円）を合わせると最大76万円",
+    "body": "港区「創エネルギー・省エネルギー機器等設置費助成」。太陽光発電システム：区民個人は上限40万円。東京都補助（上限36万円）と併用で最大76万円。蓄電システムも別途最大20万円。2025年度申請：2026年3月19日まで。",
+    "deadline": "2026年4月1日〜2027年1月29日（2026年度）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "solar_minato",
-      "gov": "港区",
-      "icon": "⚡",
-      "colorKey": "green",
-      "tag": "住まい",
-      "title": "太陽光パネル、都＋区あわせて最大76万円補助",
-      "officialName": "創エネルギー・省エネルギー機器等設置費助成（港区）",
-      "catch": "東京都の補助（最大36万円）に港区の補助（最大40万円）を合わせると最大76万円",
-      "body": "港区「創エネルギー・省エネルギー機器等設置費助成」。太陽光発電システム：区民個人は上限40万円。東京都補助（上限36万円）と併用で最大76万円。蓄電システムも別途最大20万円。2025年度申請：2026年3月19日まで。",
-      "deadline": "2026年4月1日〜2027年1月29日（2026年度）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 400000,
+    "potentialLabel": "最大40万円（都と合計76万円）",
+    "reminderLabel": "工事前に港区環境課へ事前申請が必須",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
+    "easyTitle": "太陽光パネルに区から最大40万円追加補助がもらえる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "housing": [
+            "持ち家（戸建て）",
+            "持ち家（マンション）"
+          ]
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
+          "stage": "学生",
+          "ageMax": 24
+        },
+        {
+          "housing": "賃貸"
         }
       ],
-      "potentialSubsidy": 400000,
-      "potentialLabel": "最大40万円（都と合計76万円）",
-      "reminderLabel": "工事前に港区環境課へ事前申請が必須",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
-      "easyTitle": "太陽光パネルに区から最大40万円追加補助がもらえる",
-      "eligibility": {
-        "certain": [
-          {
+      "matchRules": [
+        {
+          "if": {
             "housing": [
               "持ち家（戸建て）",
               "持ち家（マンション）"
             ]
-          }
-        ],
-        "exclude": [
-          {
-            "stage": "学生",
-            "ageMax": 24
           },
-          {
-            "housing": "賃貸"
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "housing": [
-                "持ち家（戸建て）",
-                "持ち家（マンション）"
-              ]
-            },
-            "score": 50
-          }
-        ],
-        "baseScore": 40,
-        "missingFor": [
-          "housing"
-        ],
-        "excludeReasons": {
-          "housing": "持ち家でない場合は対象外です"
-        },
-        "hints": {
-          "housing": "持ち家に引っ越した場合は対象になります"
-        }
-      }
-    },
-    {
-      "id": "kenko_point",
-      "gov": "港区",
-      "icon": "🏃",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "健康ポイント制度",
-      "officialName": "みなとタバコ・健康ポイント事業",
-      "catch": "歩いてポイント→商品券に交換",
-      "body": "港区「みなとタバタ健康ポイント」。ウォーキング・健診受診でポイント付与、区内商品券と交換可能。主に65歳以上の区民が対象。年間最大5,000円相当。アプリ「みなとタバタ」で管理。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "if": {
-            "ageMin": 65
-          },
-          "amount": 5000
-        },
-        {
-          "default": true,
-          "amount": 0
+          "score": 50
         }
       ],
-      "subsidyLabelRules": [
+      "baseScore": 40,
+      "missingFor": [
+        "housing"
+      ],
+      "excludeReasons": {
+        "housing": "持ち家でない場合は対象外です"
+      },
+      "hints": {
+        "housing": "持ち家に引っ越した場合は対象になります"
+      },
+      "profileCheck": [
         {
-          "if": {
-            "ageMin": 65
-          },
-          "label": "年最大5,000円"
+          "field": "housingDetail",
+          "type": "select",
+          "question": "お住まいの種類は？",
+          "options": [
+            "一戸建て（持ち家）",
+            "マンション（分譲）",
+            "マンション（賃貸）",
+            "アパート（賃貸）",
+            "購入予定"
+          ],
+          "match": [
+            "一戸建て（持ち家）",
+            "マンション（分譲）"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "kenko_point",
+    "gov": "港区",
+    "icon": "🏃",
+    "colorKey": "green",
+    "tag": "健康",
+    "title": "健康ポイント制度",
+    "officialName": "みなとタバコ・健康ポイント事業",
+    "catch": "歩いてポイント→商品券に交換",
+    "body": "港区「みなとタバタ健康ポイント」。ウォーキング・健診受診でポイント付与、区内商品券と交換可能。主に65歳以上の区民が対象。年間最大5,000円相当。アプリ「みなとタバタ」で管理。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "ageMin": 65
         },
+        "amount": 5000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "ageMin": 65
+        },
+        "label": "年最大5,000円"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 5000,
+    "potentialLabel": "年最大5,000円",
+    "reminderLabel": "みなとタバタのアプリをダウンロード",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenkouzukuri/kenko/kenko/kenkozukuri/",
+    "easyTitle": "健康診断を受けるとポイントがもらえる",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "label": null
+          "ageMin": 65
         }
       ],
-      "potentialSubsidy": 5000,
-      "potentialLabel": "年最大5,000円",
-      "reminderLabel": "みなとタバタのアプリをダウンロード",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenkouzukuri/kenko/kenko/kenkozukuri/",
-      "easyTitle": "健康診断を受けるとポイントがもらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "ageMin": 65
-          }
-        ],
-        "exclude": [
-          {
-            "ageMax": 59
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 60
-            },
-            "score": 25
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "ageNum": "60歳未満は対象外です"
-        },
-        "hints": {
-          "ageNum": "60歳以降に対象になります"
+      "exclude": [
+        {
+          "ageMax": 59
         }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "ageMin": 60
+          },
+          "score": 25
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {
+        "ageNum": "60歳未満は対象外です"
+      },
+      "hints": {
+        "ageNum": "60歳以降に対象になります"
       }
-    },
-    {
-      "id": "cancer_check",
-      "gov": "港区",
-      "icon": "🔬",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "がん検診（全種類）無料",
-      "officialName": "各種がん検診（港区）",
-      "catch": "40歳以上は胃・大腸・肺など全部無料",
-      "body": "港区在住40歳以上の区民は、胃・大腸・肺・乳・子宮頸がん等の検診が全て無料（自己負担ゼロ）。子宮頸がんは20歳以上対象。受診券は区から郵送。受診期間は毎年7月〜翌1月31日。",
-      "deadline": "毎年7月〜翌1月31日",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    }
+  },
+  {
+    "id": "cancer_check",
+    "gov": "港区",
+    "icon": "🔬",
+    "colorKey": "green",
+    "tag": "健康",
+    "title": "がん検診（全種類）無料",
+    "officialName": "各種がん検診（港区）",
+    "catch": "40歳以上は胃・大腸・肺など全部無料",
+    "body": "港区在住40歳以上の区民は、胃・大腸・肺・乳・子宮頸がん等の検診が全て無料（自己負担ゼロ）。子宮頸がんは20歳以上対象。受診券は区から郵送。受診期間は毎年7月〜翌1月31日。",
+    "deadline": "毎年7月〜翌1月31日",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "ageMin": 40
+        },
+        "amount": 15000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "ageMin": 40
+        },
+        "label": "年約1.5万円節約"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 15000,
+    "potentialLabel": "年約1.5万円節約",
+    "reminderLabel": "7月に受診券が届いたら早めに予約",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
+    "easyTitle": "がん検診が無料または格安で受けられる",
+    "eligibility": {
+      "certain": [
+        {
+          "ageMin": 40
+        }
+      ],
+      "exclude": [
+        {
+          "ageMax": 39
+        }
+      ],
+      "matchRules": [
         {
           "if": {
             "ageMin": 40
           },
-          "amount": 15000
+          "score": 40
         },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
         {
           "if": {
-            "ageMin": 40
+            "ageMin": 20
           },
-          "label": "年約1.5万円節約"
-        },
-        {
-          "default": true,
-          "label": null
+          "score": 10
         }
       ],
-      "potentialSubsidy": 15000,
-      "potentialLabel": "年約1.5万円節約",
-      "reminderLabel": "7月に受診券が届いたら早めに予約",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
-      "easyTitle": "がん検診が無料または格安で受けられる",
-      "eligibility": {
-        "certain": [
-          {
-            "ageMin": 40
-          }
-        ],
-        "exclude": [],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 20
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {
-          "ageNum": "20歳以上なら子宮頸がん検診のみ対象。40歳以上で全種類対象です"
-        }
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {},
+      "hints": {
+        "ageNum": "20歳以上なら子宮頸がん検診のみ対象。40歳以上で全種類対象です"
       }
-    },
-    {
-      "id": "babybirthday",
-      "gov": "港区",
-      "icon": "🎂",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "バースデーサポート（2歳児）",
-      "officialName": "バースデーサポート事業（港区）",
-      "catch": "2歳のお誕生日にカタログギフト贈呈",
-      "body": "「とうきょうママパパ応援事業」の一環。港区で2歳を迎える子どもがいる家庭にカタログギフトを提供（数千〜1万円相当）。2歳の誕生月に区から自動的に案内が届く。申請不要。",
-      "deadline": "2歳の誕生月に区から案内が届く（自動）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "amount": 10000
+    }
+  },
+  {
+    "id": "babybirthday",
+    "gov": "港区",
+    "icon": "🎂",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "バースデーサポート（2歳児）",
+    "officialName": "バースデーサポート事業（港区）",
+    "catch": "2歳のお誕生日にカタログギフト贈呈",
+    "body": "「とうきょうママパパ応援事業」の一環。港区で2歳を迎える子どもがいる家庭にカタログギフトを提供（数千〜1万円相当）。2歳の誕生月に区から自動的に案内が届く。申請不要。",
+    "deadline": "2歳の誕生月に区から案内が届く（自動）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
         },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "label": "カタログギフト（〜1万円相当）"
-        },
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 10000,
-      "potentialLabel": "〜1万円相当",
-      "reminderLabel": "区から自動的に案内が届く（申請不要）",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kouchou/kuse/kocho/ikenshokai49/1913.html",
-      "easyTitle": "2歳の誕生月にプレゼントが届く（港区）",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          },
-          {
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {}
+        "amount": 10000
+      },
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "shussan_minato",
-      "gov": "港区",
-      "icon": "🏥",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "出産費用助成（港区独自）",
-      "officialName": "港区出産育児支援事業",
-      "catch": "出産費用から一時金を引いた残額を港区が全額補助",
-      "body": "港区在住1年以上の方が対象。出産にかかる分娩費・入院費等から、国の出産育児一時金（50万円）を差し引いた全額を助成（算出上限額：単胎81万円、双子121万円）。東京23区でも数少ない独自制度。申請は出産後1年以内。",
-      "deadline": "出産後1年以内",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "label": "カタログギフト（〜1万円相当）"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 10000,
+    "potentialLabel": "〜1万円相当",
+    "reminderLabel": "区から自動的に案内が届く（申請不要）",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kouchou/kuse/kocho/ikenshokai49/1913.html",
+    "easyTitle": "2歳の誕生月にプレゼントが届く（港区）",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）"
+        },
+        {
+          "kidsAge": "0〜2歳"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "shussan_minato",
+    "gov": "港区",
+    "icon": "🏥",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "出産費用助成（港区独自）",
+    "officialName": "港区出産育児支援事業",
+    "catch": "出産費用から一時金を引いた残額を港区が全額補助",
+    "body": "港区在住1年以上の方が対象。出産にかかる分娩費・入院費等から、国の出産育児一時金（50万円）を差し引いた全額を助成（算出上限額：単胎81万円、双子121万円）。東京23区でも数少ない独自制度。申請は出産後1年以内。",
+    "deadline": "出産後1年以内",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        },
+        "amount": 310000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        },
+        "label": "最大31万円"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 310000,
+    "potentialLabel": "最大31万円",
+    "reminderLabel": "出産後1年以内に子ども家庭支援課へ申請",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kenko/ninshin/shussan/jose.html",
+    "easyTitle": "港区で出産したら追加でお祝い金がもらえる",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "ninpu_kyufu2",
+    "gov": "港区",
+    "icon": "🤱",
+    "colorKey": "blue",
+    "tag": "子育て",
+    "title": "妊婦への給付金（港区実施分）",
+    "officialName": "出産・子育て応援事業（港区）",
+    "catch": "港区が実施する妊婦・子育て支援給付",
+    "body": "港区が国の交付金を活用して実施。妊娠届出後・出産後に面談を経て給付。詳細は港区子ども家庭支援センターへ。",
+    "deadline": "妊娠届出後に申込",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
+        },
+        "amount": 0
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 50000,
+    "potentialLabel": "給付あり（要確認）",
+    "reminderLabel": "港区子ども家庭支援センターへ確認",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
+    "easyTitle": "妊婦への給付金（港区）",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        },
+        {
+          "pregnancyStatus": {
+            "not": "pregnant"
+          },
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "pregnancyStatus": "pregnant"
+          },
+          "score": 90
+        },
         {
           "if": {
             "hasKids": "いる（または予定あり）",
             "kidsAge": "0〜2歳"
           },
-          "amount": 310000
-        },
-        {
-          "default": true,
-          "amount": 0
+          "score": 85
         }
       ],
-      "subsidyLabelRules": [
-        {
-          "if": {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          },
-          "label": "最大31万円"
-        },
-        {
-          "default": true,
-          "label": null
-        }
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "pregnancyStatus"
       ],
-      "potentialSubsidy": 310000,
-      "potentialLabel": "最大31万円",
-      "reminderLabel": "出産後1年以内に子ども家庭支援課へ申請",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kenko/ninshin/shussan/jose.html",
-      "easyTitle": "港区で出産したら追加でお祝い金がもらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です"
+      },
+      "hints": {}
+    }
+  },
+  {
+    "id": "doula_support",
+    "gov": "港区",
+    "icon": "👩",
+    "colorKey": "green",
+    "tag": "子育て",
+    "title": "妊娠中〜子3歳まで、家事・育児を格安でサポート",
+    "officialName": "産前産後家事・育児支援事業（港区）",
+    "catch": "ヘルパーが自宅に来て家事・育児を手伝ってくれる。1時間わずか1,000円、最大128時間使える",
+    "body": "港区在住の妊産婦・乳幼児家庭に、ホームヘルパーまたは産後ドゥーラが訪問し家事・育児支援を行う。単胎家庭は1時間1,000円（非課税世帯は半額）、最大128時間まで利用可能。子3歳になる前日まで利用可能。事前にID登録が必要。",
+    "deadline": "子が3歳になる前日まで（通年受付）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
         },
-        "hints": {}
+        "amount": 100000
+      },
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "ninpu_kyufu2",
-      "gov": "港区",
-      "icon": "🤱",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "妊婦への給付金（港区実施分）",
-      "officialName": "出産・子育て応援事業（港区）",
-      "catch": "港区が実施する妊婦・子育て支援給付",
-      "body": "港区が国の交付金を活用して実施。妊娠届出後・出産後に面談を経て給付。詳細は港区子ども家庭支援センターへ。",
-      "deadline": "妊娠届出後に申込",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "amount": 0
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）"
         },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 50000,
-      "potentialLabel": "給付あり（要確認）",
-      "reminderLabel": "港区子ども家庭支援センターへ確認",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
-      "easyTitle": "妊婦への給付金（港区）",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）"
-          }
-        ],
-        "exclude": [],
-        "matchRules": [],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です"
-        },
-        "hints": {}
+        "label": "最大10万円相当の支援"
+      },
+      {
+        "default": true,
+        "label": null
       }
-    },
-    {
-      "id": "doula_support",
-      "gov": "港区",
-      "icon": "👩",
-      "colorKey": "green",
-      "tag": "子育て",
-      "title": "妊娠中〜子3歳まで、家事・育児を格安でサポート",
-      "officialName": "産前産後家事・育児支援事業（港区）",
-      "catch": "ヘルパーが自宅に来て家事・育児を手伝ってくれる。1時間わずか1,000円、最大128時間使える",
-      "body": "港区在住の妊産婦・乳幼児家庭に、ホームヘルパーまたは産後ドゥーラが訪問し家事・育児支援を行う。単胎家庭は1時間1,000円（非課税世帯は半額）、最大128時間まで利用可能。子3歳になる前日まで利用可能。事前にID登録が必要。",
-      "deadline": "子が3歳になる前日まで（通年受付）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "potentialSubsidy": 100000,
+    "potentialLabel": "最大10万円相当",
+    "reminderLabel": "港区子ども家庭支援センターにオンライン申請でID取得",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
+    "easyTitle": "妊娠中〜育児を格安（1時間1000円）でサポートしてもらえる",
+    "eligibility": {
+      "certain": [
         {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "amount": 100000
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
         },
         {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "label": "最大10万円相当の支援"
+          "ageMin": 18
         },
         {
-          "default": true,
-          "label": null
+          "ageMax": 45
         }
       ],
-      "potentialSubsidy": 100000,
-      "potentialLabel": "最大10万円相当",
-      "reminderLabel": "港区子ども家庭支援センターにオンライン申請でID取得",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
-      "easyTitle": "妊娠中〜育児を格安（1時間1000円）でサポートしてもらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          },
-          {
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
             "ageMin": 18
           },
-          {
-            "ageMax": 45
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 18
-            },
-            "score": 20
-          },
-          {
-            "if": {
-              "pregnancyStatus": "pregnant"
-            },
-            "score": 30
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "pregnancyStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+          "score": 20
         },
-        "hints": {
-          "pregnancyStatus": "妊娠中・育児中の方が対象です"
-        }
-      }
-    },
-    {
-      "id": "ninshin_kenshin",
-      "gov": "港区",
-      "icon": "🩺",
-      "colorKey": "green",
-      "tag": "子育て",
-      "title": "妊婦健診14回分、全額無料で受けられる",
-      "officialName": "妊婦健康診査費用助成（港区）",
-      "catch": "妊娠中の健診（14回分）が全て無料。妊娠届を出すと受診票が自動交付される",
-      "body": "港区在住の妊婦を対象に、妊婦健康診査（14回分）の費用を助成。妊娠届出時に受診票を交付。血液検査・超音波検査・子宮頸がん検診等を含む。多胎妊娠の場合は最大19回まで対象。費用は受診票で直接医療機関に請求する仕組みのため窓口負担はほぼゼロ。",
-      "deadline": "妊娠届出時に自動交付",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
         {
           "if": {
-            "hasKids": "いる（または予定あり）",
-            "ageMin": 18,
-            "ageMax": 45
+            "pregnancyStatus": "pregnant"
           },
-          "amount": 100000
-        },
-        {
-          "default": true,
-          "amount": 0
+          "score": 30
         }
       ],
-      "subsidyLabelRules": [
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "pregnancyStatus"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {
+        "pregnancyStatus": "妊娠中・育児中の方が対象です"
+      },
+      "profileCheck": [
+        {
+          "field": "pregnancyStatus",
+          "type": "yesno",
+          "question": "現在妊娠中ですか？",
+          "match": [
+            "pregnant"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "ninshin_kenshin",
+    "gov": "港区",
+    "icon": "🩺",
+    "colorKey": "green",
+    "tag": "子育て",
+    "title": "妊婦健診14回分、全額無料で受けられる",
+    "officialName": "妊婦健康診査費用助成（港区）",
+    "catch": "妊娠中の健診（14回分）が全て無料。妊娠届を出すと受診票が自動交付される",
+    "body": "港区在住の妊婦を対象に、妊婦健康診査（14回分）の費用を助成。妊娠届出時に受診票を交付。血液検査・超音波検査・子宮頸がん検診等を含む。多胎妊娠の場合は最大19回まで対象。費用は受診票で直接医療機関に請求する仕組みのため窓口負担はほぼゼロ。",
+    "deadline": "妊娠届出時に自動交付",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）",
+          "ageMin": 18,
+          "ageMax": 45
+        },
+        "amount": 100000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "hasKids": "いる（または予定あり）",
+          "ageMin": 18,
+          "ageMax": 45
+        },
+        "label": "14回分・約10万円相当"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 100000,
+    "potentialLabel": "14回分・約10万円相当",
+    "reminderLabel": "妊娠がわかったらすぐ区役所で妊娠届を提出",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
+    "easyTitle": "妊婦健診14回分が全部タダになる",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）",
+          "kidsAge": "0〜2歳"
+        },
+        {
+          "ageMin": 18
+        },
+        {
+          "ageMax": 45
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [
         {
           "if": {
-            "hasKids": "いる（または予定あり）",
-            "ageMin": 18,
-            "ageMax": 45
+            "pregnancyStatus": "pregnant"
           },
-          "label": "14回分・約10万円相当"
-        },
-        {
-          "default": true,
-          "label": null
+          "score": 40
         }
       ],
-      "potentialSubsidy": 100000,
-      "potentialLabel": "14回分・約10万円相当",
-      "reminderLabel": "妊娠がわかったらすぐ区役所で妊娠届を提出",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/kenko/shinsa/",
-      "easyTitle": "妊婦健診14回分が全部タダになる",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          },
-          {
-            "ageMin": 18
-          },
-          {
-            "ageMax": 45
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "pregnancyStatus": "pregnant"
-            },
-            "score": 40
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "pregnancyStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {
-          "pregnancyStatus": "妊婦健診の費用が全額助成されます"
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "pregnancyStatus"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {
+        "pregnancyStatus": "妊婦健診の費用が全額助成されます"
+      },
+      "profileCheck": [
+        {
+          "field": "pregnancyStatus",
+          "type": "yesno",
+          "question": "現在妊娠中ですか？",
+          "match": [
+            "pregnant"
+          ]
         }
+      ]
+    }
+  },
+  {
+    "id": "teishotoku_kyufu",
+    "gov": "港区",
+    "icon": "💴",
+    "colorKey": "blue",
+    "tag": "生活",
+    "title": "低所得世帯に現金給付。子がいればさらに加算",
+    "officialName": "住民税非課税世帯等 生活支援給付金",
+    "catch": "住民税非課税世帯に3万円を給付。18歳以下の子どもが1人いるごとに2万円追加",
+    "body": "物価高騰対策として港区が実施。令和6年度住民税が非課税または均等割のみ課税の世帯に、1世帯あたり3万円を給付。さらに18歳以下の世帯員1人につき2万円の子ども加算あり。対象世帯には区から書類が届く（自動送付）。",
+    "deadline": "※令和7年度分は期限終了。令和8年度分は要確認",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "teishotoku_kyufu",
-      "gov": "港区",
-      "icon": "💴",
-      "colorKey": "blue",
-      "tag": "生活",
-      "title": "低所得世帯に現金給付。子がいればさらに加算",
-      "officialName": "住民税非課税世帯等 生活支援給付金",
-      "catch": "住民税非課税世帯に3万円を給付。18歳以下の子どもが1人いるごとに2万円追加",
-      "body": "物価高騰対策として港区が実施。令和6年度住民税が非課税または均等割のみ課税の世帯に、1世帯あたり3万円を給付。さらに18歳以下の世帯員1人につき2万円の子ども加算あり。対象世帯には区から書類が届く（自動送付）。",
-      "deadline": "※令和7年度分は期限終了。令和8年度分は要確認",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 70000,
-      "potentialLabel": "3万円〜（子あり世帯はさらに加算）",
-      "reminderLabel": "区から書類が届いたら期限内に返送を",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/rinjikyufutan/qa6kyuuhu.html",
-      "easyTitle": "非課税世帯に現金給付（子あり加算あり）",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "_alwaysExclude": true
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 50
-          },
-          {
-            "if": {
-              "taxStatus": "非課税"
-            },
-            "score": 60
-          },
-          {
-            "if": {
-              "stage": "その他・無職"
-            },
-            "score": 30
-          },
-          {
-            "if": {
-              "stage": "年金生活者"
-            },
-            "score": 20
-          },
-          {
-            "if": {
-              "stage": "社会人（フリーランス・自営）"
-            },
-            "score": 10
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "income",
-          "taxStatus"
-        ],
-        "excludeReasons": {
-          "income": "住民税課税世帯は対象外です"
-        },
-        "hints": {
-          "taxStatus": "住民税非課税世帯の場合に対象になります"
-        },
-        "_note": "令和7年度分期限終了・令和8年度分要確認につき一時非表示"
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
       }
-    },
-    {
-      "id": "smartphone_hojo",
-      "gov": "港区",
-      "icon": "📱",
-      "colorKey": "blue",
-      "tag": "生活",
-      "title": "65歳以上が初めてスマホを買うと3万円もらえる",
-      "officialName": "高齢者スマートフォン購入費助成事業（港区）",
-      "catch": "初めてのスマホ購入に最大3万円助成",
-      "body": "スマートフォンを所有していない65歳以上の区民が、区内指定店舗（ドコモショップ田町・新橋・麻布十番店等）で初めてスマホを購入・通信契約した場合に最大3万円を助成。購入当日に店舗でスマホ教室を受講し、東京都公式アプリ等への登録が必要。1人1台・1回限り。",
-      "deadline": "令和9年3月31日まで",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
+    ],
+    "potentialSubsidy": 70000,
+    "potentialLabel": "3万円〜（子あり世帯はさらに加算）",
+    "reminderLabel": "区から書類が届いたら期限内に返送を",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/rinjikyufutan/qa6kyuuhu.html",
+    "easyTitle": "非課税世帯に現金給付（子あり加算あり）",
+    "eligibility": {
+      "certain": [
+        {
+          "taxExemptLikely": true
+        }
+      ],
+      "exclude": [
+        {
+          "taxExemptLikely": false,
+          "taxStatus": {
+            "notIn": [
+              "非課税",
+              "均等割のみ課税"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "taxStatus": "非課税"
+          },
+          "score": 90
+        },
+        {
+          "if": {
+            "taxStatus": "均等割のみ課税"
+          },
+          "score": 70
+        },
+        {
+          "if": {
+            "income": [
+              "100万円未満",
+              "100〜150万円"
+            ]
+          },
+          "score": 60
+        },
+        {
+          "if": {
+            "income": [
+              "150〜250万円",
+              "250〜350万円"
+            ]
+          },
+          "score": 40
+        },
+        {
+          "if": {
+            "stage": "その他・無職"
+          },
+          "score": 20
+        },
+        {
+          "if": {
+            "stage": "年金生活者"
+          },
+          "score": 15
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "income",
+        "taxStatus"
+      ],
+      "excludeReasons": {
+        "income": "住民税課税世帯は対象外です"
+      },
+      "hints": {
+        "taxStatus": "住民税非課税世帯の場合に対象になります"
+      },
+      "_note": "令和7年度分期限終了・令和8年度分要確認につき一時非表示"
+    }
+  },
+  {
+    "id": "smartphone_hojo",
+    "gov": "港区",
+    "icon": "📱",
+    "colorKey": "blue",
+    "tag": "生活",
+    "title": "65歳以上が初めてスマホを買うと3万円もらえる",
+    "officialName": "高齢者スマートフォン購入費助成事業（港区）",
+    "catch": "初めてのスマホ購入に最大3万円助成",
+    "body": "スマートフォンを所有していない65歳以上の区民が、区内指定店舗（ドコモショップ田町・新橋・麻布十番店等）で初めてスマホを購入・通信契約した場合に最大3万円を助成。購入当日に店舗でスマホ教室を受講し、東京都公式アプリ等への登録が必要。1人1台・1回限り。",
+    "deadline": "令和9年3月31日まで",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "if": {
+          "ageMin": 65
+        },
+        "amount": 30000
+      },
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "if": {
+          "ageMin": 65
+        },
+        "label": "最大3万円"
+      },
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 30000,
+    "potentialLabel": "最大3万円",
+    "reminderLabel": "指定店舗（ドコモショップ等）に電話で来店予約してから購入",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/jouhouka/smartphone.html",
+    "easyTitle": "初めてスマホを買う65歳以上に3万円もらえる",
+    "eligibility": {
+      "certain": [
+        {
+          "ageMin": 65
+        }
+      ],
+      "exclude": [
+        {
+          "ageMax": 64
+        },
+        {
+          "income": [
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
         {
           "if": {
             "ageMin": 65
           },
-          "amount": 30000
-        },
-        {
-          "default": true,
-          "amount": 0
+          "score": 60
         }
       ],
-      "subsidyLabelRules": [
+      "baseScore": 0,
+      "missingFor": [],
+      "excludeReasons": {
+        "ageNum": "65歳未満は対象外です",
+        "income": "高所得の場合は対象外です"
+      },
+      "hints": {
+        "ageNum": "65歳になってから申請できます"
+      }
+    }
+  },
+  {
+    "id": "kagakukan_free",
+    "gov": "港区",
+    "icon": "🔭",
+    "colorKey": "green",
+    "tag": "生活",
+    "title": "郷土歴史館・みなと科学館が年4回タダで入れる",
+    "officialName": "郷土歴史館・みなと科学館区民無料公開日",
+    "catch": "祝日に区民は無料。プラネタリウムも無料",
+    "body": "港区立郷土歴史館（白金台）とみなと科学館（虎ノ門）の有料展示・プラネタリウムが、年4回の祝日に区民無料で開放。令和8年度は5月5日・8月11日・11月3日・令和9年2月11日。当日区内在住を確認できるものを持参。みなと科学館は平日のおひるのプラネタリウム（12時30分〜20分間）も通年無料上映あり。",
+    "deadline": "令和8年度：8/11・11/3・R9年2/11（5/5は終了）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 2000
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": "年4回・入館料無料"
+      }
+    ],
+    "potentialSubsidy": 2000,
+    "potentialLabel": "年4回無料（通常有料）",
+    "reminderLabel": "当日は区内在住確認書類（マイナンバーカード等）を持参",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kyoudorekishi/",
+    "easyTitle": "科学館とプラネタリウムが年4回タダで入れる",
+    "eligibility": {
+      "certain": [
+        {
+          "_always": true
+        }
+      ],
+      "exclude": [],
+      "matchRules": [],
+      "baseScore": 100,
+      "missingFor": [],
+      "excludeReasons": {},
+      "hints": {}
+    }
+  },
+  {
+    "id": "shogai_intern",
+    "gov": "港区",
+    "icon": "💼",
+    "colorKey": "purple",
+    "tag": "キャリア",
+    "title": "障害がある人に就労体験の機会（時給1,226円）",
+    "officialName": "障害者インターンシップ事業（港区）",
+    "catch": "障害者手帳なしでも応募可・時給1,226円",
+    "body": "区内在住で身体・知的・精神・発達障害がある18歳以上の方に就労体験の機会を提供。手帳なしでも可。4〜9月のうち最大3ヶ月、ジョブコーチのサポートを受けながら実習。時給1,226円、交通費実費支給。面接により5人程度を決定。（特）みなと障がい者福祉事業団が実施。",
+    "deadline": "毎年2月頃募集（次回は令和9年2月頃）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 200000,
+    "potentialLabel": "最大約20万円（3ヶ月分）",
+    "reminderLabel": "毎年2月頃に広報みなとで募集。（特）みなと障がい者福祉事業団へ",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/service.html",
+    "easyTitle": "障害がある人向け就労体験（時給1,226円）",
+    "eligibility": {
+      "certain": [
+        {
+          "disability": "あり"
+        }
+      ],
+      "exclude": [
+        {
+          "disability": [
+            "なし",
+            "回答しない"
+          ]
+        }
+      ],
+      "matchRules": [
         {
           "if": {
-            "ageMin": 65
-          },
-          "label": "最大3万円"
-        },
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 30000,
-      "potentialLabel": "最大3万円",
-      "reminderLabel": "指定店舗（ドコモショップ等）に電話で来店予約してから購入",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/jouhouka/smartphone.html",
-      "easyTitle": "初めてスマホを買う65歳以上に3万円もらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "ageMin": 65
-          }
-        ],
-        "exclude": [
-          {
-            "ageMax": 64
-          },
-          {
-            "income": [
-              "800万円～"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 65
-            },
-            "score": 60
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "ageNum": "65歳未満は対象外です",
-          "income": "高所得の場合は対象外です"
-        },
-        "hints": {
-          "ageNum": "65歳になってから申請できます"
-        }
-      }
-    },
-    {
-      "id": "kagakukan_free",
-      "gov": "港区",
-      "icon": "🔭",
-      "colorKey": "green",
-      "tag": "生活",
-      "title": "郷土歴史館・みなと科学館が年4回タダで入れる",
-      "officialName": "郷土歴史館・みなと科学館区民無料公開日",
-      "catch": "祝日に区民は無料。プラネタリウムも無料",
-      "body": "港区立郷土歴史館（白金台）とみなと科学館（虎ノ門）の有料展示・プラネタリウムが、年4回の祝日に区民無料で開放。令和8年度は5月5日・8月11日・11月3日・令和9年2月11日。当日区内在住を確認できるものを持参。みなと科学館は平日のおひるのプラネタリウム（12時30分〜20分間）も通年無料上映あり。",
-      "deadline": "令和8年度：8/11・11/3・R9年2/11（5/5は終了）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 2000
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": "年4回・入館料無料"
-        }
-      ],
-      "potentialSubsidy": 2000,
-      "potentialLabel": "年4回無料（通常有料）",
-      "reminderLabel": "当日は区内在住確認書類（マイナンバーカード等）を持参",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kyoudorekishi/",
-      "easyTitle": "科学館とプラネタリウムが年4回タダで入れる",
-      "eligibility": {
-        "certain": [
-          {
-            "_always": true
-          }
-        ],
-        "exclude": [],
-        "matchRules": [],
-        "baseScore": 100,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {}
-      }
-    },
-    {
-      "id": "shogai_intern",
-      "gov": "港区",
-      "icon": "💼",
-      "colorKey": "purple",
-      "tag": "キャリア",
-      "title": "障害がある人に就労体験の機会（時給1,226円）",
-      "officialName": "障害者インターンシップ事業（港区）",
-      "catch": "障害者手帳なしでも応募可・時給1,226円",
-      "body": "区内在住で身体・知的・精神・発達障害がある18歳以上の方に就労体験の機会を提供。手帳なしでも可。4〜9月のうち最大3ヶ月、ジョブコーチのサポートを受けながら実習。時給1,226円、交通費実費支給。面接により5人程度を決定。（特）みなと障がい者福祉事業団が実施。",
-      "deadline": "毎年2月頃募集（次回は令和9年2月頃）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 200000,
-      "potentialLabel": "最大約20万円（3ヶ月分）",
-      "reminderLabel": "毎年2月頃に広報みなとで募集。（特）みなと障がい者福祉事業団へ",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/service.html",
-      "easyTitle": "障害がある人向け就労体験（時給1,226円）",
-      "eligibility": {
-        "certain": [
-          {
-            "disability": "あり"
-          }
-        ],
-        "exclude": [
-          {
-            "disability": [
-              "なし",
-              "回答しない"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "disability": "あり"
-            },
-            "score": 85
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "disability",
-          "disabilityType"
-        ],
-        "excludeReasons": {
-          "disability": "障がいがない場合は対象外です"
-        },
-        "hints": {
-          "disability": "障害者手帳がなくても医師の診断書等で応募できる場合があります"
-        }
-      }
-    },
-    {
-      "id": "hitorioya_iryo",
-      "gov": "港区",
-      "icon": "🏥",
-      "colorKey": "blue",
-      "tag": "生活",
-      "title": "ひとり親なら医療費がほぼ無料になる",
-      "officialName": "ひとり親家庭等医療費助成制度（港区）",
-      "catch": "離婚・死別などのひとり親家庭に医療証を交付",
-      "body": "離婚・死別・婚姻によらない出生などでひとり親になった家庭に「ひとり親家庭等医療証」を交付。健康保険適用の医療費自己負担分の一部または全部を助成。子どもが18歳年度末まで対象（障害がある場合は20歳未満まで）。所得制限あり。",
-      "deadline": "通年（随時申請）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 100000,
-      "potentialLabel": "医療費自己負担分を大幅軽減",
-      "reminderLabel": "総合支所区民課保健福祉係に申請。所得制限あり",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/iryo.html",
-      "easyTitle": "ひとり親なら医療費がほぼ無料になる",
-      "eligibility": {
-        "certain": [
-          {
-            "marital": "離婚・死別"
-          },
-          {
-            "hasKids": "いる（または予定あり）"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "income": [
-              "800万円～"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "marital": "離婚・死別"
-            },
-            "score": 50
-          },
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "marital",
-          "income"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "income": "高所得の場合は対象外です"
-        },
-        "hints": {
-          "marital": "離婚・死別でひとり親になった場合に対象になります"
-        }
-      }
-    },
-    {
-      "id": "jidofuyohand",
-      "gov": "港区",
-      "icon": "👨‍👧",
-      "colorKey": "blue",
-      "tag": "生活",
-      "title": "ひとり親に毎月手当が支給される",
-      "officialName": "児童扶養手当",
-      "catch": "ひとり親家庭に月最大4.5万円",
-      "body": "離婚・死別などでひとり親になり、18歳以下の子を養育している家庭に毎月手当を支給。全部支給：月45,500円（子1人）、一部支給：月10,740円〜。子どもが増えるごとに加算あり。所得制限あり。2ヶ月ごとに支給。",
-      "deadline": "通年（随時申請）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 0,
-      "potentialLabel": null,
-      "reminderLabel": "子ども若者支援課子ども給付係（03-3578-2432）へ申請",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/teate.html",
-      "easyTitle": "ひとり親に毎月手当が支給される",
-      "eligibility": {
-        "certain": [
-          {
-            "marital": "離婚・死別"
-          },
-          {
-            "hasKids": "いる（または予定あり）"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "income": [
-              "800万円～"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "marital": "離婚・死別"
-            },
-            "score": 50
-          },
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "marital",
-          "income"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "income": "高所得の場合は対象外です"
-        },
-        "hints": {
-          "marital": "離婚・死別でひとり親になった場合に対象になります"
-        }
-      }
-    },
-    {
-      "id": "jutaku_hojo",
-      "gov": "港区",
-      "icon": "🏡",
-      "colorKey": "blue",
-      "tag": "住まい",
-      "title": "港区で家を買うなら、区から費用補助がある",
-      "officialName": "港区子育て世帯向け住宅取得支援事業",
-      "catch": "子あり・40歳未満夫婦の住宅購入に補助金",
-      "body": "港区内に住宅を取得した子育て世帯（高校生以下の子あり）または若年夫婦世帯（夫婦どちらかが40歳未満）に、住宅購入手続きにかかる費用の一部を補助。所有権移転登記から1年以内に申請。令和9年3月まで経過措置あり。",
-      "deadline": "所有権移転登記から1年以内（令和9年3月まで緩和中）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 200000,
-      "potentialLabel": "購入手続き費用の一部",
-      "reminderLabel": "街づくり支援部住宅課住宅支援係（03-3578-2459）へ",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/jutakushien/zyutakuhozyo.html",
-      "easyTitle": "港区で家を買うなら区から費用補助がある",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "ageMin": 56
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 35
-          },
-          {
-            "if": {
-              "ageMax": 39
-            },
-            "score": 25
-          },
-          {
-            "if": {
-              "housing": [
-                "持ち家（戸建て）",
-                "持ち家（マンション）"
-              ]
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "housing"
-        ],
-        "excludeReasons": {
-          "ageNum": "56歳以上は対象外です"
-        },
-        "hints": {
-          "housing": "港区内で住宅を取得した場合に対象になります"
-        }
-      }
-    },
-    {
-      "id": "shinshin_teate",
-      "gov": "港区",
-      "icon": "♿",
-      "colorKey": "green",
-      "tag": "生活",
-      "title": "障害がある人に区から毎月手当が出る",
-      "officialName": "心身障害者福祉手当（港区）",
-      "catch": "身体・知的・精神障害の手帳所持者に月額手当",
-      "body": "港区に住む身体障害者手帳・愛の手帳（知的障害）・精神障害者保健福祉手帳の所持者に月額手当を支給。等級や手帳の種類によって金額が異なる。所得制限あり。東京都の重度心身障害者手当と国の障害基礎年金も別途あり。",
-      "deadline": "通年（随時申請）",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 60000,
-      "potentialLabel": "等級・手帳種別により異なる",
-      "reminderLabel": "障害者福祉課または各総合支所保健福祉係へ相談",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/teate/hayamihyo.html",
-      "easyTitle": "障害がある人に区から毎月手当が出る",
-      "eligibility": {
-        "certain": [
-          {
             "disability": "あり"
           },
-          {
+          "score": 85
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "disability",
+        "disabilityType"
+      ],
+      "excludeReasons": {
+        "disability": "障がいがない場合は対象外です"
+      },
+      "hints": {
+        "disability": "障害者手帳がなくても医師の診断書等で応募できる場合があります"
+      }
+    }
+  },
+  {
+    "id": "hitorioya_iryo",
+    "gov": "港区",
+    "icon": "🏥",
+    "colorKey": "blue",
+    "tag": "生活",
+    "title": "ひとり親なら医療費がほぼ無料になる",
+    "officialName": "ひとり親家庭等医療費助成制度（港区）",
+    "catch": "離婚・死別などのひとり親家庭に医療証を交付",
+    "body": "離婚・死別・婚姻によらない出生などでひとり親になった家庭に「ひとり親家庭等医療証」を交付。健康保険適用の医療費自己負担分の一部または全部を助成。子どもが18歳年度末まで対象（障害がある場合は20歳未満まで）。所得制限あり。",
+    "deadline": "通年（随時申請）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 100000,
+    "potentialLabel": "医療費自己負担分を大幅軽減",
+    "reminderLabel": "総合支所区民課保健福祉係に申請。所得制限あり",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/iryo.html",
+    "easyTitle": "ひとり親なら医療費がほぼ無料になる",
+    "eligibility": {
+      "certain": [
+        {
+          "marital": "離婚・死別"
+        },
+        {
+          "hasKids": "いる（または予定あり）"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "income": [
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "marital": "離婚・死別"
+          },
+          "score": 50
+        },
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 20
+        },
+        {
+          "if": {
+            "income": [
+              "100万円未満",
+              "100〜150万円",
+              "150〜250万円",
+              "250〜350万円"
+            ]
+          },
+          "score": 20
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "marital",
+        "income"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "income": "高所得の場合は対象外です"
+      },
+      "hints": {
+        "marital": "離婚・死別でひとり親になった場合に対象になります"
+      }
+    }
+  },
+  {
+    "id": "jidofuyohand",
+    "gov": "港区",
+    "icon": "👨‍👧",
+    "colorKey": "blue",
+    "tag": "生活",
+    "title": "ひとり親に毎月手当が支給される",
+    "officialName": "児童扶養手当",
+    "catch": "ひとり親家庭に月最大4.5万円",
+    "body": "離婚・死別などでひとり親になり、18歳以下の子を養育している家庭に毎月手当を支給。全部支給：月45,500円（子1人）、一部支給：月10,740円〜。子どもが増えるごとに加算あり。所得制限あり。2ヶ月ごとに支給。",
+    "deadline": "通年（随時申請）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 0,
+    "potentialLabel": null,
+    "reminderLabel": "子ども若者支援課子ども給付係（03-3578-2432）へ申請",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/teate.html",
+    "easyTitle": "ひとり親に毎月手当が支給される",
+    "eligibility": {
+      "certain": [
+        {
+          "marital": "離婚・死別"
+        },
+        {
+          "hasKids": "いる（または予定あり）"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "income": [
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "marital": "離婚・死別"
+          },
+          "score": 50
+        },
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 20
+        },
+        {
+          "if": {
+            "income": [
+              "100万円未満",
+              "100〜150万円",
+              "150〜250万円",
+              "250〜350万円"
+            ]
+          },
+          "score": 20
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "marital",
+        "income"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "income": "高所得の場合は対象外です"
+      },
+      "hints": {
+        "marital": "離婚・死別でひとり親になった場合に対象になります"
+      }
+    }
+  },
+  {
+    "id": "jutaku_hojo",
+    "gov": "港区",
+    "icon": "🏡",
+    "colorKey": "blue",
+    "tag": "住まい",
+    "title": "港区で家を買うなら、区から費用補助がある",
+    "officialName": "港区子育て世帯向け住宅取得支援事業",
+    "catch": "子あり・40歳未満夫婦の住宅購入に補助金",
+    "body": "港区内に住宅を取得した子育て世帯（高校生以下の子あり）または若年夫婦世帯（夫婦どちらかが40歳未満）に、住宅購入手続きにかかる費用の一部を補助。所有権移転登記から1年以内に申請。令和9年3月まで経過措置あり。",
+    "deadline": "所有権移転登記から1年以内（令和9年3月まで緩和中）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 200000,
+    "potentialLabel": "購入手続き費用の一部",
+    "reminderLabel": "街づくり支援部住宅課住宅支援係（03-3578-2459）へ",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/jutakushien/zyutakuhozyo.html",
+    "easyTitle": "港区で家を買うなら区から費用補助がある",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
+        {
+          "ageMin": 56
+        },
+        {
+          "housing": [
+            "持ち家（戸建て）",
+            "持ち家（マンション）"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 70
+        },
+        {
+          "if": {
+            "ageMax": 39
+          },
+          "score": 60
+        },
+        {
+          "if": {
+            "marital": "既婚"
+          },
+          "score": 20
+        }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "housing"
+      ],
+      "excludeReasons": {
+        "ageNum": "56歳以上は対象外です"
+      },
+      "hints": {
+        "housing": "港区内で住宅を取得した場合に対象になります"
+      }
+    }
+  },
+  {
+    "id": "shinshin_teate",
+    "gov": "港区",
+    "icon": "♿",
+    "colorKey": "green",
+    "tag": "生活",
+    "title": "障害がある人に区から毎月手当が出る",
+    "officialName": "心身障害者福祉手当（港区）",
+    "catch": "身体・知的・精神障害の手帳所持者に月額手当",
+    "body": "港区に住む身体障害者手帳・愛の手帳（知的障害）・精神障害者保健福祉手帳の所持者に月額手当を支給。等級や手帳の種類によって金額が異なる。所得制限あり。東京都の重度心身障害者手当と国の障害基礎年金も別途あり。",
+    "deadline": "通年（随時申請）",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 60000,
+    "potentialLabel": "等級・手帳種別により異なる",
+    "reminderLabel": "障害者福祉課または各総合支所保健福祉係へ相談",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kenko/fukushi/shogaisha/teate/hayamihyo.html",
+    "easyTitle": "障害がある人に区から毎月手当が出る",
+    "eligibility": {
+      "certain": [
+        {
+          "disability": "あり"
+        },
+        {
+          "disabilityGrade": "1-2"
+        }
+      ],
+      "exclude": [
+        {
+          "disability": [
+            "なし",
+            "回答しない"
+          ]
+        },
+        {
+          "income": [
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "disability": "あり"
+          },
+          "score": 70
+        },
+        {
+          "if": {
             "disabilityGrade": "1-2"
-          }
-        ],
-        "exclude": [
-          {
-            "disability": [
-              "なし",
-              "回答しない"
-            ]
           },
-          {
-            "income": [
-              "800万円～"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "disability": "あり"
-            },
-            "score": 70
-          },
-          {
-            "if": {
-              "disabilityGrade": "1-2"
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "disability",
-          "disabilityGrade",
-          "income"
-        ],
-        "excludeReasons": {
-          "disability": "障がいがない場合は対象外です",
-          "income": "高所得の場合は対象外です"
-        },
-        "hints": {
-          "disabilityGrade": "手帳の等級によって手当額が異なります"
+          "score": 20
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "disability",
+        "disabilityGrade",
+        "income"
+      ],
+      "excludeReasons": {
+        "disability": "障がいがない場合は対象外です",
+        "income": "高所得の場合は対象外です"
+      },
+      "hints": {
+        "disabilityGrade": "手帳の等級によって手当額が異なります"
       }
-    },
-    {
-      "id": "kodomo_dare_tsuen",
-      "gov": "港区",
-      "icon": "🎒",
-      "colorKey": "green",
-      "tag": "子育て",
-      "title": "働いていなくても保育施設を月数時間利用できる",
-      "officialName": "こども誰でも通園制度（港区）",
-      "catch": "就労不問・生後6ヶ月〜3歳未満が対象",
-      "body": "2025年度から港区が実施。就労しているかどうかに関わらず、生後6ヶ月〜3歳未満の子どもが月一定時間まで保育施設を利用できる。保育所に入れていない家庭の育児負担を軽減するための国の新制度を港区が実施。利用料は低額。",
-      "deadline": "通年（事前登録制）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    }
+  },
+  {
+    "id": "kodomo_dare_tsuen",
+    "gov": "港区",
+    "icon": "🎒",
+    "colorKey": "green",
+    "tag": "子育て",
+    "title": "働いていなくても保育施設を月数時間利用できる",
+    "officialName": "こども誰でも通園制度（港区）",
+    "catch": "就労不問・生後6ヶ月〜3歳未満が対象",
+    "body": "2025年度から港区が実施。就労しているかどうかに関わらず、生後6ヶ月〜3歳未満の子どもが月一定時間まで保育施設を利用できる。保育所に入れていない家庭の育児負担を軽減するための国の新制度を港区が実施。利用料は低額。",
+    "deadline": "通年（事前登録制）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
+      }
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 50000,
+    "potentialLabel": "保育費の一部負担軽減",
+    "reminderLabel": "港区子ども課に問い合わせ・事前登録が必要",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
+    "easyTitle": "働いていなくても保育施設を月数時間使える",
+    "eligibility": {
+      "certain": [
         {
-          "default": true,
-          "amount": 0
+          "hasKids": "いる（または予定あり）"
+        },
+        {
+          "kidsAge": "0〜2歳"
         }
       ],
-      "subsidyLabelRules": [
+      "exclude": [
         {
-          "default": true,
-          "label": null
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "0〜2歳"
+            ],
+            "ifSet": true
+          }
         }
       ],
-      "potentialSubsidy": 50000,
-      "potentialLabel": "保育費の一部負担軽減",
-      "reminderLabel": "港区子ども課に問い合わせ・事前登録が必要",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html",
-      "easyTitle": "働いていなくても保育施設を月数時間使える",
-      "eligibility": {
-        "certain": [
-          {
+      "matchRules": [
+        {
+          "if": {
             "hasKids": "いる（または予定あり）"
           },
-          {
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）"
-            },
-            "score": 50
-          },
-          {
-            "if": {
-              "childcareStatus": "在宅育児"
-            },
-            "score": 20
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "childcareStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です",
-          "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+          "score": 50
         },
-        "hints": {
-          "childcareStatus": "保育所に入っていない0〜2歳の子がいる場合に利用できます"
+        {
+          "if": {
+            "childcareStatus": "在宅育児"
+          },
+          "score": 20
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "kidsAge",
+        "childcareStatus"
+      ],
+      "excludeReasons": {
+        "hasKids": "お子さんがいない場合は対象外です",
+        "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
+      },
+      "hints": {
+        "childcareStatus": "保育所に入っていない0〜2歳の子がいる場合に利用できます"
+      },
+      "profileCheck": [
+        {
+          "field": "childcareStatus",
+          "type": "select",
+          "question": "お子さんの保育状況は？",
+          "options": [
+            "在宅育児",
+            "認可保育園",
+            "認可外保育園",
+            "幼稚園",
+            "認定こども園",
+            "未定"
+          ],
+          "match": [
+            "在宅育児",
+            "未定"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "shugaku_enjo",
+    "gov": "港区",
+    "icon": "🎒",
+    "colorKey": "blue",
+    "tag": "教育",
+    "title": "経済的に苦しい家庭の子どもの学用品費を援助",
+    "officialName": "就学援助費（港区）",
+    "catch": "学用品費・給食費・校外学習費などを援助",
+    "body": "港区立小・中学校に在学する児童・生徒の保護者で、生活保護受給中または経済的理由により就学困難な方に、学用品費・給食費・修学旅行費・校外学習費などを援助。所得基準あり。毎年度申請が必要。",
+    "deadline": "毎年度4月頃（在籍校を通じて申請）",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidyRules": [
+      {
+        "default": true,
+        "amount": 0
       }
-    },
-    {
-      "id": "shugaku_enjo",
-      "gov": "港区",
-      "icon": "🎒",
-      "colorKey": "blue",
-      "tag": "教育",
-      "title": "経済的に苦しい家庭の子どもの学用品費を援助",
-      "officialName": "就学援助費（港区）",
-      "catch": "学用品費・給食費・校外学習費などを援助",
-      "body": "港区立小・中学校に在学する児童・生徒の保護者で、生活保護受給中または経済的理由により就学困難な方に、学用品費・給食費・修学旅行費・校外学習費などを援助。所得基準あり。毎年度申請が必要。",
-      "deadline": "毎年度4月頃（在籍校を通じて申請）",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
+    ],
+    "subsidyLabelRules": [
+      {
+        "default": true,
+        "label": null
+      }
+    ],
+    "potentialSubsidy": 100000,
+    "potentialLabel": "年間数万〜10万円程度",
+    "reminderLabel": "在籍する学校を通じて申請。毎年度更新が必要",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/gakkouuneishien/kodomo/gakko/shugakuenjo/shugakuenjohi.html",
+    "easyTitle": "学用品費や給食費を区が援助してくれる",
+    "eligibility": {
+      "certain": [],
+      "exclude": [
         {
-          "default": true,
-          "amount": 0
+          "income": [
+            "600〜800万円",
+            "800〜1000万円",
+            "1000万円以上"
+          ]
         }
       ],
-      "subsidyLabelRules": [
+      "matchRules": [
         {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 100000,
-      "potentialLabel": "年間数万〜10万円程度",
-      "reminderLabel": "在籍する学校を通じて申請。毎年度更新が必要",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/gakkouuneishien/kodomo/gakko/shugakuenjo/shugakuenjohi.html",
-      "easyTitle": "学用品費や給食費を区が援助してくれる",
-      "eligibility": {
-        "certain": [],
-        "exclude": [
-          {
-            "income": [
-              "800万円～"
+          "if": {
+            "taxStatus": "非課税"
+          },
+          "score": 80
+        },
+        {
+          "if": {
+            "welfareStatus": "receiving"
+          },
+          "score": 75
+        },
+        {
+          "if": {
+            "studentLevel": [
+              "小学生",
+              "中学生"
             ]
           },
-          {
-            "income": [
-              "400～600万円",
-              "600～800万円"
-            ]
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "studentLevel": [
-                "小学生",
-                "中学生"
-              ]
-            },
-            "score": 50
-          },
-          {
-            "if": {
-              "income": [
-                "～200万円",
-                "200～400万円"
-              ]
-            },
-            "score": 35
-          },
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）",
-              "kidsAge": [
-                "6〜12歳",
-                "13〜15歳"
-              ]
-            },
-            "score": 30
-          },
-          {
-            "if": {
-              "schoolType": "公立"
-            },
-            "score": 10
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "income",
-          "schoolType"
-        ],
-        "excludeReasons": {
-          "income": "中〜高所得の場合は対象外です"
+          "score": 50
         },
-        "hints": {
-          "income": "低所得世帯の小・中学生のいる家庭が主な対象です"
+        {
+          "if": {
+            "income": [
+              "100万円未満",
+              "100〜150万円",
+              "150〜250万円"
+            ]
+          },
+          "score": 40
+        },
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）",
+            "kidsAge": [
+              "6〜12歳",
+              "13〜15歳"
+            ]
+          },
+          "score": 30
         }
+      ],
+      "baseScore": 0,
+      "missingFor": [
+        "income",
+        "schoolType",
+        "taxStatus",
+        "welfareStatus"
+      ],
+      "excludeReasons": {
+        "income": "中〜高所得の場合は対象外です"
+      },
+      "hints": {
+        "income": "低所得世帯の小・中学生のいる家庭が主な対象です"
       }
-    },
-    {
-      "id": "hitorioya_kotsupas",
-      "gov": "東京都",
-      "icon": "🚃",
-      "color": "C.blue",
-      "tag": "子育て",
-      "title": "ひとり親に都営交通無料パス",
-      "officialName": "児童扶養手当受給者等への都営交通無料乗車券の発行",
-      "catch": "ひとり親家庭に都営バス・地下鉄が無料に",
-      "body": "児童扶養手当を受給しているひとり親家庭の親と子に、都営地下鉄・都営バス・都電荒川線・日暮里・舎人ライナーが無料で乗れる乗車証を発行します。港区窓口で申請できます。",
-      "officialBody": "児童扶養手当の受給者及びその児童（18歳に達する日以後の最初の3月31日までの者）に対し、都営交通（都営地下鉄・都営バス・都電荒川線・日暮里舎人ライナー）の無料乗車証を発行します。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidy_note": "都営交通運賃相当額（利用頻度による）",
-      "potentialLabel": "交通費が実質無料に",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/hitorioya/kotsu.html",
-      "_confidence": "high",
-      "_reason": "ひとり親家庭向けの交通費支援。既存のhitorioya_teleworkとは異なる制度。利用価値が高い。",
-      "_needs_verification": [
-        "申請に必要な書類",
-        "子の年齢上限の確認",
-        "港区独自給付か都制度か"
-      ],
-      "_source": "crawl",
-      "_status": "pending",
-      "_created_at": "2026-05-26T12:59:16.325153"
-    },
-    {
-      "id": "rikon_shien_josei",
-      "gov": "港区",
-      "icon": "⚖️",
-      "color": "C.purple",
-      "tag": "子育て",
-      "title": "離婚前後の親への支援助成金",
-      "officialName": "港区離婚前後の親の支援推進助成金",
-      "catch": "離婚時の養育費取り決めをサポート",
-      "body": "離婚前後に養育費の取り決めをするためにADR（裁判外紛争解決手続）を利用した場合、その費用の一部を助成します。子どもの養育費確保を支援する港区独自の制度です。",
-      "officialBody": "離婚前後における父母間の養育費等に関する取り決めを促進するため、裁判外紛争解決手続（ADR）を利用した際にかかる費用の一部について助成金を交付します。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidy_note": "ADR利用費用の一部（上限額要確認）",
-      "potentialLabel": "ADR費用の一部を助成",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/adr-youikuhihoshou.html",
-      "_confidence": "medium",
-      "_reason": "離婚前後の親向け港区独自制度。養育費確保に直結する重要な支援。",
-      "_needs_verification": [
-        "助成上限額",
-        "対象となるADR機関",
-        "申請期限・受付窓口"
-      ],
-      "_source": "crawl",
-      "_status": "pending",
-      "_created_at": "2026-05-26T12:59:16.325153"
-    },
-    {
-      "id": "freeschool_josei",
-      "gov": "港区",
-      "icon": "🏫",
-      "color": "C.purple",
-      "tag": "学び",
-      "title": "フリースクール利用料を助成",
-      "officialName": "港区フリースクール等利用料助成金",
-      "catch": "不登校の子のフリースクール費用を港区が助成",
-      "body": "不登校の児童・生徒がフリースクール等を利用する際の費用を港区が助成します。学校以外の多様な学びの場を確保し、子どもたちの社会的自立を支援する港区独自の制度です。",
-      "officialBody": "不登校の状態にある児童・生徒が民間のフリースクール等を利用する場合に、その利用料の一部を助成することにより、学校外における多様な学習機会の確保及び社会的自立を支援します。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidy_note": "助成上限額・助成率は要確認",
-      "potentialLabel": "フリースクール費用の一部を助成",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kyouikushien/minatofs.html",
-      "_confidence": "high",
-      "_reason": "不登校支援の港区独自制度。既存IDに類似制度なし。社会的ニーズが高い。",
-      "_needs_verification": [
-        "助成上限額・助成率",
-        "対象となるフリースクールの要件",
-        "申請窓口・受付期間"
-      ],
-      "_source": "crawl",
-      "_status": "pending",
-      "_created_at": "2026-05-26T12:59:16.325153"
-    },
-    {
-      "id": "kotsui_donor_josei",
-      "gov": "港区",
-      "icon": "🩸",
-      "color": "C.red",
-      "tag": "医療",
-      "title": "骨髄ドナー助成金",
-      "officialName": "港区骨髄移植ドナー支援事業助成金",
-      "catch": "骨髄提供で仕事を休んだ分を助成",
-      "body": "骨髄・末梢血幹細胞の提供（ドナー）のために入院・通院が必要となった場合、ドナー本人と雇用事業者の双方に対して助成金を交付します。港区在住のドナーが対象です。",
-      "officialBody": "骨髄移植又は末梢血幹細胞移植のためにドナーとなった方及びその方を雇用する事業者に対し、入院・通院に要した日数に応じた助成金を交付することにより、ドナー登録及び骨髄移植の推進を図ります。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidy_note": "ドナー：日額2万円程度×日数、事業者：日額2万円程度×日数（要確認）",
-      "potentialLabel": "提供日数に応じた助成",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/hokenyobou/kenko/kenko/jose/kotuzuiishokudona-sienn.html",
-      "_confidence": "medium",
-      "_reason": "港区独自の医療支援制度。ドナー登録促進・骨髄移植推進に寄与する重要制度。",
-      "_needs_verification": [
-        "助成上限額・日額",
-        "申請受付窓口",
-        "対象者要件（港区在住・在勤等）"
-      ],
-      "_source": "crawl",
-      "_status": "pending",
-      "_created_at": "2026-05-26T12:59:16.325153"
-    },
-    {
-      "id": "koreisha_nyuyokuken",
-      "gov": "港区",
-      "icon": "♨️",
-      "color": "C.green",
-      "tag": "高齢",
-      "title": "高齢者に無料入浴券を給付",
-      "officialName": "高齢者無料入浴券の給付",
-      "catch": "65歳以上の区民に銭湯の無料券をプレゼント",
-      "body": "65歳以上の港区在住の方に、区内の銭湯で使える無料入浴券を給付します。健康増進や閉じこもり防止、地域交流の促進を目的とした港区独自の高齢者支援です。",
-      "officialBody": "65歳以上の区民に対し、区内の浴場（銭湯）で利用できる無料入浴券を給付します。高齢者の健康増進及び閉じこもり防止等を図るとともに、地域コミュニティの活性化を目的とします。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidy_note": "入浴券の枚数・金額は要確認",
-      "potentialLabel": "銭湯利用料が無料に",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/zaitakushien/kenko/fukushi/koresha/sekatsu/nyuyokuken.html",
-      "_confidence": "high",
-      "_reason": "高齢者向け港区独自の生活支援制度。silver_passとは異なる内容で追加価値あり。",
-      "_needs_verification": [
-        "給付枚数・年間上限",
-        "申請方法・窓口",
-        "対象年齢の詳細条件"
-      ],
-      "_source": "crawl",
-      "_status": "pending",
-      "_created_at": "2026-05-26T12:59:16.325153"
-    },
-    {
-      "id": "bukka_kosodate_teate",
-      "gov": "港区",
-      "icon": "💴",
-      "color": "C.blue",
-      "tag": "子育て",
-      "title": "物価高対応子育て応援手当",
-      "officialName": "物価高対応子育て応援手当",
-      "catch": "物価高から子育て家庭を応援する港区独自給付",
-      "body": "物価高騰の影響を受ける子育て家庭を支援するため、港区が独自に支給する手当です。対象となる子どもがいる家庭に現金を給付します。申請書による申請が必要です。",
-      "officialBody": "物価高騰等による家計への影響を踏まえ、子育て家庭の経済的負担を軽減するため、対象児童を養育する保護者に対して港区独自の応援手当を支給します。",
-      "deadline": "通年",
-      "urgent": true,
-      "subsidyType": "cash",
-      "subsidy_note": "金額・対象年齢は要確認",
-      "potentialLabel": "子ども1人あたり現金給付",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/bukkadakataioukosodateouenteate.html",
-      "_confidence": "medium",
-      "_reason": "物価高対応の港区独自制度。申請書PDFが2026年更新のため現行制度と判断。urgentとして扱う。",
-      "_needs_verification": [
-        "給付額",
-        "対象児童の年齢・条件",
-        "申請期限",
-        "既存jidouteateとの関係"
-      ],
-      "_source": "crawl",
-      "_status": "pending",
-      "_created_at": "2026-05-26T12:59:16.325153"
     }
-  ],
-  "repeatableIds": [
-    "sports_free",
-    "yoyou",
-    "kagakukan_free",
-    "kenko_point",
-    "cancer_check",
-    "kougaku_ryoyo",
-    "silver_pass"
-  ],
-  "festivals": [
-    {
-      "id": "f01",
-      "type": "festival",
-      "name": "麻布十番納涼まつり",
-      "area": "麻布十番",
-      "date": "8/23〜24",
-      "lat": 35.6566,
-      "lng": 139.7368
-    },
-    {
-      "id": "f02",
-      "type": "fireworks",
-      "name": "隅田川花火大会",
-      "area": "浅草・両国",
-      "date": "7/26",
-      "lat": 35.7108,
-      "lng": 139.8019
-    },
-    {
-      "id": "f03",
-      "type": "festival",
-      "name": "愛宕神社例大祭",
-      "area": "愛宕・芝公園",
-      "date": "6/7〜8",
-      "lat": 35.6588,
-      "lng": 139.7492
-    },
-    {
-      "id": "f04",
-      "type": "fireworks",
-      "name": "神宮外苑花火大会",
-      "area": "青山・信濃町",
-      "date": "8/9",
-      "lat": 35.6717,
-      "lng": 139.7178
-    },
-    {
-      "id": "f05",
-      "type": "festival",
-      "name": "高輪台夏祭り",
-      "area": "高輪",
-      "date": "8/2",
-      "lat": 35.6398,
-      "lng": 139.7311
-    },
-    {
-      "id": "f06",
-      "type": "festival",
-      "name": "芝大神宮大祭（だらだら祭り）",
-      "area": "芝・浜松町",
-      "date": "9/11〜21",
-      "lat": 35.6544,
-      "lng": 139.7503
-    },
-    {
-      "id": "f07",
-      "type": "fireworks",
-      "name": "東京湾大華火祭",
-      "area": "港南・芝浦",
-      "date": "8/6",
-      "lat": 35.6393,
-      "lng": 139.7632
-    },
-    {
-      "id": "f08",
-      "type": "festival",
-      "name": "六本木ヒルズ盆踊り",
-      "area": "六本木",
-      "date": "8/14〜15",
-      "lat": 35.6604,
-      "lng": 139.7292
-    },
-    {
-      "id": "f09",
-      "type": "festival",
-      "name": "増上寺薪能",
-      "area": "芝公園",
-      "date": "10/4",
-      "lat": 35.6562,
-      "lng": 139.7493
-    },
-    {
-      "id": "f10",
-      "type": "festival",
-      "name": "港南夏まつり",
-      "area": "港南・芝浦",
-      "date": "7/19",
-      "lat": 35.6273,
-      "lng": 139.7455
+  },
+  {
+    "id": "hitorioya_kotsupas",
+    "gov": "東京都",
+    "icon": "🚃",
+    "color": "C.blue",
+    "tag": "子育て",
+    "title": "ひとり親に都営交通無料パス",
+    "officialName": "児童扶養手当受給者等への都営交通無料乗車券の発行",
+    "catch": "ひとり親家庭に都営バス・地下鉄が無料に",
+    "body": "児童扶養手当を受給しているひとり親家庭の親と子に、都営地下鉄・都営バス・都電荒川線・日暮里・舎人ライナーが無料で乗れる乗車証を発行します。港区窓口で申請できます。",
+    "officialBody": "児童扶養手当の受給者及びその児童（18歳に達する日以後の最初の3月31日までの者）に対し、都営交通（都営地下鉄・都営バス・都電荒川線・日暮里舎人ライナー）の無料乗車証を発行します。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidy_note": "都営交通運賃相当額（利用頻度による）",
+    "potentialLabel": "交通費が実質無料に",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/hitorioya/kotsu.html",
+    "_confidence": "high",
+    "_reason": "ひとり親家庭向けの交通費支援。既存のhitorioya_teleworkとは異なる制度。利用価値が高い。",
+    "_needs_verification": [
+      "申請に必要な書類",
+      "子の年齢上限の確認",
+      "港区独自給付か都制度か"
+    ],
+    "_source": "crawl",
+    "_status": "pending",
+    "_created_at": "2026-05-26T12:59:16.325153",
+    "eligibility": {
+      "certain": [
+        {
+          "marital": "離婚・死別"
+        },
+        {
+          "hasKids": "いる（または予定あり）"
+        }
+      ],
+      "exclude": [
+        {
+          "marital": {
+            "not": "離婚・死別"
+          }
+        },
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "marital": "離婚・死別",
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 95
+        }
+      ]
     }
-  ]
-}
+  },
+  {
+    "id": "rikon_shien_josei",
+    "gov": "港区",
+    "icon": "⚖️",
+    "color": "C.purple",
+    "tag": "子育て",
+    "title": "離婚前後の親への支援助成金",
+    "officialName": "港区離婚前後の親の支援推進助成金",
+    "catch": "離婚時の養育費取り決めをサポート",
+    "body": "離婚前後に養育費の取り決めをするためにADR（裁判外紛争解決手続）を利用した場合、その費用の一部を助成します。子どもの養育費確保を支援する港区独自の制度です。",
+    "officialBody": "離婚前後における父母間の養育費等に関する取り決めを促進するため、裁判外紛争解決手続（ADR）を利用した際にかかる費用の一部について助成金を交付します。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidy_note": "ADR利用費用の一部（上限額要確認）",
+    "potentialLabel": "ADR費用の一部を助成",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/adr-youikuhihoshou.html",
+    "_confidence": "medium",
+    "_reason": "離婚前後の親向け港区独自制度。養育費確保に直結する重要な支援。",
+    "_needs_verification": [
+      "助成上限額",
+      "対象となるADR機関",
+      "申請期限・受付窓口"
+    ],
+    "_source": "crawl",
+    "_status": "pending",
+    "_created_at": "2026-05-26T12:59:16.325153",
+    "eligibility": {
+      "certain": [
+        {
+          "marital": "離婚・死別"
+        },
+        {
+          "hasKids": "いる（または予定あり）"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "marital": "離婚・死別"
+          },
+          "score": 90
+        },
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 20
+        }
+      ]
+    }
+  },
+  {
+    "id": "freeschool_josei",
+    "gov": "港区",
+    "icon": "🏫",
+    "color": "C.purple",
+    "tag": "学び",
+    "title": "フリースクール利用料を助成",
+    "officialName": "港区フリースクール等利用料助成金",
+    "catch": "不登校の子のフリースクール費用を港区が助成",
+    "body": "不登校の児童・生徒がフリースクール等を利用する際の費用を港区が助成します。学校以外の多様な学びの場を確保し、子どもたちの社会的自立を支援する港区独自の制度です。",
+    "officialBody": "不登校の状態にある児童・生徒が民間のフリースクール等を利用する場合に、その利用料の一部を助成することにより、学校外における多様な学習機会の確保及び社会的自立を支援します。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidy_note": "助成上限額・助成率は要確認",
+    "potentialLabel": "フリースクール費用の一部を助成",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kyouikushien/minatofs.html",
+    "_confidence": "high",
+    "_reason": "不登校支援の港区独自制度。既存IDに類似制度なし。社会的ニーズが高い。",
+    "_needs_verification": [
+      "助成上限額・助成率",
+      "対象となるフリースクールの要件",
+      "申請窓口・受付期間"
+    ],
+    "_source": "crawl",
+    "_status": "pending",
+    "_created_at": "2026-05-26T12:59:16.325153",
+    "eligibility": {
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        },
+        {
+          "kidsAge": {
+            "notIn": [
+              "6〜12歳",
+              "13〜15歳"
+            ],
+            "ifSet": true
+          }
+        }
+      ],
+      "baseScore": 30,
+      "matchRules": [
+        {
+          "if": {
+            "kidsAge": [
+              "6〜12歳",
+              "13〜15歳"
+            ]
+          },
+          "score": 55
+        },
+        {
+          "if": {
+            "studentLevel": [
+              "小学生",
+              "中学生"
+            ]
+          },
+          "score": 30
+        }
+      ]
+    }
+  },
+  {
+    "id": "kotsui_donor_josei",
+    "gov": "港区",
+    "icon": "🩸",
+    "color": "C.red",
+    "tag": "医療",
+    "title": "骨髄ドナー助成金",
+    "officialName": "港区骨髄移植ドナー支援事業助成金",
+    "catch": "骨髄提供で仕事を休んだ分を助成",
+    "body": "骨髄・末梢血幹細胞の提供（ドナー）のために入院・通院が必要となった場合、ドナー本人と雇用事業者の双方に対して助成金を交付します。港区在住のドナーが対象です。",
+    "officialBody": "骨髄移植又は末梢血幹細胞移植のためにドナーとなった方及びその方を雇用する事業者に対し、入院・通院に要した日数に応じた助成金を交付することにより、ドナー登録及び骨髄移植の推進を図ります。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "cash",
+    "subsidy_note": "ドナー：日額2万円程度×日数、事業者：日額2万円程度×日数（要確認）",
+    "potentialLabel": "提供日数に応じた助成",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/hokenyobou/kenko/kenko/jose/kotuzuiishokudona-sienn.html",
+    "_confidence": "medium",
+    "_reason": "港区独自の医療支援制度。ドナー登録促進・骨髄移植推進に寄与する重要制度。",
+    "_needs_verification": [
+      "助成上限額・日額",
+      "申請受付窓口",
+      "対象者要件（港区在住・在勤等）"
+    ],
+    "_source": "crawl",
+    "_status": "pending",
+    "_created_at": "2026-05-26T12:59:16.325153",
+    "eligibility": {
+      "certain": [
+        {
+          "ageMin": 18
+        }
+      ],
+      "exclude": [
+        {
+          "ageMax": 17
+        }
+      ],
+      "baseScore": 80
+    }
+  },
+  {
+    "id": "koreisha_nyuyokuken",
+    "gov": "港区",
+    "icon": "♨️",
+    "color": "C.green",
+    "tag": "高齢",
+    "title": "高齢者に無料入浴券を給付",
+    "officialName": "高齢者無料入浴券の給付",
+    "catch": "65歳以上の区民に銭湯の無料券をプレゼント",
+    "body": "65歳以上の港区在住の方に、区内の銭湯で使える無料入浴券を給付します。健康増進や閉じこもり防止、地域交流の促進を目的とした港区独自の高齢者支援です。",
+    "officialBody": "65歳以上の区民に対し、区内の浴場（銭湯）で利用できる無料入浴券を給付します。高齢者の健康増進及び閉じこもり防止等を図るとともに、地域コミュニティの活性化を目的とします。",
+    "deadline": "通年",
+    "urgent": false,
+    "subsidyType": "savings",
+    "subsidy_note": "入浴券の枚数・金額は要確認",
+    "potentialLabel": "銭湯利用料が無料に",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/zaitakushien/kenko/fukushi/koresha/sekatsu/nyuyokuken.html",
+    "_confidence": "high",
+    "_reason": "高齢者向け港区独自の生活支援制度。silver_passとは異なる内容で追加価値あり。",
+    "_needs_verification": [
+      "給付枚数・年間上限",
+      "申請方法・窓口",
+      "対象年齢の詳細条件"
+    ],
+    "_source": "crawl",
+    "_status": "pending",
+    "_created_at": "2026-05-26T12:59:16.325153",
+    "eligibility": {
+      "certain": [
+        {
+          "ageMin": 70
+        }
+      ],
+      "exclude": [
+        {
+          "ageMax": 64
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "ageMin": 65
+          },
+          "score": 30
+        }
+      ]
+    }
+  },
+  {
+    "id": "bukka_kosodate_teate",
+    "gov": "港区",
+    "icon": "💴",
+    "color": "C.blue",
+    "tag": "子育て",
+    "title": "物価高対応子育て応援手当",
+    "officialName": "物価高対応子育て応援手当",
+    "catch": "物価高から子育て家庭を応援する港区独自給付",
+    "body": "物価高騰の影響を受ける子育て家庭を支援するため、港区が独自に支給する手当です。対象となる子どもがいる家庭に現金を給付します。申請書による申請が必要です。",
+    "officialBody": "物価高騰等による家計への影響を踏まえ、子育て家庭の経済的負担を軽減するため、対象児童を養育する保護者に対して港区独自の応援手当を支給します。",
+    "deadline": "通年",
+    "urgent": true,
+    "subsidyType": "cash",
+    "subsidy_note": "金額・対象年齢は要確認",
+    "potentialLabel": "子ども1人あたり現金給付",
+    "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/bukkadakataioukosodateouenteate.html",
+    "_confidence": "medium",
+    "_reason": "物価高対応の港区独自制度。申請書PDFが2026年更新のため現行制度と判断。urgentとして扱う。",
+    "_needs_verification": [
+      "給付額",
+      "対象児童の年齢・条件",
+      "申請期限",
+      "既存jidouteateとの関係"
+    ],
+    "_source": "crawl",
+    "_status": "pending",
+    "_created_at": "2026-05-26T12:59:16.325153",
+    "eligibility": {
+      "certain": [
+        {
+          "hasKids": "いる（または予定あり）"
+        }
+      ],
+      "exclude": [
+        {
+          "hasKids": {
+            "not": "いる（または予定あり）"
+          }
+        }
+      ],
+      "matchRules": [
+        {
+          "if": {
+            "hasKids": "いる（または予定あり）"
+          },
+          "score": 95
+        }
+      ]
+    }
+  }
+]
