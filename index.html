@@ -1794,6 +1794,20 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
                 </div>
               </div>
             ))}
+            {/* 回答後：その人がもらえる金額の目安（段階補助でも具体額を表示） */}
+            {allAnswered&&(()=>{
+              const myLabel = calcSubsidyLabel(item, mergedProfile);
+              const myAmount = calcSubsidy(item, mergedProfile);
+              if(!myLabel && !(myAmount>0)) return null;
+              return (
+                <div style={{background:C.bg1,borderRadius:10,padding:"12px 14px",margin:"6px 0",textAlign:"center",border:`1.5px solid ${C.green}55`}}>
+                  <div style={{color:C.t3,fontSize:11,marginBottom:3}}>💰 あなたがもらえる目安</div>
+                  <div style={{color:item.subsidyType==="cash"?C.blue:C.green,fontWeight:800,fontSize:20}}>
+                    {item.subsidyType==="savings"?"💚 ":"💙 "}{myLabel || (myAmount.toLocaleString()+"円")}
+                  </div>
+                </div>
+              );
+            })()}
             {allAnswered&&nowCertain&&(
               <div style={{background:C.green+"22",borderRadius:10,padding:12,border:`1px solid ${C.green}44`,marginTop:4}}>
                 <div style={{color:C.green,fontWeight:700,fontSize:14,marginBottom:4}}>✅ 対象です！</div>

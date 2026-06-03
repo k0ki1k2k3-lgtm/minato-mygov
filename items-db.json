@@ -704,12 +704,6 @@
           },
           {
             "stage": "年金生活者"
-          },
-          {
-            "income": [
-              "1000万円以上",
-              "800〜1000万円"
-            ]
           }
         ],
         "matchRules": [
@@ -934,12 +928,6 @@
           },
           {
             "housing": "賃貸"
-          },
-          {
-            "income": [
-              "800〜1000万円",
-              "1000万円以上"
-            ]
           },
           {
             "ageMin": 46
@@ -1288,11 +1276,41 @@
       "subsidyType": "savings",
       "subsidyRules": [
         {
+          "if": {
+            "kidsAge": [
+              "13〜15歳",
+              "16〜18歳"
+            ]
+          },
+          "amount": 469000
+        },
+        {
+          "if": {
+            "studentLevel": "高校生"
+          },
+          "amount": 469000
+        },
+        {
           "default": true,
           "amount": 0
         }
       ],
       "subsidyLabelRules": [
+        {
+          "if": {
+            "kidsAge": [
+              "13〜15歳",
+              "16〜18歳"
+            ]
+          },
+          "label": "実質無償（最大約46.9万円/年）"
+        },
+        {
+          "if": {
+            "studentLevel": "高校生"
+          },
+          "label": "実質無償（最大約46.9万円/年）"
+        },
         {
           "default": true,
           "label": null
@@ -1313,12 +1331,6 @@
           }
         ],
         "exclude": [
-          {
-            "income": [
-              "800〜1000万円",
-              "1000万円以上"
-            ]
-          },
           {
             "stage": {
               "not": "学生"
