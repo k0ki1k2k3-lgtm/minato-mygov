@@ -2991,9 +2991,80 @@ function NotificationButton() {
   );
 }
 
+/* ════════════════════════════════════════════════════════
+   興味スコア デバッグモーダル
+   ════════════════════════════════════════════════════════ */
+function InterestDebugModal({ interestScores, allItems, onClose }) {
+  const scores = interestScores || {};
+  const entries = Object.entries(scores).sort(([,a],[,b]) => b - a);
+  const l1 = entries.filter(([k]) => k.startsWith('l1:'));
+  const l2 = entries.filter(([k]) => k.startsWith('l2:'));
+
+  // interestTagsが付いていてスコアに貢献しているアイテム数
+  const taggedCount = allItems.filter(it => getItemTags(it).length > 0).length;
+
+  const Bar = ({score}) => (
+    <div style={{flex:1,height:6,background:'#eee',borderRadius:3,overflow:'hidden'}}>
+      <div style={{width:`${Math.round(score*100)}%`,height:'100%',background:'#2d5fc4',borderRadius:3}}/>
+    </div>
+  );
+  const Row = ({label, score, bold}) => (
+    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+      <div style={{width:180,fontSize:12,color: bold?'#1a2332':'#4a5568',fontWeight:bold?700:400,flexShrink:0}}>{label}</div>
+      <Bar score={score}/>
+      <div style={{width:36,fontSize:12,color:'#4a5568',textAlign:'right',flexShrink:0}}>{Math.round(score*100)}%</div>
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'20px 16px',overflowY:'auto'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'#fff',borderRadius:16,padding:20,width:'100%',maxWidth:460,boxShadow:'0 8px 32px rgba(0,0,0,0.15)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:16,color:'#1a2332'}}>📊 興味スコア</div>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#8896a8'}}>✕</button>
+        </div>
+
+        <div style={{fontSize:11,color:'#8896a8',marginBottom:14}}>
+          interestTags付き制度: {taggedCount}/{allItems.length}件 ／ スコアはいいね(1票)・申請済み(2票)の割合
+        </div>
+
+        {l2.length === 0 ? (
+          <div style={{color:'#8896a8',fontSize:13,textAlign:'center',padding:'24px 0'}}>
+            まだスコアがありません。<br/>制度をいいねや申請済みにすると表示されます。
+          </div>
+        ) : (
+          <>
+            <div style={{fontWeight:700,fontSize:12,color:'#4a5568',marginBottom:8}}>🏆 上位カテゴリ（l2）</div>
+            {l2.slice(0, 8).map(([k, v]) => <Row key={k} label={k.replace('l2:','')} score={v} bold={v > 0.5}/>)}
+
+            {l1.length > 0 && (
+              <>
+                <div style={{fontWeight:700,fontSize:12,color:'#4a5568',margin:'14px 0 8px'}}>大分類（l1）</div>
+                {l1.map(([k, v]) => <Row key={k} label={k.replace('l1:','')} score={v}/>)}
+              </>
+            )}
+
+            {entries.length > l1.length + l2.length && (
+              <>
+                <div style={{fontWeight:700,fontSize:12,color:'#4a5568',margin:'14px 0 8px'}}>小分類（l3）</div>
+                {entries.filter(([k])=>k.startsWith('l3:')).map(([k,v]) => <Row key={k} label={k.replace('l3:','')} score={v}/>)}
+              </>
+            )}
+          </>
+        )}
+
+        <div style={{marginTop:16,padding:'10px 12px',background:'#f5f7fa',borderRadius:10,fontSize:10,color:'#8896a8',wordBreak:'break-all'}}>
+          <strong>raw:</strong> {JSON.stringify(scores)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRestoreOne,onShowAdmin,onResetQuiz,onClearAll,onTestNewItems,onTestSeasonal,onTestRecheck,onTestPush,onProfileGain,darkMode,setDarkMode}){
   const [showHiddenList,setShowHiddenList]=useState(false);
   const [showRestoreConfirm,setShowRestoreConfirm]=useState(false);
+  const [showInterestDebug,setShowInterestDebug]=useState(false);
   const [showDetailSection,setShowDetailSection]=useState(false);
   const [openDetailGroup,setOpenDetailGroup]=useState(null);
   const trueHidden=(hidden||[]).filter(id=>!(done||[]).includes(id));
@@ -3346,8 +3417,19 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
                   テストPush送信
                 </button>
               )}
+              <button style={{flex:"1 1 calc(50% - 4px)",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,fontSize:12,color:C.t1}}
+                onClick={()=>setShowInterestDebug(true)}>
+                📊 興味スコア確認
+              </button>
             </div>
           </div>
+        )}
+        {showInterestDebug && (
+          <InterestDebugModal
+            interestScores={profile.interestScores}
+            allItems={allItems}
+            onClose={()=>setShowInterestDebug(false)}
+          />
         )}
         {/* 全データクリア */}
         <button
