@@ -2131,14 +2131,6 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
   const featured=allVisible.slice(0,3);
   const rest=allVisible.slice(3);
 
-  // 申請勧奨：対象確実なのに未申請＝「取りこぼし」
-  const unclaimed=allVisible.filter(it=>
-    !done.includes(it.id) &&
-    getConfidence(it,profile)==="certain" &&
-    (it.subsidy(profile)||0) > 0
-  );
-  const unclaimedTotal=unclaimed.reduce((s,it)=>s+(it.subsidy(profile)||0),0);
-
   const CardItem=({it, index=0, animate=true})=>{
     const conf=getConfidence(it,profile);
     const isCertain=conf==="certain";
@@ -2190,19 +2182,6 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:"8px 16px 16px"}}>
-      {/* 申請勧奨：取りこぼしハイライト（対象確実なのに未申請） */}
-      {unclaimed.length>0 && (
-        <div style={{background:`linear-gradient(135deg,${C.blue}22,${C.green}22)`,border:`1.5px solid ${C.green}66`,borderRadius:16,padding:"14px 16px",marginBottom:12}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-            <span style={{fontSize:20}}>💸</span>
-            <span style={{color:C.t1,fontWeight:800,fontSize:14}}>申請すれば受け取れるのに、まだ未申請</span>
-          </div>
-          <div style={{color:C.green,fontWeight:800,fontSize:24,marginBottom:2,lineHeight:1.2}}>
-            {fmt(unclaimedTotal)}<span style={{fontSize:13,color:C.t2,fontWeight:600}}>　／ {unclaimed.length}件</span>
-          </div>
-          <div style={{color:C.t3,fontSize:11}}>下の「✅対象確実」の制度を申請して取りこぼしを防ぎましょう</div>
-        </div>
-      )}
       {/* バナー */}
       <div style={{background:`linear-gradient(135deg,${C.bg2},${C.bg3})`,borderRadius:16,padding:"12px 16px",marginBottom:12,border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>setShowBanner(true)}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
