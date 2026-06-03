@@ -198,13 +198,22 @@ function shouldNotify(item, profile, interestScores) {
   return { notify: false };
 }
 
-// SW内で使うinterestScore計算（index.htmlのgetItemInterestScoreと同一ロジック）
+// SW内で使うinterestScore計算（index.htmlのgetItemInterestScoreと同一ロジック・複数タグ対応）
+function getItemTagsSW(item) {
+  const t = item && item.interestTags;
+  if (!t) return [];
+  if (Array.isArray(t)) return t.filter(x => x && (x.l1 || x.l2 || x.l3));
+  return (t.l1 || t.l2 || t.l3) ? [t] : [];
+}
 function getItemInterestScoreSW(item, interestScores) {
-  if (!item?.interestTags || !interestScores) return 0;
-  const {l1, l2, l3} = item.interestTags;
-  return (interestScores[`l1:${l1}`]||0) * 0.3
-       + (interestScores[`l2:${l2}`]||0) * 0.4
-       + (interestScores[`l3:${l3}`]||0) * 0.3;
+  if (!interestScores) return 0;
+  const tags = getItemTagsSW(item);
+  if (!tags.length) return 0;
+  return Math.max(...tags.map(({l1, l2, l3}) =>
+    (interestScores[`l1:${l1}`]||0) * 0.3
+  + (interestScores[`l2:${l2}`]||0) * 0.4
+  + (interestScores[`l3:${l3}`]||0) * 0.3
+  ));
 }
 
 // ── プロフィールと制度の照合 ──

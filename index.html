@@ -521,6 +521,14 @@ function getExclusionReason(item, profile) { return getExclusionReasonData(item,
    interestScores — いいね・申請済みから興味スコアを計算
    ════════════════════════════════════════════════════════ */
 
+// interestTags を常に配列に正規化（単一オブジェクト＝旧形式 / 配列＝複数タグ 両対応）
+function getItemTags(item) {
+  const t = item && item.interestTags;
+  if (!t) return [];
+  if (Array.isArray(t)) return t.filter(x => x && (x.l1 || x.l2 || x.l3));
+  return (t.l1 || t.l2 || t.l3) ? [t] : [];
+}
+
 // いいね=1票、申請済み=2票の割合で管理（腐らない）
 function calcInterestScores(liked, done, allItems) {
   const votes = {};
@@ -528,11 +536,11 @@ function calcInterestScores(liked, done, allItems) {
   [...liked.map(id => ({id, weight:1})), ...done.map(id => ({id, weight:2}))]
     .forEach(({id, weight}) => {
       const item = allItems.find(it => it.id === id);
-      if (!item?.interestTags) return;
-      const {l1, l2, l3} = item.interestTags;
-      if (l1) { votes[`l1:${l1}`] = (votes[`l1:${l1}`]||0) + weight; totalVotes.l1 += weight; }
-      if (l2) { votes[`l2:${l2}`] = (votes[`l2:${l2}`]||0) + weight; totalVotes.l2 += weight; }
-      if (l3) { votes[`l3:${l3}`] = (votes[`l3:${l3}`]||0) + weight; totalVotes.l3 += weight; }
+      getItemTags(item).forEach(({l1, l2, l3}) => {
+        if (l1) { votes[`l1:${l1}`] = (votes[`l1:${l1}`]||0) + weight; totalVotes.l1 += weight; }
+        if (l2) { votes[`l2:${l2}`] = (votes[`l2:${l2}`]||0) + weight; totalVotes.l2 += weight; }
+        if (l3) { votes[`l3:${l3}`] = (votes[`l3:${l3}`]||0) + weight; totalVotes.l3 += weight; }
+      });
     });
   const scores = {};
   Object.entries(votes).forEach(([key, v]) => {
@@ -543,13 +551,16 @@ function calcInterestScores(liked, done, allItems) {
   return scores;
 }
 
-// 制度の興味スコアを計算（l1:0.3 + l2:0.4 + l3:0.3 の加重平均）
+// 制度の興味スコア（複数タグなら最も高いタグのスコアを採用）
 function getItemInterestScore(item, interestScores) {
-  if (!item?.interestTags || !interestScores) return 0;
-  const {l1, l2, l3} = item.interestTags;
-  return (interestScores[`l1:${l1}`]||0) * 0.3
-       + (interestScores[`l2:${l2}`]||0) * 0.4
-       + (interestScores[`l3:${l3}`]||0) * 0.3;
+  if (!interestScores) return 0;
+  const tags = getItemTags(item);
+  if (!tags.length) return 0;
+  return Math.max(...tags.map(({l1, l2, l3}) =>
+    (interestScores[`l1:${l1}`]||0) * 0.3
+  + (interestScores[`l2:${l2}`]||0) * 0.4
+  + (interestScores[`l3:${l3}`]||0) * 0.3
+  ));
 }
 function getEligibilityHint(item, profile) { return getEligibilityHintData(item, profile); }
 
@@ -1589,7 +1600,11 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
   const allAnswered = miniQuiz && currentMissingQ.length === 0;
   const nowExcluded = allAnswered && (()=>{
     const el=item.eligibility;
-    return el&&el.exclude&&el.exclude.some(c=>evalCondition(c,mergedProfile));
+    if(!el) return false;
+    if(el.exclude && el.exclude.some(c=>evalCondition(c,mergedProfile))) return true;
+    // profileCheck の回答が不一致 → 対象外
+    if(typeof checkProfileQuiz==="function" && checkProfileQuiz(el,mergedProfile).status==="excluded") return true;
+    return false;
   })();
   const nowCertain = allAnswered && !nowExcluded && getConfidence(item,mergedProfile)==="certain";
 
