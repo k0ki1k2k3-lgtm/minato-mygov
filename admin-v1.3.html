@@ -151,7 +151,7 @@ function emptyItem() {
     // 通知・興味タグ
     notifyLevel:"mid",       // "high" | "mid" | "low"
     judgmentType:"eligibility", // "eligibility" | "interest"
-    interestTags:{ l1:"", l2:"", l3:"" },
+    interestTags:[],
     miniQuizKey:"",
     miniQuizText:"",
     categoryHint:"",
@@ -681,8 +681,19 @@ function ListTab({items, allItems, search, setSearch, onEdit, onDelete}) {
 /* ════════════════════════════════════════════════════════
    制度編集タブ（フォーム形式）
    ════════════════════════════════════════════════════════ */
+
+// 旧形式（単一オブジェクト）→ 配列に正規化
+function normalizeItemForEdit(item) {
+  const copy = JSON.parse(JSON.stringify(item));
+  const t = copy.interestTags;
+  if (!Array.isArray(t)) {
+    copy.interestTags = (t && (t.l1 || t.l2 || t.l3)) ? [t] : [];
+  }
+  return copy;
+}
+
 function EditTab({item, existingIds, onSave, onCancel, showToast}) {
-  const [form, setForm] = useState(JSON.parse(JSON.stringify(item)));
+  const [form, setForm] = useState(normalizeItemForEdit(item));
   const [errors, setErrors] = useState({});
   const isNew = !item.id || !existingIds.includes(item.id);
 
@@ -852,15 +863,23 @@ const INTEREST_MASTER = {"categories":[{"l1":"お金・給付金","children":[{"
 function NotifySection({ form, set, inp, sel, textarea, showToast }) {
   const [aiLoading, setAiLoading] = React.useState(false);
 
-  // interestTags の l1→l2→l3 カスケード
+  // interestTags 複数タグ管理
+  const [newTag, setNewTag] = React.useState({l1:"", l2:"", l3:""});
+  const [showAddTag, setShowAddTag] = React.useState(false);
+  const currentTags = Array.isArray(form.interestTags) ? form.interestTags
+    : (form.interestTags?.l1 ? [form.interestTags] : []);
   const l1List = INTEREST_MASTER.categories.map(c => c.l1);
-  const l2List = (INTEREST_MASTER.categories.find(c => c.l1 === form.interestTags?.l1)?.children || []).map(c => c.l2);
-  const l3List = (INTEREST_MASTER.categories.find(c => c.l1 === form.interestTags?.l1)?.children || []).find(c => c.l2 === form.interestTags?.l2)?.l3 || [];
-
-  const setTag = (level, val) => set("interestTags", {...(form.interestTags||{}), [level]: val,
-    ...(level==="l1" ? {l2:"",l3:""} : {}),
-    ...(level==="l2" ? {l3:""} : {}),
-  });
+  const nt_l2List = (INTEREST_MASTER.categories.find(c => c.l1 === newTag.l1)?.children || []).map(c => c.l2);
+  const nt_l3List = (INTEREST_MASTER.categories.find(c => c.l1 === newTag.l1)?.children || []).find(c => c.l2 === newTag.l2)?.l3 || [];
+  const setNewTagLevel = (level, val) => setNewTag(t => ({...t, [level]: val,
+    ...(level==="l1" ? {l2:"",l3:""} : {}), ...(level==="l2" ? {l3:""} : {})}));
+  const removeTag = (i) => set("interestTags", currentTags.filter((_,idx) => idx !== i));
+  const addNewTag = () => {
+    if (!newTag.l1) return;
+    set("interestTags", [...currentTags, {...newTag}]);
+    setNewTag({l1:"", l2:"", l3:""});
+    setShowAddTag(false);
+  };
 
   // AI自動生成
   const generateWithAI = async () => {
@@ -879,7 +898,7 @@ function NotifySection({ form, set, inp, sel, textarea, showToast }) {
 {
   "notifyLevel": "high" | "mid" | "low",
   "judgmentType": "eligibility" | "interest",
-  "interestTags": { "l1": "カテゴリ大分類", "l2": "中分類", "l3": "小分類" },
+  "interestTags": [{"l1":"大分類","l2":"中分類","l3":"小分類"}],
   "miniQuizText": "midの場合の質問文（例: 最近お子さんが生まれましたか？🍼）",
   "categoryHint": "通知カテゴリのヒント（例: 子育て・出産）",
   "notifHook": "通知本文（絵文字を含む短いフック文、例: 今年も申請受付中です🏖️）"
@@ -887,7 +906,7 @@ function NotifySection({ form, set, inp, sel, textarea, showToast }) {
 
 notifyLevel基準: high=ほぼ全員関係ある制度、mid=プロフィールで絞れる制度、low=ニッチな制度
 judgmentType基準: eligibility=年齢・家族構成など属性で決まる、interest=趣味・興味で決まる
-interestTagsはinterest-tags-masterの分類から最も近いものを選ぶ（大分類・中分類・小分類）`;
+interestTagsは配列形式で複数設定可。interest-tags-masterの分類から関連するものをすべて含める（大分類・中分類・小分類）`;
 
     try {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -902,7 +921,10 @@ interestTagsはinterest-tags-masterの分類から最も近いものを選ぶ（
       const parsed = JSON.parse(text.slice(start, end+1));
       if (parsed.notifyLevel)   set("notifyLevel",   parsed.notifyLevel);
       if (parsed.judgmentType)  set("judgmentType",  parsed.judgmentType);
-      if (parsed.interestTags)  set("interestTags",  parsed.interestTags);
+      if (parsed.interestTags) {
+        const it = parsed.interestTags;
+        set("interestTags", Array.isArray(it) ? it : (it.l1 ? [it] : []));
+      }
       if (parsed.miniQuizText)  set("miniQuizText",  parsed.miniQuizText);
       if (parsed.categoryHint)  set("categoryHint",  parsed.categoryHint);
       if (parsed.notifHook)     set("notifHook",     parsed.notifHook);
@@ -978,40 +1000,60 @@ interestTagsはinterest-tags-masterの分類から最も近いものを選ぶ（
           )}
         </div>
 
-        {/* 右：interestTags カスケードセレクター */}
+        {/* 右：interestTags 複数タグ */}
         <div>
-          <F2 label="interestTags（興味タグ）">
+          <F2 label="interestTags（興味タグ・複数設定可）">
             <div style={{background:C.bg2,borderRadius:10,padding:12,border:`1px solid ${C.border}`}}>
-              <div style={{marginBottom:8}}>
-                <div style={{color:C.t3,fontSize:11,marginBottom:4}}>大分類 (l1)</div>
-                <select value={form.interestTags?.l1||""} onChange={e=>setTag("l1",e.target.value)}
-                  style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none"}}>
-                  <option value="">— 選択 —</option>
-                  {l1List.map(l=><option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-              <div style={{marginBottom:8}}>
-                <div style={{color:C.t3,fontSize:11,marginBottom:4}}>中分類 (l2)</div>
-                <select value={form.interestTags?.l2||""} onChange={e=>setTag("l2",e.target.value)}
-                  disabled={!form.interestTags?.l1}
-                  style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none",opacity:!form.interestTags?.l1?0.5:1}}>
-                  <option value="">— 選択 —</option>
-                  {l2List.map(l=><option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-              <div>
-                <div style={{color:C.t3,fontSize:11,marginBottom:4}}>小分類 (l3)</div>
-                <select value={form.interestTags?.l3||""} onChange={e=>setTag("l3",e.target.value)}
-                  disabled={!form.interestTags?.l2}
-                  style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none",opacity:!form.interestTags?.l2?0.5:1}}>
-                  <option value="">— 選択 —</option>
-                  {l3List.map(l=><option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-              {form.interestTags?.l1 && (
-                <div style={{marginTop:8,padding:"6px 10px",background:C.blue+"11",borderRadius:6,fontSize:11,color:C.blue}}>
-                  {[form.interestTags.l1, form.interestTags.l2, form.interestTags.l3].filter(Boolean).join(" › ")}
+              {currentTags.map((t, i) => (
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,padding:"6px 10px",background:C.blue+"11",borderRadius:6}}>
+                  <span style={{flex:1,fontSize:12,color:C.blue}}>{[t.l1,t.l2,t.l3].filter(Boolean).join(" › ")}</span>
+                  <button onClick={()=>removeTag(i)} style={{background:"none",border:"none",cursor:"pointer",color:C.t3,fontSize:14,padding:"0 2px"}}>✕</button>
                 </div>
+              ))}
+              {showAddTag ? (
+                <div style={{marginTop:currentTags.length?8:0}}>
+                  <div style={{marginBottom:6}}>
+                    <div style={{color:C.t3,fontSize:11,marginBottom:3}}>大分類 (l1)</div>
+                    <select value={newTag.l1} onChange={e=>setNewTagLevel("l1",e.target.value)}
+                      style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none"}}>
+                      <option value="">— 選択 —</option>
+                      {l1List.map(l=><option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div style={{marginBottom:6}}>
+                    <div style={{color:C.t3,fontSize:11,marginBottom:3}}>中分類 (l2)</div>
+                    <select value={newTag.l2} onChange={e=>setNewTagLevel("l2",e.target.value)}
+                      disabled={!newTag.l1}
+                      style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none",opacity:!newTag.l1?0.5:1}}>
+                      <option value="">— 選択 —</option>
+                      {nt_l2List.map(l=><option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div style={{marginBottom:8}}>
+                    <div style={{color:C.t3,fontSize:11,marginBottom:3}}>小分類 (l3)</div>
+                    <select value={newTag.l3} onChange={e=>setNewTagLevel("l3",e.target.value)}
+                      disabled={!newTag.l2}
+                      style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.t1,background:C.bg1,outline:"none",opacity:!newTag.l2?0.5:1}}>
+                      <option value="">— 選択 —</option>
+                      {nt_l3List.map(l=><option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={addNewTag} disabled={!newTag.l1}
+                      style={{flex:1,background:newTag.l1?C.blue:"#aaa",color:"#fff",border:"none",borderRadius:6,padding:"7px 0",fontSize:13,fontWeight:700,cursor:newTag.l1?"pointer":"not-allowed"}}>
+                      ＋ 追加
+                    </button>
+                    <button onClick={()=>{setShowAddTag(false);setNewTag({l1:"",l2:"",l3:""});}}
+                      style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 0",fontSize:13,color:C.t2,cursor:"pointer"}}>
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={()=>setShowAddTag(true)}
+                  style={{width:"100%",background:"none",border:`1px dashed ${C.border}`,borderRadius:6,padding:"8px 0",fontSize:13,color:C.t3,cursor:"pointer",marginTop:currentTags.length?8:0}}>
+                  ＋ タグを追加
+                </button>
               )}
             </div>
           </F2>
