@@ -283,6 +283,9 @@ function App() {
       officialBody: officialBody || rest.officialBody || "",
       // potentialSubsidy は数値に統一（草稿では文字列 or 未設定のことがある）
       potentialSubsidy: Number(rest.potentialSubsidy) || 0,
+      // 要確認情報を編集フォームでも表示するため保持（保存時に除去される）
+      _needs_verification: _needs_verification || [],
+      _reason: _reason || "",
     };
 
     // 編集フォームに展開してタブ切り替え
@@ -336,7 +339,14 @@ function App() {
   };
 
   // ── 制度を保存してGitHubへpush ──
-  const saveItem = async (item) => {
+  const saveItem = async (rawItem) => {
+    // 草稿由来の内部フィールド（_始まり・レビュー専用）を items-db.json に残さない
+    const item = {};
+    for (const k of Object.keys(rawItem)) {
+      if (k.startsWith("_")) continue;
+      if (k === "adminWarning" || k === "suggestedKeys" || k === "subsidy_note") continue;
+      item[k] = rawItem[k];
+    }
     const updated = {...db};
     const idx = updated.items.findIndex(x => x.id === item.id);
     const isNew = idx < 0;
@@ -754,6 +764,35 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
         <button onClick={onCancel} style={{background:"none",border:"none",color:C.blue,fontSize:14,cursor:"pointer",fontWeight:700}}>← 一覧に戻る</button>
         <h2 style={{color:C.t1,fontSize:18,fontWeight:700}}>{isNew ? "➕ 制度を新規追加" : `✏️ 編集：${item.title}`}</h2>
       </div>
+
+      {/* 要確認事項バナー（草稿由来。AIが「ここは人が確認して」と挙げた項目）*/}
+      {((form._needs_verification && form._needs_verification.length > 0) ||
+        (form._validation && form._validation.messages && form._validation.messages.length > 0) ||
+        form.adminWarning) && (
+        <div style={{background:C.red+"0d",border:`1.5px solid ${C.red}44`,borderRadius:12,padding:"14px 18px",marginBottom:20}}>
+          <div style={{color:C.red,fontWeight:800,fontSize:14,marginBottom:8}}>⚠️ 公開前に確認・補完すべき項目</div>
+          {form._needs_verification && form._needs_verification.length > 0 && (
+            <ul style={{margin:"0 0 6px",paddingLeft:20}}>
+              {form._needs_verification.map((v,i)=>(
+                <li key={i} style={{color:C.t1,fontSize:13,lineHeight:1.9}}>{v}</li>
+              ))}
+            </ul>
+          )}
+          {form._validation && form._validation.messages && form._validation.messages.length > 0 && (
+            <ul style={{margin:"0 0 6px",paddingLeft:20}}>
+              {form._validation.messages.map((v,i)=>(
+                <li key={"val"+i} style={{color:"#b06000",fontSize:13,lineHeight:1.9}}>🔍 {v}</li>
+              ))}
+            </ul>
+          )}
+          {form.adminWarning && (
+            <div style={{color:"#b06000",fontSize:12,marginTop:4}}>{form.adminWarning}</div>
+          )}
+          {form._reason && (
+            <div style={{color:C.t3,fontSize:11,marginTop:8,borderTop:`1px solid ${C.red}22`,paddingTop:6}}>💡 検出理由: {form._reason}</div>
+          )}
+        </div>
+      )}
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
         {/* 左カラム：基本情報 */}
