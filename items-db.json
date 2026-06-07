@@ -2,7 +2,7 @@
   "_meta": {
     "version": "1.4",
     "updatedAt": "2026-06-07T12:33:44.961Z",
-    "totalItems": 51,
+    "totalItems": 50,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -156,7 +156,7 @@
       "potentialSubsidy": 500000,
       "potentialLabel": "50万円",
       "reminderLabel": "出産後は速やかに健保組合・区役所に申請",
-      "sourceUrl": "https://www.mhlw.go.jp/content/12400000/001085202.pdf",
+      "sourceUrl": "https://www.kyoukaikenpo.or.jp/g6/cat620/r310/",
       "easyTitle": "赤ちゃんが生まれたら50万円もらえる",
       "eligibility": {
         "certain": [
@@ -552,7 +552,7 @@
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "申請は勤務先の人事部経由でハローワークへ",
-      "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158800.html",
+      "sourceUrl": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000135090_00001.html",
       "easyTitle": "育休中も給与の約8割が支給される",
       "eligibility": {
         "certain": [
@@ -762,7 +762,7 @@
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "休業4日目から申請可。勤務先・健保組合へ相談",
-      "sourceUrl": "https://www.kyoukaikenpo.or.jp/g3/cat310/sb3040/",
+      "sourceUrl": "https://www.kyoukaikenpo.or.jp/g6/cat620/r307/",
       "easyTitle": "病気・ケガで働けない間も給与の2/3が入る",
       "eligibility": {
         "certain": [
@@ -862,7 +862,7 @@
       "potentialSubsidy": 100000,
       "potentialLabel": "計10万円",
       "reminderLabel": "妊娠届出後すぐに子ども家庭支援センターへ連絡",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/chiikihoken/kodomo/syusankosodate07.html",
       "easyTitle": "妊娠中〜育児中の方に計10万円給付",
       "eligibility": {
         "certain": [
@@ -886,10 +886,25 @@
             }
           }
         ],
-        "matchRules": [],
+        "matchRules": [
+          {
+            "if": {
+              "pregnancyStatus": "pregnant"
+            },
+            "score": 90
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）",
+              "kidsAge": "0〜2歳"
+            },
+            "score": 85
+          }
+        ],
         "baseScore": 0,
         "missingFor": [
-          "kidsAge"
+          "kidsAge",
+          "pregnancyStatus"
         ],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
@@ -1354,7 +1369,7 @@
       "potentialSubsidy": 360000,
       "potentialLabel": "最大36万円",
       "reminderLabel": "クール・ネット東京に事前申請が必要",
-      "sourceUrl": "https://www.tokyo-co2down.jp/subsidy/solar",
+      "sourceUrl": "https://www.kankyo.metro.tokyo.lg.jp/climate/home/dannetsu-solar",
       "easyTitle": "太陽光パネル設置で都から最大36万円もらえる",
       "eligibility": {
         "certain": [
@@ -1788,7 +1803,7 @@
       "potentialSubsidy": 11000,
       "potentialLabel": "11,000ポイント（1.1万円相当）即付与",
       "reminderLabel": "「東京アプリ」をダウンロードしてマイナンバーカードで登録",
-      "sourceUrl": "https://www.tokyo.lg.jp/tosei/tosei/",
+      "sourceUrl": "https://www.tokyoapp.metro.tokyo.lg.jp/",
       "easyTitle": "東京アプリに登録するだけで1.1万円分ポイントがもらえる",
       "eligibility": {
         "certain": [
@@ -1864,7 +1879,7 @@
       "potentialSubsidy": 50000,
       "potentialLabel": "ギフトカード相当額",
       "reminderLabel": "東京都の特設サイトから利用登録が必要",
-      "sourceUrl": "https://www.akachan-first.metro.tokyo.lg.jp/",
+      "sourceUrl": "https://www.fukushi.metro.tokyo.lg.jp/kodomo/shussan/tokyo_shussankosodateouen",
       "easyTitle": "出産後に育児グッズのギフトカードがもらえる",
       "eligibility": {
         "certain": [
@@ -2047,7 +2062,7 @@
       "potentialSubsidy": 0,
       "potentialLabel": "在宅ワーク収入確保のスキル習得",
       "reminderLabel": "東京都ひとり親家庭等就業・生活支援センターへ申込",
-      "sourceUrl": "https://www.tokyo-hitori.jp/",
+      "sourceUrl": "https://www.fukushi.metro.tokyo.lg.jp/kodomo/hitorioya_shien/syurou/zaitaku-suishin",
       "easyTitle": "ひとり親がパソコンで在宅ワークを始められる支援",
       "eligibility": {
         "certain": [
@@ -2140,7 +2155,7 @@
       "potentialSubsidy": 630000,
       "potentialLabel": "月最大7万円×9ヶ月",
       "reminderLabel": "港区生活・就労支援センター（03-6453-9032）に相談",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/seikatuhogo/02jyuukyokakuhokyuufukin.html",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/jiritsusien/02jyuukyokakuhokyuufukin.html",
       "easyTitle": "家賃が払えない時、国が最大9ヶ月分肩代わりする",
       "eligibility": {
         "certain": [],
@@ -2574,7 +2589,7 @@
       "potentialSubsidy": 400000,
       "potentialLabel": "最大40万円（都と合計76万円）",
       "reminderLabel": "工事前に港区環境課へ事前申請が必須",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kankyou/kankyo/energy/taiyoukou.html",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/chikyukankyou/kankyo-machi/kankyo/hojo/j-taiyoko.html",
       "easyTitle": "太陽光パネルに区から最大40万円追加補助がもらえる",
       "eligibility": {
         "certain": [
@@ -2824,7 +2839,7 @@
       "title": "バースデーサポート（2歳児）",
       "officialName": "バースデーサポート事業（港区）",
       "catch": "2歳のお誕生日にカタログギフト贈呈",
-      "body": "「とうきょうママパパ応援事業」の一環。港区で2歳を迎える子どもがいる家庭にカタログギフトを提供（数千〜1万円相当）。2歳の誕生月に区から自動的に案内が届く。申請不要。",
+      "body": "「とうきょうママパパ応援事業」の一環。港区で2歳を迎える子どもがいる家庭にカタログギフトを提供（第1子6万・第2子7万・第3子以降8万円相当）。2歳の誕生月に区から自動的に案内が届く。申請不要。",
       "deadline": "2歳の誕生月に区から案内が届く（自動）",
       "urgent": false,
       "subsidyType": "cash",
@@ -2833,7 +2848,7 @@
           "if": {
             "hasKids": "いる（または予定あり）"
           },
-          "amount": 10000
+          "amount": 60000
         },
         {
           "default": true,
@@ -2845,17 +2860,17 @@
           "if": {
             "hasKids": "いる（または予定あり）"
           },
-          "label": "カタログギフト（〜1万円相当）"
+          "label": "カタログギフト（第1子6万〜）"
         },
         {
           "default": true,
           "label": null
         }
       ],
-      "potentialSubsidy": 10000,
-      "potentialLabel": "〜1万円相当",
+      "potentialSubsidy": 60000,
+      "potentialLabel": "第1子6万・第2子7万・第3子以降8万円相当",
       "reminderLabel": "区から自動的に案内が届く（申請不要）",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kouchou/kuse/kocho/ikenshokai49/1913.html",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/202306birthday.html",
       "easyTitle": "2歳の誕生月にプレゼントが届く（港区）",
       "eligibility": {
         "certain": [
@@ -2977,108 +2992,6 @@
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です",
           "kidsAge": "0〜2歳以外のお子さんのみの場合は対象外です"
-        },
-        "hints": {}
-      },
-      "interestTags": [
-        {
-          "l1": "お金・給付金",
-          "l2": "給付・手当"
-        },
-        {
-          "l1": "子育て・教育",
-          "l2": "妊娠・出産"
-        }
-      ]
-    },
-    {
-      "id": "ninpu_kyufu2",
-      "gov": "港区",
-      "icon": "🤱",
-      "colorKey": "blue",
-      "tag": "子育て",
-      "title": "妊婦への給付金（港区実施分）",
-      "officialName": "出産・子育て応援事業（港区）",
-      "catch": "港区が実施する妊婦・子育て支援給付",
-      "body": "港区が国の交付金を活用して実施。妊娠届出後・出産後に面談を経て給付。詳細は港区子ども家庭支援センターへ。",
-      "deadline": "妊娠届出後に申込",
-      "urgent": false,
-      "subsidyType": "cash",
-      "subsidyRules": [
-        {
-          "if": {
-            "hasKids": "いる（または予定あり）"
-          },
-          "amount": 0
-        },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 50000,
-      "potentialLabel": "給付あり（要確認）",
-      "reminderLabel": "港区子ども家庭支援センターへ確認",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kosodatesien/kodomo/kate/index.html",
-      "easyTitle": "妊婦への給付金（港区）",
-      "eligibility": {
-        "certain": [
-          {
-            "hasKids": "いる（または予定あり）",
-            "kidsAge": "0〜2歳"
-          }
-        ],
-        "exclude": [
-          {
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          },
-          {
-            "kidsAge": {
-              "notIn": [
-                "0〜2歳"
-              ],
-              "ifSet": true
-            }
-          },
-          {
-            "pregnancyStatus": {
-              "not": "pregnant"
-            },
-            "hasKids": {
-              "not": "いる（または予定あり）"
-            }
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "pregnancyStatus": "pregnant"
-            },
-            "score": 90
-          },
-          {
-            "if": {
-              "hasKids": "いる（または予定あり）",
-              "kidsAge": "0〜2歳"
-            },
-            "score": 85
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [
-          "kidsAge",
-          "pregnancyStatus"
-        ],
-        "excludeReasons": {
-          "hasKids": "お子さんがいない場合は対象外です"
         },
         "hints": {}
       },
@@ -3337,61 +3250,34 @@
       "icon": "💴",
       "colorKey": "blue",
       "tag": "生活",
-      "title": "低所得世帯に現金給付。子がいればさらに加算",
-      "officialName": "住民税非課税世帯等 生活支援給付金",
-      "catch": "住民税非課税世帯に3万円を給付。18歳以下の子どもが1人いるごとに2万円追加",
-      "body": "物価高騰対策として港区が実施。令和6年度住民税が非課税または均等割のみ課税の世帯に、1世帯あたり3万円を給付。さらに18歳以下の世帯員1人につき2万円の子ども加算あり。対象世帯には区から書類が届く（自動送付）。",
-      "deadline": "※令和7年度分は期限終了。令和8年度分は要確認",
+      "title": "定額減税の不足分を現金給付",
+      "officialName": "令和7年度港区定額減税補足給付金（不足額給付）",
+      "catch": "定額減税で引ききれない分を不足額給付",
+      "body": "物価高対策の定額減税（所得税3万円＋住民税1万円／人）で、税額が少なく控除しきれなかった人や新たに対象となった人に、引ききれない不足分を1万円単位で現金給付する制度。対象者には区から確認書・案内が届く。",
+      "deadline": "令和7年度実施（申請締切は公式で要確認）",
       "urgent": false,
       "subsidyType": "cash",
       "subsidyRules": [
         {
           "default": true,
-          "amount": 0
+          "amount": 40000
         }
       ],
       "subsidyLabelRules": [
         {
           "default": true,
-          "label": null
+          "label": "不足分を給付（1万円単位）"
         }
       ],
-      "potentialSubsidy": 70000,
-      "potentialLabel": "3万円〜（子あり世帯はさらに加算）",
-      "reminderLabel": "区から書類が届いたら期限内に返送を",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/rinjikyufutan/qa6kyuuhu.html",
-      "easyTitle": "非課税世帯に現金給付（子あり加算あり）",
+      "potentialSubsidy": 40000,
+      "potentialLabel": "定額減税の引ききれない分（1万円単位）",
+      "reminderLabel": "区から確認書・案内が届いたら期限内に手続きを",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kouhou/kuse/koho/minato2025/202507/20250701top/09.html",
+      "easyTitle": "定額減税で引ききれない分を現金で給付",
       "eligibility": {
-        "certain": [
-          {
-            "taxExemptLikely": true
-          }
-        ],
-        "exclude": [
-          {
-            "taxExemptLikely": false,
-            "taxStatus": {
-              "notIn": [
-                "非課税",
-                "均等割のみ課税"
-              ],
-              "ifSet": true
-            }
-          }
-        ],
+        "certain": [],
+        "exclude": [],
         "matchRules": [
-          {
-            "if": {
-              "taxStatus": "非課税"
-            },
-            "score": 90
-          },
-          {
-            "if": {
-              "taxStatus": "均等割のみ課税"
-            },
-            "score": 70
-          },
           {
             "if": {
               "income": [
@@ -3399,7 +3285,7 @@
                 "100〜150万円"
               ]
             },
-            "score": 60
+            "score": 70
           },
           {
             "if": {
@@ -3408,33 +3294,29 @@
                 "250〜350万円"
               ]
             },
-            "score": 40
+            "score": 55
           },
           {
             "if": {
-              "stage": "その他・無職"
+              "taxStatus": "均等割のみ課税"
             },
-            "score": 20
+            "score": 60
           },
           {
             "if": {
               "stage": "年金生活者"
             },
-            "score": 15
+            "score": 45
           }
         ],
-        "baseScore": 0,
+        "baseScore": 20,
         "missingFor": [
-          "income",
-          "taxStatus"
+          "income"
         ],
-        "excludeReasons": {
-          "income": "住民税課税世帯は対象外です"
-        },
+        "excludeReasons": {},
         "hints": {
-          "taxStatus": "住民税非課税世帯の場合に対象になります"
-        },
-        "_note": "令和7年度分期限終了・令和8年度分要確認につき一時非表示"
+          "income": "所得税・住民税が少なく定額減税を引ききれない方が対象になりやすい制度です"
+        }
       },
       "interestTags": [
         {
@@ -3487,7 +3369,7 @@
       "potentialSubsidy": 30000,
       "potentialLabel": "最大3万円",
       "reminderLabel": "指定店舗（ドコモショップ等）に電話で来店予約してから購入",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/jouhouka/smartphone.html",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/koureifukushi/20220331.html",
       "easyTitle": "初めてスマホを買う65歳以上に3万円もらえる",
       "eligibility": {
         "certain": [
@@ -3563,7 +3445,7 @@
       "potentialSubsidy": 2000,
       "potentialLabel": "年4回無料（通常有料）",
       "reminderLabel": "当日は区内在住確認書類（マイナンバーカード等）を持参",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kyoudorekishi/",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/shisetsu/toshokan/kyodo/01.html",
       "easyTitle": "科学館とプラネタリウムが年4回タダで入れる",
       "eligibility": {
         "certain": [
@@ -3806,7 +3688,7 @@
       "potentialSubsidy": 0,
       "potentialLabel": null,
       "reminderLabel": "子ども若者支援課子ども給付係（03-3578-2432）へ申請",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudan/kodomo/kodomo/hitorioya/teate.html",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kate/teate/jidofuyo.html",
       "easyTitle": "ひとり親に毎月手当が支給される",
       "eligibility": {
         "certain": [
