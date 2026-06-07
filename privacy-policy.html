@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライバシーポリシー — 港区給付金アプリ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'Noto Sans JP', sans-serif;
+      background: #f5f7fa;
+      color: #1a2332;
+      line-height: 1.8;
+      padding: 24px 16px 64px;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a2332;
+      margin-bottom: 6px;
+    }
+    .updated {
+      font-size: 12px;
+      color: #8896a8;
+      margin-bottom: 28px;
+    }
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #2d5fc4;
+      margin: 28px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #dde3ec;
+    }
+    p { font-size: 14px; color: #4a5568; margin-bottom: 10px; }
+    ul {
+      font-size: 14px;
+      color: #4a5568;
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+    li { margin-bottom: 6px; }
+    .highlight {
+      background: #f0f4f8;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 10px 0;
+    }
+    .highlight p { margin: 0; color: #2d5fc4; font-weight: 600; font-size: 13px; }
+    .contact {
+      background: #f0f4f8;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 10px;
+    }
+    .contact p { margin: 0; font-size: 13px; }
+    a { color: #2d5fc4; }
+    .back {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #2d5fc4;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .back:before { content: "← "; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="index.html">アプリに戻る</a>
+
+    <h1>プライバシーポリシー</h1>
+    <p class="updated">最終更新：2026年6月</p>
+
+    <div class="highlight">
+      <p>🔒 このアプリは、家族構成・収入・障害の有無などの個人情報を<br>サーバーに送信・保存しません。すべての判定はあなたの端末内で行われます。</p>
+    </div>
+
+    <h2>1. 運営者</h2>
+    <p>運営者：<strong>こっつん</strong><br>
+    連絡先：<strong>k.0k.i1k.2k.3@gmail.com</strong></p>
+
+    <h2>2. 収集する情報</h2>
+    <p>本アプリが収集・取得する情報は以下に限られます。</p>
+    <ul>
+      <li><strong>Web Push通知の購読情報（endpoint）</strong>：通知を許可した場合のみ取得。ブラウザが発行する識別子で、氏名・住所・メールアドレス等は含みません。</li>
+      <li><strong>ライフステージ情報</strong>：通知の配信タイミング制御のため、大まかなライフステージ（例：子育て中、シニアなど）をサーバーに保存する場合があります。</li>
+    </ul>
+    <p>プロフィール（年齢・家族構成・収入・障害・就労状況など）はすべてあなたの端末内のみに保存され、外部サーバーには送信されません。</p>
+
+    <h2>3. 収集しない情報</h2>
+    <ul>
+      <li>氏名・住所・電話番号・メールアドレス</li>
+      <li>マイナンバー・各種証明書の内容</li>
+      <li>正確な収入額・資産情報</li>
+      <li>位置情報（GPSなど）</li>
+    </ul>
+
+    <h2>4. 情報の利用目的</h2>
+    <ul>
+      <li>Web Push通知の配信（制度の新着・申請期限のお知らせ）</li>
+      <li>配信タイミングの最適化</li>
+    </ul>
+    <p>取得した情報を広告目的で利用したり、第三者に販売・提供することは一切ありません。</p>
+
+    <h2>5. 第三者提供</h2>
+    <p>収集した情報を第三者に提供することはありません。ただし、以下のサービスを利用しています。</p>
+    <ul>
+      <li><strong>Cloudflare Workers / KV</strong>：Push通知の配信に使用（Push endpointを保存）</li>
+      <li><strong>Google Analytics 4</strong>：アプリの利用状況の集計（ページビュー・操作イベント）。個人を特定する情報は収集しません。</li>
+      <li><strong>GitHub Pages</strong>：アプリ本体・制度データベースの配信</li>
+    </ul>
+
+    <h2>6. データの削除</h2>
+    <p>アプリ内「設定」タブの「すべてのデータをリセット」ボタンから、端末内のすべてのプロフィールデータを削除できます。</p>
+    <p>Push通知の購読を解除することで、サーバー側のendpoint情報も次回の配信サイクルで自動削除されます。</p>
+
+    <h2>7. Cookieおよびローカルストレージ</h2>
+    <p>本アプリはCookieを使用しません。プロフィールや利用状況の保存にブラウザのLocalStorageを使用します。これはあなたの端末内にのみ保存され、外部に送信されません。</p>
+
+    <h2>8. お子様の利用</h2>
+    <p>本アプリは特定の年齢制限を設けていませんが、プロフィールの入力には保護者の方のご確認をお願いします。</p>
+
+    <h2>9. ポリシーの変更</h2>
+    <p>本ポリシーを変更する場合は、このページの「最終更新」日付を更新します。重要な変更の際はアプリ内でお知らせします。</p>
+
+    <h2>10. お問い合わせ</h2>
+    <div class="contact">
+      <p>本ポリシーに関するご質問は下記までご連絡ください。<br>
+      メール：<a href="mailto:k.0k.i1k.2k.3@gmail.com">k.0k.i1k.2k.3@gmail.com</a></p>
+    </div>
+  </div>
+</body>
+</html>

@@ -5,10 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="港区給付金">
+  <meta name="apple-mobile-web-app-title" content="ロッカールーム">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <title>君の代わりに全部やってあげるよアプリ v1.4</title>
+  <title>ロッカールーム</title>
+  <!-- Google Analytics 4 — Measurement IDを取得したら G-DMTBY2K77G を置き換える -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DMTBY2K77G"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-DMTBY2K77G');
+    // 計測ヘルパー（グローバルに使えるようにする）
+    window.gaEvent = function(name, params) {
+      if(typeof gtag !== 'undefined') gtag('event', name, params || {});
+    };
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -21,6 +33,8 @@
   <div id="root"></div>
   <script type="text/babel">
 const { useState, useEffect, useRef } = React;
+// URLに ?dev を付けるとテストモードになる（例: index.html?dev）
+const DEV_MODE = new URLSearchParams(window.location.search).has('dev');
 
 /* ════════════════════════════════════════════════════════
    minato-mygov v1.4 — データ駆動型判定エンジン
@@ -826,7 +840,7 @@ function Splash({onDone}){
     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:C.bg0,gap:16}}>
       <div style={{fontSize:52,animation:"scaleIn .5s ease"}}>🏙️</div>
       <div style={{color:C.t1,fontSize:22,fontWeight:700,animation:"fadeUp .6s ease .2s both",textAlign:"center",lineHeight:1.5}}>
-        君の代わりに<br/>全部やってあげるよアプリ
+        ロッカールーム
       </div>
       <div style={{color:C.t2,fontSize:13,animation:"fadeUp .6s ease .4s both"}}>あなたのための行政情報</div>
       <div style={{marginTop:24,width:40,height:4,background:C.blue,borderRadius:2,animation:"pulse 1.2s ease infinite"}}/>
@@ -973,7 +987,7 @@ function PreviewHome({items, onStart}){
     <div style={{flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:C.bg0}}>
       {/* ヘッダー */}
       <div style={{padding:"52px 16px 10px", borderBottom:`1px solid ${C.border}`, flexShrink:0, background:C.bg1}}>
-        <div style={{color:C.t1, fontWeight:700, fontSize:13}}>🏙️ 君の代わりに全部やってあげるよアプリ</div>
+        <div style={{color:C.t1, fontWeight:700, fontSize:13}}>🏙️ ロッカールーム</div>
         <div style={{color:C.t3, fontSize:10, marginTop:1}}>港区</div>
       </div>
 
@@ -3364,9 +3378,11 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
         <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t2,fontSize:13}} onClick={onResetQuiz}>
           🔄 最初の質問からやり直す
         </button>
+        {onShowAdmin && (
         <button style={{width:"100%",...S.btn(C.bg3,true),border:`1px solid ${C.border}`,color:C.t3,fontSize:12}} onClick={onShowAdmin}>
           ⚙️ 制度を追加・管理する
         </button>
+        )}
         {/* 🧪 開発テスト */}
         {(onTestNewItems||onTestSeasonal||onTestRecheck) && (
           <div style={{marginTop:8,padding:"12px",background:C.bg2,borderRadius:12,border:`1px dashed ${C.border}`}}>
@@ -3422,6 +3438,13 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
             <button style={{width:"100%",...S.btn(C.blue,true),fontSize:12}} onClick={()=>setShowHiddenList(true)}>一覧を見る・選んで復元</button>
           </div>
         )}
+        {/* プライバシーポリシー */}
+        <div style={{textAlign:"center",paddingTop:8,paddingBottom:4}}>
+          <a href="privacy-policy.html" target="_blank" rel="noopener noreferrer"
+            style={{color:C.t3,fontSize:11,textDecoration:"underline"}}>
+            プライバシーポリシー
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -4389,6 +4412,8 @@ function App(){
     setTab("home");
     setPhase("main");
     setTimeout(()=>setRevealMode(true), 1000);
+    // GA4: クイズ完了計測
+    window.gaEvent('quiz_complete', { items_count: allItems.length });
   };
 
   const handleUpdate=async()=>{
@@ -4451,7 +4476,7 @@ function App(){
                   opacity: (!toggleTried && revealMode) ? 0 : 1,
                   transition: toggleTried ? "opacity .5s ease" : "none",
                 }}>
-                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>🏙️ 君の代わりに全部やってあげるよアプリ</div>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:13}}>🏙️ ロッカールーム</div>
                   <div style={{color:C.t3,fontSize:10,marginTop:1}}>{profile.town||""}</div>
                 </div>
 
@@ -4547,6 +4572,9 @@ function App(){
                   setDone(d=>d.includes(id)?d:[...d,id]);
                   if(!REPEATABLE_IDS.has(id)) setHidden(h=>h.includes(id)?h:[...h,id]);
                   showToast("✅ 申請済みとして記録しました");
+                  // GA4: 申請クリック計測
+                  const item = allItems.find(it=>it.id===id);
+                  window.gaEvent('apply_clicked', { item_id: id, item_name: item?.title || id });
                 }
               }}
               items={allItems} liveData={liveData} easy={easy}
@@ -4589,7 +4617,7 @@ function App(){
               hidden={hidden} done={done} allItems={allItems}
               onRestoreAll={()=>{setHidden([]);showToast("✅ 全件復元しました");}}
               onRestoreOne={(id)=>{setHidden(h=>h.filter(x=>x!==id));showToast("✅ 復元しました");}}
-              onShowAdmin={()=>setShowAdmin(true)}
+              onShowAdmin={DEV_MODE ? ()=>setShowAdmin(true) : null}
               onResetQuiz={()=>{
                 lsClearAll();
                 setProfile({});setLiked([]);setReminded([]);setHidden([]);setDone([]);
@@ -4601,14 +4629,14 @@ function App(){
                 setPhase("splash");
                 showToast("🗑️ すべてのデータをリセットしました");
               }}
-              onTestNewItems={()=>{
+              onTestNewItems={DEV_MODE ? ()=>{
                 // ダミー新着を強制表示
                 const dummyIds = allItems.slice(0,2).map(it=>it.id);
                 if(dummyIds.length===0){showToast("制度データがありません");return;}
                 setNewItems(dummyIds);
                 setShowNewPop(true);
-              }}
-              onTestRecheck={()=>{
+              } : null}
+              onTestRecheck={DEV_MODE ? ()=>{
                 // 中間状態の再確認ポップを即表示（実データがあればそれ、なければダミー）
                 const due = getDueRecheck() || lsLoad(LS_RECHECKS,[])[0];
                 if(due){ setDueRecheck(due); }
@@ -4616,8 +4644,8 @@ function App(){
                   setDueRecheck({field:"hasMynumber",value:"申請中",dueAt:Date.now(),msg:"マイナンバーカードは届きましたか？"});
                   showToast("ダミーの再確認を表示中");
                 }
-              }}
-              onTestPush={async()=>{
+              } : null}
+              onTestPush={DEV_MODE ? async()=>{
                 // push-worker にテスト送信をリクエスト（本番のみ動作）
                 try{
                   const reg = window._swReg || (await navigator.serviceWorker?.ready);
@@ -4627,8 +4655,8 @@ function App(){
                     body:JSON.stringify({endpoint:sub.endpoint})});
                   showToast("📨 テストPushを送信しました");
                 }catch(e){ showToast("送信失敗（本番環境で実行してください）"); }
-              }}
-              onTestSeasonal={()=>setShowSeasonal(true)}
+              } : null}
+              onTestSeasonal={DEV_MODE ? ()=>setShowSeasonal(true) : null}
               onProfileGain={(n)=>showToast(`🎉 ${n}件の制度が新たに対象になりました`)}
               darkMode={darkMode} setDarkMode={toggleDark}/>}
 

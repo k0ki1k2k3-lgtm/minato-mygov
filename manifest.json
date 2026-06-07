@@ -1,6 +1,6 @@
 {
-  "name": "君の代わりに全部やってあげるよアプリ",
-  "short_name": "港区給付金",
+  "name": "ロッカールーム",
+  "short_name": "ロッカールーム",
   "description": "港区在住・在勤者向け給付金・補助金パーソナライズアプリ",
   "start_url": "/minato-mygov/",
   "scope": "/minato-mygov/",
