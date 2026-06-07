@@ -3845,17 +3845,19 @@ function HouseholdPage({household,setHousehold,onBack}){
   </div>;
 }
 
-/* ══════ 季節の確認ポップ（年4回・変わりやすい項目の確認） ══════ */
-// 表示すべきか判定（四半期ごとに1回）
+/* ══════ 季節の確認ポップ（年2回・4月初旬と10月初旬のみ） ══════ */
+// 表示対象の期間キーを返す。4月初旬・10月初旬の各2週間だけ非nullを返す。
+// それ以外の期間は null（＝表示しない）。同一期間は1回だけ（キーで重複排除）。
 function currentSeasonKey(){
   const n=new Date();
-  // 半年ごと：4〜9月はH1、10〜3月はH2
-  const half = n.getMonth() < 6 ? "H1" : "H2";
-  const year = n.getMonth() < 6 ? n.getFullYear() : (n.getMonth() < 10 ? n.getFullYear() : n.getFullYear());
-  return `${n.getFullYear()}-${half}`;
+  const m=n.getMonth()+1, d=n.getDate();
+  if(m===4  && d<=14) return `${n.getFullYear()}-04`; // 4月初旬（新年度）
+  if(m===10 && d<=14) return `${n.getFullYear()}-10`; // 10月初旬（秋）
+  return null;
 }
 function shouldShowSeasonal(){
-  return lsLoad(LS_SEASONAL_AT,null) !== currentSeasonKey();
+  const key=currentSeasonKey();
+  return key!==null && lsLoad(LS_SEASONAL_AT,null)!==key;
 }
 function seasonGreeting(){
   const m=new Date().getMonth()+1;
