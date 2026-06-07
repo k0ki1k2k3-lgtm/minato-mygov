@@ -2,7 +2,7 @@
   "_meta": {
     "version": "1.4",
     "updatedAt": "2026-06-07T12:33:44.961Z",
-    "totalItems": 50,
+    "totalItems": 49,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -2669,87 +2669,6 @@
       ]
     },
     {
-      "id": "kenko_point",
-      "gov": "港区",
-      "icon": "🏃",
-      "colorKey": "green",
-      "tag": "健康",
-      "title": "健康ポイント制度",
-      "officialName": "みなとタバコ・健康ポイント事業",
-      "catch": "歩いてポイント→商品券に交換",
-      "body": "港区「みなとタバタ健康ポイント」。ウォーキング・健診受診でポイント付与、区内商品券と交換可能。主に65歳以上の区民が対象。年間最大5,000円相当。アプリ「みなとタバタ」で管理。",
-      "deadline": "通年",
-      "urgent": false,
-      "subsidyType": "savings",
-      "subsidyRules": [
-        {
-          "if": {
-            "ageMin": 65
-          },
-          "amount": 5000
-        },
-        {
-          "default": true,
-          "amount": 0
-        }
-      ],
-      "subsidyLabelRules": [
-        {
-          "if": {
-            "ageMin": 65
-          },
-          "label": "年最大5,000円"
-        },
-        {
-          "default": true,
-          "label": null
-        }
-      ],
-      "potentialSubsidy": 5000,
-      "potentialLabel": "年最大5,000円",
-      "reminderLabel": "みなとタバタのアプリをダウンロード",
-      "sourceUrl": "https://www.city.minato.tokyo.jp/kenkouzukuri/kenko/kenko/kenkozukuri/",
-      "easyTitle": "健康診断を受けるとポイントがもらえる",
-      "eligibility": {
-        "certain": [
-          {
-            "ageMin": 65
-          }
-        ],
-        "exclude": [
-          {
-            "ageMax": 59
-          }
-        ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 60
-            },
-            "score": 25
-          }
-        ],
-        "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {
-          "ageNum": "60歳未満は対象外です"
-        },
-        "hints": {
-          "ageNum": "60歳以降に対象になります"
-        }
-      },
-      "interestTags": [
-        {
-          "l1": "健康・医療",
-          "l2": "予防・検診"
-        },
-        {
-          "l1": "お金・給付金",
-          "l2": "お得・節約"
-        }
-      ]
-    },
-    {
       "id": "cancer_check",
       "gov": "港区",
       "icon": "🔬",
@@ -4615,7 +4534,6 @@
     "sports_free",
     "yoyou",
     "kagakukan_free",
-    "kenko_point",
     "cancer_check",
     "kougaku_ryoyo",
     "silver_pass"
