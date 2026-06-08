@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-06-07T12:33:44.961Z",
-    "totalItems": 49,
+    "updatedAt": "2026-06-08T13:35:38.000Z",
+    "totalItems": 50,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -4528,6 +4528,52 @@
       "miniQuizText": "",
       "categoryHint": "",
       "notifHook": ""
+    },
+    {
+      "id": "_test_notify_check",
+      "gov": "港区",
+      "icon": "🧪",
+      "colorKey": "blue",
+      "tag": "生活",
+      "title": "【テスト】通知の即時確認",
+      "officialName": "通知テスト用ダミー（削除予定）",
+      "catch": "即時Push通知の確認用です。まもなく削除します",
+      "body": "これは新着Push通知が公開直後に届くか確認するためのテスト項目です。確認後すぐに削除します。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "info",
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
+      "potentialSubsidy": 0,
+      "potentialLabel": "",
+      "reminderLabel": "",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/",
+      "easyTitle": "【テスト】通知確認",
+      "eligibility": {
+        "certain": [],
+        "exclude": [],
+        "matchRules": [],
+        "baseScore": 40,
+        "missingFor": [],
+        "excludeReasons": {},
+        "hints": {}
+      },
+      "interestTags": [
+        {
+          "l1": "住まい・生活",
+          "l2": "生活費支援"
+        }
+      ]
     }
   ],
   "repeatableIds": [
