@@ -1,7 +1,8 @@
-// minato-mygov Service Worker v1.4
+// minato-mygov Service Worker v1.5
 // Web Push受信 → プロフィールと照合 → 関係あれば通知表示
+// v1.5: 判定基準をアプリと一致(baseScore既定40)＋プッシュ重複防止を pushedIds に分離（既読レース解消）
 
-const CACHE_NAME = "minato-mygov-v1.4";
+const CACHE_NAME = "minato-mygov-v1.5";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 
@@ -102,9 +103,11 @@ async function handleUserPush(data) {
   try {
     const profile    = await dbGet("profile", "current") || {};
     const seenIds    = await dbGet("seen", "ids")        || [];
-    const lastSeenAt = await dbGet("seen", "updatedAt")  || "";
-
-    if (data.updatedAt && data.updatedAt === lastSeenAt) return;
+    // 通知の重複防止は「既にプッシュ済みのid(pushedIds)」で判定する。
+    // アプリを開いた瞬間の一括既読(ids更新)で push が握りつぶされるレースを避けるため、
+    // in-app の既読(ids/updatedAt)とは別キーで管理する。初回は既読リストを基準にする。
+    let pushedIds = await dbGet("seen", "pushedIds");
+    if (pushedIds === undefined) pushedIds = seenIds;
 
     const dbUrl = self.registration.scope + "items-db.json?" + Date.now();
     const res = await fetch(dbUrl, { cache: "no-store" });
@@ -112,7 +115,7 @@ async function handleUserPush(data) {
     const allItems = db.items || [];
     const allIds   = allItems.map(it => it.id);
 
-    const newIds = allIds.filter(id => !seenIds.includes(id));
+    const newIds = allIds.filter(id => !pushedIds.includes(id));
     if (newIds.length === 0) return;
 
     // プロフィール未設定 → 汎用通知
@@ -121,6 +124,7 @@ async function handleUserPush(data) {
         body: `${newIds.length}件の新着制度があります。アプリを開いて確認してください。`,
         icon: ICON, badge: BADGE, tag: "new-items", data: { url: APP_URL },
       });
+      await dbSet("seen", "pushedIds", allIds);  // 再通知防止
       return;
     }
 
@@ -137,8 +141,8 @@ async function handleUserPush(data) {
     }
 
     if (toNotify.length === 0) {
-      await dbSet("seen", "ids",       allIds);
-      await dbSet("seen", "updatedAt", data.updatedAt || "");
+      // 通知対象が無くても、評価済みとして pushedIds を前進させる（再評価の無限ループ防止）
+      await dbSet("seen", "pushedIds", allIds);
       return;
     }
 
@@ -164,6 +168,9 @@ async function handleUserPush(data) {
         },
       });
     }
+
+    // 評価・通知し終えた現時点の全idを「プッシュ済み」として記録（再通知防止）
+    await dbSet("seen", "pushedIds", allIds);
 
   } catch (e) {
     await self.registration.showNotification("🆕 新しい制度が追加されました", {
@@ -228,7 +235,10 @@ function isRelevant(item, profile) {
   if (el.certain && el.certain.length > 0 && el.certain.every(c => evalCond(c, profile))) return true;
 
   // スコアチェック（40点以上なら関係あり）
-  let score = el.baseScore || 0;
+  // ※ baseScore 既定値はアプリ(index.html calcEligibilityData)と必ず一致させる(=40)。
+  //   0 にすると空/低eligibilityの制度をアプリは「関係あり」と表示するのにSWは通知を
+  //   握りつぶす不整合が起き、OS通知が出ない（アプリ内ポップのみ）原因になる。
+  let score = (el.baseScore !== undefined) ? el.baseScore : 40;
   if (el.matchRules) {
     el.matchRules.forEach(rule => {
       if (rule["if"] && evalCond(rule["if"], profile)) score += rule.score;

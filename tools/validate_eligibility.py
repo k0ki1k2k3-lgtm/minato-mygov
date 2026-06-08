@@ -136,6 +136,14 @@ def main() -> int:
         # 参考: sourceUrl 欠落
         if not it.get("sourceUrl"):
             warnings.append(f"{iid}: sourceUrl が未設定")
+        # 通知設定の健全性: judgmentType=eligibility なのに eligibility が空
+        #  → 誰にもターゲティングされず（baseScore既定=40で）全員に通知される。意図確認用。
+        if it.get("judgmentType") == "eligibility":
+            has_rules = any((el.get(k) for k in ("certain", "exclude", "matchRules", "missingFor")))
+            if not has_rules:
+                warnings.append(
+                    f"{iid}: judgmentType=eligibility だが eligibility が空 "
+                    f"→ 全ユーザーに通知されます（ターゲティング無し）。意図的か確認")
 
     print(f"🔎 eligibility語彙検証: {len(items)}件 / 語彙キー {len(allowed)}種")
     for w in warnings:
