@@ -842,7 +842,18 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
             </F>
             <F label="可能性額ラベル（potentialLabel）">{inp("potentialLabel","例: 年最大36万円")}</F>
             <F label="リマインドラベル（reminderLabel）">{inp("reminderLabel","例: 港区子ども家庭支援センターへ申請")}</F>
-            <F label="公式URL（sourceUrl）">{inp("sourceUrl","https://...")}</F>
+            <F label="公式URL（sourceUrl）">
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <div style={{flex:1,minWidth:0}}>{inp("sourceUrl","https://...")}</div>
+                {form.sourceUrl ? (
+                  <a href={form.sourceUrl} target="_blank" rel="noopener noreferrer"
+                    style={{flexShrink:0,background:C.blue,color:"#fff",borderRadius:8,padding:"9px 12px",fontSize:13,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap"}}>
+                    ↗ 開いて確認
+                  </a>
+                ) : null}
+              </div>
+              <div style={{color:C.t3,fontSize:11,marginTop:6}}>一次ソース（公式ページ）を開いて、金額・支給頻度・対象・申請期限を照合してください。</div>
+            </F>
           </Section>
 
           <Section title="給付金額ルール（subsidyRules）">
@@ -2010,6 +2021,16 @@ function DraftsTab({drafts, loading, publishing, existingIds, onApprove, onReloa
                 </div>
 
                 <div style={{display:"flex",gap:8,marginTop:16,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+                  {draft.sourceUrl ? (
+                    <a href={draft.sourceUrl} target="_blank" rel="noopener noreferrer"
+                      style={{flex:1,background:C.bg2,color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:8,padding:"9px",fontWeight:700,fontSize:13,textAlign:"center",textDecoration:"none"}}>
+                      🔗 一次ソースを開く
+                    </a>
+                  ) : (
+                    <div style={{flex:1,background:C.red+"11",color:C.red,borderRadius:8,padding:"9px",fontWeight:700,fontSize:12,textAlign:"center"}}>
+                      ⚠️ 公式URL未設定
+                    </div>
+                  )}
                   <button
                     onClick={()=>setDetail(draft)}
                     style={{flex:1,background:C.bg2,color:C.t2,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
