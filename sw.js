@@ -2,8 +2,9 @@
 // Web Push受信 → プロフィールと照合 → 関係あれば通知表示
 // v1.5: 判定基準をアプリと一致(baseScore既定40)＋プッシュ重複防止を pushedIds に分離（既読レース解消）
 // v1.6: skipWaiting + clients.claim で更新を即時有効化（waiting で止まらない）
+// v1.7: 新着OS通知を「サーバ確定の新着id(payload.ids)」基準に変更（端末既読での握りつぶし解消）
 
-const CACHE_NAME = "minato-mygov-v1.6";
+const CACHE_NAME = "minato-mygov-v1.7";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 
@@ -108,6 +109,51 @@ async function handlePush(event) {
 async function handleUserPush(data) {
   try {
     const profile    = await dbGet("profile", "current") || {};
+
+    // ── サーバ確定の新着id優先（端末の既読状態に依存しない・握りつぶし防止）──
+    // notify.yml が git差分で出した data.ids を基準に通知する。重複防止は pushedIds のみ
+    // （push実績でしか進まない）で行い、アプリを開いた既読化では抑制されない。
+    if (Array.isArray(data.ids)) {
+      const pushed = (await dbGet("seen", "pushedIds")) || [];
+      const showIds = data.ids.filter(id => !pushed.includes(id));
+      if (showIds.length === 0) return;  // 既に通知済み / 新着なし（編集のみ）
+      const res = await fetch(self.registration.scope + "items-db.json?" + Date.now(), { cache: "no-store" });
+      const db  = await res.json();
+      const items = (db.items || []).filter(it => showIds.includes(it.id));
+      const advance = () => dbSet("seen", "pushedIds", Array.from(new Set([...pushed, ...data.ids])));
+
+      if (Object.keys(profile).length === 0) {
+        await self.registration.showNotification(data.title || "🆕 新しい制度が追加されました", {
+          body: data.body || `${showIds.length}件の新着があります`,
+          icon: ICON, badge: BADGE, tag: "new-items", data: { url: APP_URL },
+        });
+        await advance();
+        return;
+      }
+      const interestScores = profile.interestScores || {};
+      const toNotify = [];
+      for (const item of items) {
+        const decision = shouldNotify(item, profile, interestScores);
+        if (decision.notify) toNotify.push({ item, decision });
+      }
+      if (toNotify.length === 0) { await advance(); return; }
+      for (const { item, decision } of toNotify.slice(0, 2)) {
+        const notifTitle = item.title || item.officialName || "新しい制度";
+        const notifBody  = decision.useMiniQuiz
+          ? (item.miniQuizText || "詳細はアプリで確認してください")
+          : (item.notifHook || item.catch || "詳細はアプリで確認してください");
+        await self.registration.showNotification(notifTitle, {
+          body: notifBody, icon: ICON, badge: BADGE, tag: `minato-${item.id}`,
+          data: { url: APP_URL, itemId: item.id, notifyLevel: item.notifyLevel || "mid",
+                  miniQuizKey: item.miniQuizKey || "", miniQuizText: item.miniQuizText || "",
+                  categoryHint: item.categoryHint || "" },
+        });
+      }
+      await advance();
+      return;
+    }
+
+    // ── レガシー経路（data.ids 無しの旧ペイロード互換）──
     const seenIds    = await dbGet("seen", "ids")        || [];
     // 通知の重複防止は「既にプッシュ済みのid(pushedIds)」で判定する。
     // アプリを開いた瞬間の一括既読(ids更新)で push が握りつぶされるレースを避けるため、
