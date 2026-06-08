@@ -2952,6 +2952,7 @@ function NotificationButton() {
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
   );
   const [loading, setLoading] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
 
   const handleClick = async () => {
     if (status === "granted") return;
@@ -2960,6 +2961,14 @@ function NotificationButton() {
     setStatus(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
     setLoading(false);
     if (ok) alert("✅ 通知を許可しました！新着制度があるとお知らせします。");
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    const r = await window.sendTestPush();
+    setTesting(false);
+    if (r.ok) alert("🧪 テスト通知を送信しました。数秒以内に通知が届くか確認してください（アプリを閉じると分かりやすいです）。");
+    else alert("⚠️ テスト通知を送れませんでした: " + (r.reason || "不明") + "\n通知許可とホーム画面追加（インストール）を確認してください。");
   };
 
   if (status === "unsupported") return null;
@@ -2975,12 +2984,22 @@ function NotificationButton() {
   const border = status === "granted" ? C.green+"44" : status === "denied" ? C.red+"33" : C.blue+"44";
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={status === "granted" || status === "denied" || loading}
-      style={{width:"100%",background:bg,color,border:`1px solid ${border}`,borderRadius:12,padding:"13px",fontWeight:700,fontSize:14,cursor:status==="granted"||status==="denied"?"default":"pointer",marginBottom:8}}>
-      {label}
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        disabled={status === "granted" || status === "denied" || loading}
+        style={{width:"100%",background:bg,color,border:`1px solid ${border}`,borderRadius:12,padding:"13px",fontWeight:700,fontSize:14,cursor:status==="granted"||status==="denied"?"default":"pointer",marginBottom:8}}>
+        {label}
+      </button>
+      {status === "granted" && (
+        <button
+          onClick={handleTest}
+          disabled={testing}
+          style={{width:"100%",background:C.bg2,color:C.t2,border:`1px solid ${C.border}`,borderRadius:12,padding:"11px",fontWeight:700,fontSize:13,cursor:testing?"default":"pointer",marginBottom:8}}>
+          {testing ? "送信中…" : "🧪 通知テストを送る（自分の端末だけ）"}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -4935,6 +4954,30 @@ window.requestPushPermission = async () => {
   } catch (e) {
     console.warn("Push通知登録失敗:", e.message);
     return false;
+  }
+};
+
+// 自分の端末にだけテスト通知を送る（Worker /test-push：認証不要・type:"TEST"で即時・SWの絞り込みを通さず必ず表示）
+window.sendTestPush = async () => {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return { ok: false, reason: "このブラウザはPush非対応（ホーム画面に追加して再試行）" };
+    }
+    const reg = window._swReg || await navigator.serviceWorker.ready;
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (!sub) return { ok: false, reason: "未購読（先に通知を許可してください）" };
+    const res = await fetch(`${PUSH_WORKER_URL}/test-push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      return { ok: false, reason: `Worker応答 ${res.status} ${t}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: e.message };
   }
 };
 
