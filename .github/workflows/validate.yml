@@ -1,0 +1,27 @@
+name: データ検証
+
+on:
+  push:
+    paths:
+      - "items-db.json"
+      - "index.html"
+      - "tools/validate_eligibility.py"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "items-db.json"
+      - "index.html"
+      - "tools/validate_eligibility.py"
+  workflow_dispatch:
+
+jobs:
+  validate-eligibility:
+    name: "🔎 eligibility語彙検証"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: items-db.json の eligibility 条件を検証
+        run: python tools/validate_eligibility.py
