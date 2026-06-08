@@ -1,8 +1,9 @@
-// minato-mygov Service Worker v1.5
+// minato-mygov Service Worker v1.6
 // Web Push受信 → プロフィールと照合 → 関係あれば通知表示
 // v1.5: 判定基準をアプリと一致(baseScore既定40)＋プッシュ重複防止を pushedIds に分離（既読レース解消）
+// v1.6: skipWaiting + clients.claim で更新を即時有効化（waiting で止まらない）
 
-const CACHE_NAME = "minato-mygov-v1.5";
+const CACHE_NAME = "minato-mygov-v1.6";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 
@@ -11,6 +12,11 @@ const APP_URL   = self.registration.scope;
 const ADMIN_URL = self.registration.scope + "admin-v1.3.html";
 const ICON      = self.registration.scope + "icon-192.png";
 const BADGE     = self.registration.scope + "icon-72.png";
+
+// ── 即時有効化（更新が「待機」で止まらないように）──
+// これが無いと新SWはwaitingのままで、iOSではアプリを完全終了するまで切り替わらない。
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
 
 // ── IndexedDB操作ヘルパー ──
 function openDB() {

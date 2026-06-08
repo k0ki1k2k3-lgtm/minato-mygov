@@ -4926,6 +4926,17 @@ async function initSW() {
     const reg = await navigator.serviceWorker.register(swPath, { scope: basePath });
     window._swReg = reg;
 
+    // 起動時に必ず更新チェック（新しい sw.js があれば取りに行く）
+    reg.update().catch(() => {});
+
+    // 新SWが有効化され制御が切り替わったら一度だけ自動リロード（最新版で動かす）
+    let _reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (_reloaded) return;
+      _reloaded = true;
+      location.reload();
+    });
+
     // 既に許可済みなら即座に購読
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       await subscribePush(reg, "user");
