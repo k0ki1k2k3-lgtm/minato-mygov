@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-06-08T14:02:32.000Z",
+    "updatedAt": "2026-06-08T14:14:35.000Z",
     "totalItems": 50,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
@@ -4530,14 +4530,14 @@
       "notifHook": ""
     },
     {
-      "id": "_test_notify_check4",
+      "id": "_test_notify_check5",
       "gov": "港区",
       "icon": "🧪",
       "colorKey": "blue",
       "tag": "生活",
-      "title": "【テスト4】OS通知の最終確認(v1.9)",
+      "title": "【テスト5】個人化＋即時通知の確認(v2.0)",
       "officialName": "通知テスト用ダミー（削除予定）",
-      "catch": "v1.9でサーバ文言を直接表示。これで来れば完成",
+      "catch": "payload同梱・SWローカル判定。これで来れば根本解決",
       "body": "これは新着Push通知が公開直後に届くか確認するためのテスト項目です。確認後すぐに削除します。",
       "deadline": "通年",
       "urgent": false,
