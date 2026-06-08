@@ -1712,7 +1712,7 @@
             "disability": "あり"
           },
           {
-            "disabilityGrade": "1-2"
+            "disabilityGrade": "1-2級（重度）"
           }
         ],
         "exclude": [
@@ -1739,7 +1739,7 @@
           },
           {
             "if": {
-              "disabilityGrade": "1-2"
+              "disabilityGrade": "1-2級（重度）"
             },
             "score": 20
           }
@@ -3806,7 +3806,7 @@
             "disability": "あり"
           },
           {
-            "disabilityGrade": "1-2"
+            "disabilityGrade": "1-2級（重度）"
           }
         ],
         "exclude": [
@@ -3833,7 +3833,7 @@
           },
           {
             "if": {
-              "disabilityGrade": "1-2"
+              "disabilityGrade": "1-2級（重度）"
             },
             "score": 20
           }
