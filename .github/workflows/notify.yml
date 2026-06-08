@@ -59,18 +59,34 @@ jobs:
               notif_title = "制度情報が更新されました"
               notif_body  = "最新情報をアプリで確認してください"
 
-          # サーバが確定した「本当の新着id」を載せる。SWはこれを基準に通知し、
-          # 端末側の既読状態に依存しない（アプリを開いて既読化されても握りつぶされない）。
+          # サーバが確定した「本当の新着id」を載せる（端末の既読に依存しない）。
           new_ids = [i["id"] for i in new_items]
 
+          # SWが items-db を取りに行かず、端末内プロフィールだけで関係/興味判定できるよう、
+          # 新着アイテムの「判定＋表示に必要なフィールドだけ」を payload に同梱する。
+          # （Pages反映ラグの影響を受けず、かつ個人化を維持するため）
+          SLIM_KEYS = ("id","title","catch","notifHook","miniQuizText","miniQuizKey",
+                       "categoryHint","notifyLevel","judgmentType","interestTags","eligibility")
+          def slim(it):
+              return {k: it[k] for k in SLIM_KEYS if it.get(k) is not None}
+          items_payload = [slim(i) for i in new_items[:3]]
+
+          payload = {"title": notif_title, "body": notif_body, "updatedAt": updated_at,
+                     "ids": new_ids, "items": items_payload}
+
+          # Web Push は約4KB制限。超える場合は items を落とし、SWは汎用表示にフォールバック。
+          if len(json.dumps(payload, ensure_ascii=False).encode("utf-8")) > 3500:
+              payload.pop("items", None)
+              print("⚠️ payloadが大きいため items を省略（SWは汎用表示にフォールバック）")
+
           # curl に渡すペイロードをファイルに書き出し（シェルのエスケープを回避）
-          payload = {"title": notif_title, "body": notif_body, "updatedAt": updated_at, "ids": new_ids}
           with open("notify-payload.json", "w", encoding="utf-8") as f:
               json.dump(payload, f, ensure_ascii=False)
 
           print(f"通知タイトル: {notif_title}")
           print(f"通知本文:     {notif_body}")
           print(f"新着id:       {new_ids}")
+          print(f"payloadサイズ: {len(json.dumps(payload, ensure_ascii=False).encode('utf-8'))} bytes / items {len(payload.get('items', []))}件")
           PYEOF
 
       - name: ユーザーにPush通知を送信（即時）

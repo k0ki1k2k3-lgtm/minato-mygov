@@ -5,8 +5,9 @@
 // v1.7: 新着OS通知を「サーバ確定の新着id(payload.ids)」基準に変更（端末既読での握りつぶし解消）
 // v1.8: GET_VERSION/SKIP_WAITING メッセージ対応（アプリで版確認・手動更新できるように）
 // v1.9: 新着通知はサーバ文言を直接表示（items-db取得＋関係判定をやめ、Pages反映レース/握りつぶしを解消）
+// v2.0: payload.items を同梱しSWはfetchせずローカルprofileで個人化判定（反映ラグ回避＋ターゲティング復活）
 
-const CACHE_NAME = "minato-mygov-v1.9";
+const CACHE_NAME = "minato-mygov-v2.0";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 
@@ -109,40 +110,66 @@ async function handlePush(event) {
 }
 
 async function handleUserPush(data) {
-  // 方針: notify.yml がサーバ側で用意した文言(title/body)を「そのまま」表示する。
-  // 端末側で items-db.json を取りに行って関係判定…はしない。理由は2つの不具合の同時解消:
-  //   ① GitHub Pages 反映レース: push到着時に新項目がまだ未反映だと、SWが取得したDBに
-  //      項目が無く「該当なし」で握りつぶしていた（adminはDBを見ないので来ていた）。
-  //   ② 関係/興味判定の握りつぶし: 照合に失敗すると新着を出さない作りだった。
-  // 個人化(関係・興味でのフィルタ)は将来サーバ側(notify.yml/Worker)へ移す。
+  // 方針(v2.0): notify.yml が payload.items に「新着アイテム本体（判定/表示に必要な分）」を
+  // 同梱する。SWは items-db.json を取りに行かず、端末内 profile だけで関係/興味判定して表示。
+  //  → GitHub Pages 反映ラグの影響を受けず（取得しない）、かつ個人化(ターゲティング)を維持。
+  //  → 重複防止は pushedIds（push実績でのみ前進）。data.items 無し時はサーバ文言を直接表示。
   try {
-    // 重複防止: 新着id(pushedIds)優先、無ければ updatedAt で同一更新を一度だけに。
     const pushed = (await dbGet("seen", "pushedIds")) || [];
-    let showIds = null;
+
+    // 重複防止ゲート
     if (Array.isArray(data.ids)) {
-      showIds = data.ids.filter(id => !pushed.includes(id));
-      if (showIds.length === 0) return;  // 既に通知済み / 追加なし(編集のみ)
+      if (data.ids.filter(id => !pushed.includes(id)).length === 0) return; // 通知済み/編集のみ
     } else {
       const lastAt = await dbGet("seen", "lastPushAt");
-      if (data.updatedAt && data.updatedAt === lastAt) return;  // 同一更新は一度だけ
+      if (data.updatedAt && data.updatedAt === lastAt) return;
+    }
+    const advance = async () => {
+      if (Array.isArray(data.ids)) {
+        await dbSet("seen", "pushedIds", Array.from(new Set([...pushed, ...data.ids])));
+      }
+      if (data.updatedAt) await dbSet("seen", "lastPushAt", data.updatedAt);
+    };
+
+    // ── 個人化経路：payload.items をローカル profile で判定（fetchしない）──
+    if (Array.isArray(data.items) && data.items.length) {
+      const profile = await dbGet("profile", "current") || {};
+      const noProfile = Object.keys(profile).length === 0;
+      const interestScores = profile.interestScores || {};
+      const toNotify = [];
+      for (const item of data.items) {
+        if (!item || !item.id) continue;
+        if (Array.isArray(data.ids) && pushed.includes(item.id)) continue; // 既送
+        if (noProfile) { toNotify.push({ item, decision: { notify: true, useMiniQuiz: false } }); continue; }
+        const decision = shouldNotify(item, profile, interestScores);
+        if (decision.notify) toNotify.push({ item, decision });
+      }
+      if (toNotify.length === 0) { await advance(); return; } // この端末には関係なし＝正しく非表示
+      for (const { item, decision } of toNotify.slice(0, 2)) {
+        const t = item.title || item.officialName || "新しい制度";
+        const b = decision.useMiniQuiz
+          ? (item.miniQuizText || data.body || "詳細はアプリで確認してください")
+          : (item.notifHook || item.catch || data.body || "詳細はアプリで確認してください");
+        await self.registration.showNotification(t, {
+          body: b, icon: ICON, badge: BADGE, tag: `minato-${item.id}`,
+          data: { url: APP_URL, itemId: item.id, notifyLevel: item.notifyLevel || "mid",
+                  miniQuizKey: item.miniQuizKey || "", miniQuizText: item.miniQuizText || "",
+                  categoryHint: item.categoryHint || "" },
+        });
+      }
+      await advance();
+      return;
     }
 
-    const single = (showIds && showIds.length === 1) ? showIds[0] : "";
-    await self.registration.showNotification(
-      data.title || "🆕 新しい制度が追加されました",
-      {
-        body:  data.body || "アプリで新着を確認してください",
-        icon:  ICON,
-        badge: BADGE,
-        tag:   single ? `minato-${single}` : "new-items",
-        data:  { url: APP_URL, itemId: single },
-      },
-    );
-
-    if (showIds) {
-      await dbSet("seen", "pushedIds", Array.from(new Set([...pushed, ...data.ids])));
-    }
-    if (data.updatedAt) await dbSet("seen", "lastPushAt", data.updatedAt);
+    // ── フォールバック：items 無し（4KB超で省略 等）→ サーバ文言を直接表示 ──
+    const fresh = Array.isArray(data.ids) ? data.ids.filter(id => !pushed.includes(id)) : [];
+    const single = fresh.length === 1 ? fresh[0] : "";
+    await self.registration.showNotification(data.title || "🆕 新しい制度が追加されました", {
+      body: data.body || "アプリで新着を確認してください",
+      icon: ICON, badge: BADGE, tag: single ? `minato-${single}` : "new-items",
+      data: { url: APP_URL, itemId: single },
+    });
+    await advance();
   } catch (e) {
     await self.registration.showNotification("🆕 新しい制度が追加されました", {
       body:  data.body || "アプリで新着を確認してください",
