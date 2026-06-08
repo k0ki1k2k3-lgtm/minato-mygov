@@ -68,10 +68,12 @@ jobs:
           print(f"通知本文:     {notif_body}")
           PYEOF
 
-      - name: ユーザーにPush通知を送信
+      - name: ユーザーにPush通知を送信（即時）
         run: |
+          # /notify/now = キューに溜めず即時に全購読者へ送信（毎時Cron・ステージ別時刻・
+          # 1日2件キャップを経由しない）。表示の個人化はSW(handleUserPush)側で行う。
           curl -s -w "\nHTTP Status: %{http_code}" \
-            -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/users" \
+            -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/now" \
             -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
             -H "Content-Type: application/json" \
             -d @notify-payload.json
