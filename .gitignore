@@ -1,0 +1,10 @@
+
+# ローカル専用の引き継ぎ書（公開リポジトリに入れない）
+事業戦略-引き継ぎ.md
+引き継ぎ-CODE-2026-06-03.md
+notify_secret.txt
+
+# 生成物・バックアップ
+amount-recheck-report.md
+items-db.backup*.json
+*.bak*.json

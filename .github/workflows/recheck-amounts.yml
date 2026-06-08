@@ -1,0 +1,53 @@
+name: 金額の定期再照合
+
+on:
+  schedule:
+    - cron: "0 1 1 * *"   # 毎月1日（陳腐化の定期検知）
+    - cron: "0 1 5 4 *"   # 4月5日（年度改定の追従確認）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  recheck:
+    name: "💴 金額 再照合"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 公開itemsの金額を公式ページ本文と再照合
+        id: rc
+        run: python tools/recheck_amounts.py
+
+      - name: 要再確認があればIssueで通知（重複Issueは作らない）
+        if: steps.rc.outputs.has_stale == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '';
+            try { body = fs.readFileSync('amount-recheck-report.md', 'utf8'); }
+            catch (e) { body = '金額再照合で要再確認が検出されました。'; }
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'amount-recheck',
+            });
+            const count = '${{ steps.rc.outputs.stale_count }}';
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body: `🔁 再実行: 要再確認 ${count}件\n\n${body}`,
+              });
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: `💴 金額の要再確認 ${count}件（年度改定の追従）`,
+              body,
+              labels: ['amount-recheck', '要確認'],
+            });
