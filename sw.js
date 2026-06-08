@@ -3,8 +3,9 @@
 // v1.5: 判定基準をアプリと一致(baseScore既定40)＋プッシュ重複防止を pushedIds に分離（既読レース解消）
 // v1.6: skipWaiting + clients.claim で更新を即時有効化（waiting で止まらない）
 // v1.7: 新着OS通知を「サーバ確定の新着id(payload.ids)」基準に変更（端末既読での握りつぶし解消）
+// v1.8: GET_VERSION/SKIP_WAITING メッセージ対応（アプリで版確認・手動更新できるように）
 
-const CACHE_NAME = "minato-mygov-v1.7";
+const CACHE_NAME = "minato-mygov-v1.8";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 
@@ -358,7 +359,7 @@ self.addEventListener("notificationclick", event => {
   );
 });
 
-// ── アプリからのメッセージ受信（プロフィール・既読共有） ──
+// ── アプリからのメッセージ受信（プロフィール・既読共有・版確認・更新）──
 self.addEventListener("message", event => {
   const { type, profile, ids, updatedAt } = event.data || {};
   if (type === "SAVE_PROFILE" && profile) {
@@ -367,5 +368,12 @@ self.addEventListener("message", event => {
   if (type === "SAVE_SEEN") {
     if (ids       !== undefined) dbSet("seen", "ids",       ids);
     if (updatedAt !== undefined) dbSet("seen", "updatedAt", updatedAt);
+  }
+  if (type === "GET_VERSION") {
+    // MessageChannel で版を返す（アプリが現在のSW版を表示できるように）
+    event.ports?.[0]?.postMessage({ version: CACHE_NAME });
+  }
+  if (type === "SKIP_WAITING") {
+    self.skipWaiting();
   }
 });

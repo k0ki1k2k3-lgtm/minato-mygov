@@ -2953,6 +2953,9 @@ function NotificationButton() {
   );
   const [loading, setLoading] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
+  const [swVer, setSwVer] = React.useState("確認中…");
+
+  React.useEffect(() => { window.getSWVersion?.().then(v => setSwVer(v || "不明")); }, []);
 
   const handleClick = async () => {
     if (status === "granted") return;
@@ -2999,6 +3002,16 @@ function NotificationButton() {
           {testing ? "送信中…" : "🧪 通知テストを送る（自分の端末だけ）"}
         </button>
       )}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:2}}>
+        <span style={{fontSize:11,color:C.t3}}>
+          アプリ {window.APP_BUILD || "?"} ／ SW {swVer}
+        </span>
+        <button
+          onClick={() => window.forceAppUpdate && window.forceAppUpdate()}
+          style={{background:"none",border:`1px solid ${C.border}`,color:C.t3,borderRadius:8,padding:"5px 10px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+          🔄 最新に更新
+        </button>
+      </div>
     </>
   );
 }
@@ -4990,6 +5003,34 @@ window.sendTestPush = async () => {
   } catch (e) {
     return { ok: false, reason: e.message };
   }
+};
+
+// アプリ/SWのビルド表示用（更新が反映されたか目視確認できるように）
+window.APP_BUILD = "2026-06-08-v1.7";
+
+// 現在アクティブな Service Worker の版を取得（sw.js の CACHE_NAME を問い合わせ）
+window.getSWVersion = async () => {
+  try {
+    const reg = window._swReg || await navigator.serviceWorker?.ready;
+    const sw = reg && (reg.active || navigator.serviceWorker.controller);
+    if (!sw) return "なし";
+    return await new Promise((resolve) => {
+      const ch = new MessageChannel();
+      const t = setTimeout(() => resolve("不明(無応答)"), 1500);
+      ch.port1.onmessage = (e) => { clearTimeout(t); resolve(e.data?.version || "不明"); };
+      sw.postMessage({ type: "GET_VERSION" }, [ch.port2]);
+    });
+  } catch (e) { return "取得失敗"; }
+};
+
+// 手動で最新へ更新：SWを更新→待機SWをskip→キャッシュ削除→リロード
+window.forceAppUpdate = async () => {
+  try {
+    const reg = window._swReg || await navigator.serviceWorker?.ready;
+    if (reg) { await reg.update().catch(()=>{}); if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" }); }
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+    location.reload();
+  } catch (e) { location.reload(); }
 };
 
 // SW登録はページ読み込み時に実行（許可は求めない）
