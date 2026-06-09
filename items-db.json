@@ -111,7 +111,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shussan",
@@ -213,7 +214,8 @@
           "l1": "健康・医療",
           "l2": "医療費・助成"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "nenkin_men",
@@ -330,7 +332,8 @@
           "l1": "子育て・教育",
           "l2": "高等教育"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "reskilling",
@@ -412,7 +415,8 @@
           "l1": "仕事・キャリア",
           "l2": "スキルアップ"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "scholarship",
@@ -522,7 +526,8 @@
           "l1": "子育て・教育",
           "l2": "高等教育"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "ikuji_kyufu",
@@ -630,7 +635,8 @@
           "l1": "仕事・キャリア",
           "l2": "多様な働き方"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "kougaku_ryoyo",
@@ -732,7 +738,8 @@
           "l1": "お金・給付金",
           "l2": "給付・手当"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shogai_kyufu",
@@ -820,7 +827,8 @@
           "l1": "仕事・キャリア",
           "l2": "労働環境・権利"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "ninpu_kyufu",
@@ -921,7 +929,8 @@
           "l1": "子育て・教育",
           "l2": "妊娠・出産"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "tashi_musho",
@@ -1004,7 +1013,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "flat35_kosodate",
@@ -1121,7 +1131,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "hoiku_muryou",
@@ -1254,7 +1265,8 @@
           "l1": "お金・給付金",
           "l2": "補助・助成"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "silver_pass",
@@ -1339,7 +1351,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "solar_tokyo",
@@ -1442,7 +1455,8 @@
           "l1": "お金・給付金",
           "l2": "補助・助成"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shiritsu_muryou",
@@ -1590,7 +1604,8 @@
           "l1": "子育て・教育",
           "l2": "学齢期"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "juken_challenge",
@@ -1674,7 +1689,8 @@
           "l1": "子育て・教育",
           "l2": "高等教育"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "mutsumi_iryo",
@@ -1773,7 +1789,8 @@
           "l1": "お金・給付金",
           "l2": "給付・手当"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "tokyo_point",
@@ -1849,7 +1866,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "akachan_first",
@@ -1925,7 +1943,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "rs_vaccine",
@@ -2032,7 +2051,8 @@
           "l1": "子育て・教育",
           "l2": "妊娠・出産"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "hitorioya_telework",
@@ -2125,7 +2145,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "chintai_hojo",
@@ -2234,7 +2255,8 @@
           "l1": "お金・給付金",
           "l2": "給付・手当"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "sports_free",
@@ -2289,7 +2311,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "yoyou",
@@ -2343,7 +2366,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "iryo_free",
@@ -2450,7 +2474,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "hoiku_mosikomi",
@@ -2559,7 +2584,8 @@
           "l1": "子育て・教育",
           "l2": "乳幼児・保育"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "solar_minato",
@@ -2666,7 +2692,8 @@
           "l1": "お金・給付金",
           "l2": "補助・助成"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "cancer_check",
@@ -2747,7 +2774,8 @@
           "l1": "健康・医療",
           "l2": "予防・検診"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "babybirthday",
@@ -2835,7 +2863,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shussan_minato",
@@ -2923,7 +2952,8 @@
           "l1": "子育て・教育",
           "l2": "妊娠・出産"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "doula_support",
@@ -3041,7 +3071,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "ninshin_kenshin",
@@ -3161,7 +3192,8 @@
           "l1": "お金・給付金",
           "l2": "補助・助成"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "teishotoku_kyufu",
@@ -3246,7 +3278,8 @@
           "l1": "住まい・生活",
           "l2": "生活費支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "smartphone_hojo",
@@ -3334,7 +3367,8 @@
           "l1": "レジャー・趣味",
           "l2": "デジタル・エンタメ"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "kagakukan_free",
@@ -3392,7 +3426,8 @@
           "l1": "お金・給付金",
           "l2": "お得・節約"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shogai_intern",
@@ -3471,7 +3506,8 @@
           "l1": "健康・医療",
           "l2": "精神障害"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "hitorioya_iryo",
@@ -3577,7 +3613,8 @@
           "l1": "お金・給付金",
           "l2": "給付・手当"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "jidofuyohand",
@@ -3679,7 +3716,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "jutaku_hojo",
@@ -3768,7 +3806,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shinshin_teate",
@@ -3865,7 +3904,8 @@
           "l1": "健康・医療",
           "l2": "知的障害"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "kodomo_dare_tsuen",
@@ -3976,7 +4016,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "shugaku_enjo",
@@ -4085,7 +4126,8 @@
           "l1": "子育て・教育",
           "l2": "学齢期"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "hitorioya_kotsupas",
@@ -4158,7 +4200,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "rikon_shien_josei",
@@ -4227,7 +4270,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "freeschool_josei",
@@ -4304,7 +4348,8 @@
           "l1": "お金・給付金",
           "l2": "補助・助成"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "kotsui_donor_josei",
@@ -4355,7 +4400,8 @@
           "l1": "健康・医療",
           "l2": "予防・検診"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "koreisha_nyuyokuken",
@@ -4413,7 +4459,8 @@
           "l1": "レジャー・趣味",
           "l2": "旅行・お出かけ"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "bukka_kosodate_teate",
@@ -4474,7 +4521,8 @@
           "l1": "子育て・教育",
           "l2": "子育て支援"
         }
-      ]
+      ],
+      "judgmentType": "eligibility"
     },
     {
       "id": "nenkin_seikatsusha_shien_kyuufukin",
