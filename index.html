@@ -172,9 +172,14 @@ async function scheduleServerRecheck(field,value,dueAt,msg){
 function getConfidenceData(item, profile) {
   const el = item.eligibility;
   if (!el) return "needs_profile";
-  const { certain, matchScore } = calcEligibilityData(profile, el);
+  const { certain, matchScore, missing } = calcEligibilityData(profile, el);
   if (certain) return "certain";
-  if (matchScore === 0) return "none";
+  if (matchScore === 0) {
+    // matchScore 0 でも未回答の判定質問が残るなら「関係あるかも(要確認)」として表示し、
+    // クイズで確認させる（exclude確定時は missing=[] になり "none" のまま非表示）。
+    if (missing && missing.length > 0) return "needs_profile";
+    return "none";
+  }
   return "needs_profile";
 }
 
@@ -1386,6 +1391,13 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
   const bodyText = easy ? item.body : (item.officialBody||item.body);
   const missingQ=getMissingQuestions(item,profile);
   const isNeeds=conf==="needs_profile";
+  // クイズ結果メッセージの出し分け用：この制度の判定に必要な質問数（回答前に捕捉）。
+  // 非該当時に 2問以下→「ご回答ありがとうございます！」/ 3問以上→「申し訳ございません」。
+  const qcRef=React.useRef({id:null,count:0});
+  if(qcRef.current.id!==item.id){
+    qcRef.current={id:item.id,count:(typeof countDecidingQuestions==="function"?countDecidingQuestions(item,profile):missingQ.length)};
+  }
+  const quizQCount=qcRef.current.count;
 
   const hasOfficialBody=!!(item.officialBody);
 
@@ -1464,9 +1476,12 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
             }}>✕</div>
           </div>
 
-          {/* タイトル */}
+          {/* タイトル（クイズ質問数で文言を出し分け） */}
           <div style={{color:C.t1,fontWeight:700,fontSize:18,marginBottom:6,textAlign:"center"}}>
-            この制度は対象外です
+            {quizQCount>=3?"申し訳ございません":"ご回答ありがとうございます！"}
+          </div>
+          <div style={{color:C.t2,fontSize:13,marginBottom:14,textAlign:"center"}}>
+            {quizQCount>=3?"当てはまりませんでした":"今回は対象ではありませんでした"}
           </div>
           <div style={{
             background:C.red+"11", border:`1px solid ${C.red}33`,
@@ -1617,8 +1632,8 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
             })()}
             {allAnswered&&nowCertain&&(
               <div style={{background:C.green+"22",borderRadius:10,padding:12,border:`1px solid ${C.green}44`,marginTop:4}}>
-                <div style={{color:C.green,fontWeight:700,fontSize:14,marginBottom:4}}>✅ 対象です！</div>
-                <div style={{color:C.t2,fontSize:12,marginBottom:8}}>この制度はあなたが対象です。</div>
+                <div style={{color:C.green,fontWeight:700,fontSize:14,marginBottom:4}}>✅ 対象です！受け取れる可能性があります</div>
+                <div style={{color:C.t2,fontSize:12,marginBottom:8}}>プロフィールに反映するとホームの「受け取れる給付」に追加されます。下の公式ページから申請方法をご確認ください。</div>
                 <button style={{width:"100%",...S.btn(C.green,true),fontSize:12,fontWeight:700}}
                   onClick={e=>{e.stopPropagation();setProfile(p=>({...p,...miniAnswers}));}}>
                   ✓ プロフィールに反映する
@@ -4123,6 +4138,20 @@ function App(){
         }
       }
     });
+  },[]);
+
+  // digest通知タップ（?notif_digest=1）→ ホームへ誘導。「該当するかも」の給付をクイズで確認できる。
+  useEffect(()=>{
+    try{
+      const params=new URLSearchParams(window.location.search);
+      if(params.get("notif_digest")==="1"){
+        setTab("home");
+        setTimeout(()=>{ if(typeof showToast==="function") showToast("🆕 新着の給付があります。「該当するかも」をタップして確認しましょう"); },900);
+        params.delete("notif_digest");
+        const q=params.toString();
+        window.history.replaceState({},"",window.location.pathname+(q?`?${q}`:""));
+      }
+    }catch(e){}
   },[]);
 
   // 新着を既読にする
