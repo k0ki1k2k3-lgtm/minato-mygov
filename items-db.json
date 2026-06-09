@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-06-08T14:22:07.000Z",
-    "totalItems": 49,
+    "updatedAt": "2026-06-09T00:39:36.219Z",
+    "totalItems": 50,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -4524,6 +4524,54 @@
           "l2": "給付・手当"
         }
       ],
+      "miniQuizKey": "",
+      "miniQuizText": "",
+      "categoryHint": "",
+      "notifHook": ""
+    },
+    {
+      "id": "kaigai_gakko_taiken",
+      "gov": "港区",
+      "icon": "✈️",
+      "colorKey": "blue",
+      "tag": "学び",
+      "title": "海外学校体験事業",
+      "officialName": "海外学校体験事業",
+      "catch": "子どもが海外の学校を無料で体験できる",
+      "body": "港区の小中学生を対象に、海外の学校で授業や文化を体験するプログラムです。国際感覚を養い、語学力・異文化理解を深める機会を港区が提供します。",
+      "officialBody": "港区教育委員会が実施する海外学校体験事業は、区内在住・在学の児童・生徒を対象に、海外の学校において現地の授業や学校生活を体験することで、国際感覚の醸成や語学力の向上を図ることを目的としています。",
+      "deadline": "2026年06月14日",
+      "urgent": true,
+      "subsidyType": "cash",
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
+      "potentialSubsidy": 0,
+      "potentialLabel": "海外学校体験の機会を提供",
+      "reminderLabel": "",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/kyouikushomu/kaigaigakkoutaikennzixyugixyou.html",
+      "easyTitle": "",
+      "eligibility": {
+        "certain": [],
+        "exclude": [],
+        "matchRules": [],
+        "baseScore": 0,
+        "missingFor": [],
+        "excludeReasons": {},
+        "hints": {}
+      },
+      "notifyLevel": "mid",
+      "judgmentType": "eligibility",
+      "interestTags": [],
       "miniQuizKey": "",
       "miniQuizText": "",
       "categoryHint": "",
