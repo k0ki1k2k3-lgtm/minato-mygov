@@ -2312,7 +2312,8 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "interest",
+      "notifyLevel": "low"
     },
     {
       "id": "yoyou",
@@ -2367,7 +2368,8 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "interest",
+      "notifyLevel": "low"
     },
     {
       "id": "iryo_free",
@@ -3427,7 +3429,8 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "interest",
+      "notifyLevel": "low"
     },
     {
       "id": "shogai_intern",
