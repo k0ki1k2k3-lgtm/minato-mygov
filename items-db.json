@@ -4509,12 +4509,38 @@
       "easyTitle": "年金が少ない人への追加給付金",
       "eligibility": {
         "certain": [],
-        "exclude": [],
-        "matchRules": [],
+        "exclude": [
+          {
+            "ageMax": 64
+          }
+        ],
+        "matchRules": [
+          {
+            "if": {
+              "ageMin": 65,
+              "taxExemptLikely": true
+            },
+            "score": 80
+          },
+          {
+            "if": {
+              "ageMin": 65
+            },
+            "score": 30
+          }
+        ],
         "baseScore": 0,
-        "missingFor": [],
-        "excludeReasons": {},
-        "hints": {}
+        "missingFor": [
+          "birthday",
+          "taxStatus",
+          "income"
+        ],
+        "excludeReasons": {
+          "ageMax": "65歳以上の方が対象です"
+        },
+        "hints": {
+          "taxStatus": "65歳以上で住民税非課税世帯の方が主な対象です"
+        }
       },
       "notifyLevel": "mid",
       "judgmentType": "eligibility",
@@ -4563,11 +4589,36 @@
       "eligibility": {
         "certain": [],
         "exclude": [],
-        "matchRules": [],
+        "matchRules": [
+          {
+            "if": {
+              "studentLevel": [
+                "小学生",
+                "中学生"
+              ]
+            },
+            "score": 60
+          },
+          {
+            "if": {
+              "hasKids": "いる（または予定あり）",
+              "kidsAge": [
+                "6〜12歳",
+                "13〜15歳"
+              ]
+            },
+            "score": 60
+          }
+        ],
         "baseScore": 0,
-        "missingFor": [],
+        "missingFor": [
+          "hasKids",
+          "kidsAge"
+        ],
         "excludeReasons": {},
-        "hints": {}
+        "hints": {
+          "kidsAge": "区内在住・在学の小中学生がいる家庭が対象です"
+        }
       },
       "notifyLevel": "mid",
       "judgmentType": "eligibility",
