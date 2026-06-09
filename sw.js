@@ -6,10 +6,16 @@
 // v1.8: GET_VERSION/SKIP_WAITING メッセージ対応（アプリで版確認・手動更新できるように）
 // v1.9: 新着通知はサーバ文言を直接表示（items-db取得＋関係判定をやめ、Pages反映レース/握りつぶしを解消）
 // v2.0: payload.items を同梱しSWはfetchせずローカルprofileで個人化判定（反映ラグ回避＋ターゲティング復活）
+// v2.1: 判定ロジックを eligibility-engine.js に一本化（importScripts）。アプリ(index.html)と
+//        同一コードで shouldNotify/isRelevant/calcEligibilityData を実行＝通知選別とアプリ表示の
+//        乖離（誕生日→年齢・世帯仮想キー・配列プロフィール・taxExemptLikely の取りこぼし）を根絶。
 
-const CACHE_NAME = "minato-mygov-v2.0";
+const CACHE_NAME = "minato-mygov-v2.1";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
+
+// 判定エンジン（アプリ index.html と共有する単一実装）。同階層に配置。
+importScripts("eligibility-engine.js");
 
 // scope = "https://k0ki1k2k3-lgtm.github.io/minato-mygov/"
 const APP_URL   = self.registration.scope;
@@ -179,97 +185,9 @@ async function handleUserPush(data) {
 }
 
 // ── 通知マトリクス判定 ──────────────────────────────────────
-// notifyLevel: "high" | "mid" | "low"
-// judgmentType: "eligibility" | "interest"
-function shouldNotify(item, profile, interestScores) {
-  const level        = item.notifyLevel  || "mid";
-  const jType        = item.judgmentType || "eligibility";
-  const interestScore = getItemInterestScoreSW(item, interestScores);
-
-  if (jType === "eligibility") {
-    const relevant = isRelevant(item, profile);
-    if (!relevant) return { notify: false };
-    if (level === "high") return { notify: true,  useMiniQuiz: false };
-    if (level === "mid")  return { notify: true,  useMiniQuiz: true  };
-    // low → 通知しない（新着ポップのみ）
-    return { notify: false };
-  }
-
-  // judgmentType === "interest"
-  if (level === "high") return { notify: true,  useMiniQuiz: false };
-  if (level === "mid")  return { notify: true,  useMiniQuiz: true  };
-  // low → 興味スコア 0.2 超のみ通知
-  if (level === "low" && interestScore > 0.2) return { notify: true, useMiniQuiz: false };
-  return { notify: false };
-}
-
-// SW内で使うinterestScore計算（index.htmlのgetItemInterestScoreと同一ロジック・複数タグ対応）
-function getItemTagsSW(item) {
-  const t = item && item.interestTags;
-  if (!t) return [];
-  if (Array.isArray(t)) return t.filter(x => x && (x.l1 || x.l2 || x.l3));
-  return (t.l1 || t.l2 || t.l3) ? [t] : [];
-}
-function getItemInterestScoreSW(item, interestScores) {
-  if (!interestScores) return 0;
-  const tags = getItemTagsSW(item);
-  if (!tags.length) return 0;
-  return Math.max(...tags.map(({l1, l2, l3}) =>
-    (interestScores[`l1:${l1}`]||0) * 0.3
-  + (interestScores[`l2:${l2}`]||0) * 0.4
-  + (interestScores[`l3:${l3}`]||0) * 0.3
-  ));
-}
-
-// ── プロフィールと制度の照合 ──
-function isRelevant(item, profile) {
-  const el = item.eligibility;
-  if (!el) return true;
-
-  // 除外条件チェック
-  if (el.exclude && el.exclude.some(c => evalCond(c, profile))) return false;
-
-  // 確実対象
-  if (el.certain && el.certain.length > 0 && el.certain.every(c => evalCond(c, profile))) return true;
-
-  // スコアチェック（40点以上なら関係あり）
-  // ※ baseScore 既定値はアプリ(index.html calcEligibilityData)と必ず一致させる(=40)。
-  //   0 にすると空/低eligibilityの制度をアプリは「関係あり」と表示するのにSWは通知を
-  //   握りつぶす不整合が起き、OS通知が出ない（アプリ内ポップのみ）原因になる。
-  let score = (el.baseScore !== undefined) ? el.baseScore : 40;
-  if (el.matchRules) {
-    el.matchRules.forEach(rule => {
-      if (rule["if"] && evalCond(rule["if"], profile)) score += rule.score;
-    });
-  }
-
-  // missingFor がある（未回答の質問がある）→ 可能性ありとして通知
-  if (el.missingFor && el.missingFor.some(k => !profile[k] || profile[k] === "")) return true;
-
-  return score >= 40;
-}
-
-function evalCond(cond, profile) {
-  const a = profile.ageNum ? Number(profile.ageNum) : null;
-  for (const [key, val] of Object.entries(cond)) {
-    if (key === "_always") return val === true;
-    if (key === "_alwaysExclude") return val === true;
-    if (key === "ageMin") { if (a === null || a < val) return false; continue; }
-    if (key === "ageMax") { if (a === null || a > val) return false; continue; }
-    if (key === "ageBetween") { if (a === null || a < val[0] || a >= val[1]) return false; continue; }
-    const pv = profile[key];
-    if (typeof val === "string") { if (pv !== val) return false; continue; }
-    if (Array.isArray(val)) { if (!val.includes(pv)) return false; continue; }
-    if (typeof val === "object") {
-      if ("not" in val) { if (pv === val.not) return false; continue; }
-      if ("notIn" in val) {
-        if (val.ifSet && (!pv || pv === "")) continue;
-        if (val.notIn.includes(pv)) return false; continue;
-      }
-    }
-  }
-  return true;
-}
+// shouldNotify / isRelevant / calcEligibilityData / evalCondition などの判定関数は
+// eligibility-engine.js（importScripts 済み）に集約。アプリ index.html と同一コードを共有する
+// ため、通知の対象選別とアプリ画面の「関係あり」表示が必ず一致する。
 
 // ── 通知タップ → アプリを開く + NOTIF_OPEN postMessage ──
 self.addEventListener("notificationclick", event => {
