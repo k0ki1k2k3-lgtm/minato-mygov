@@ -614,6 +614,24 @@ function validateEligibility(item) {
   (el.profileCheck || []).forEach(pc => usedKeys.add(pc.field));
   (el.missingFor || []).forEach(k => { if (!usedKeys.has(k)) warnings.push(`missingFor「${k}」が判定条件に未接続`); });
 
+  // チェック5：対象ゼロ／全員／最大加点（judgmentType=eligibility）
+  // アプリ/SWは matchScore>=40 で通知・表示。matchScore = baseScore + 合致matchRules加点。
+  // baseScore 未指定はエンジン既定=40（管理画面は emptyItem で既定 0 を書き込む点に注意）。
+  const jType = item.judgmentType || "eligibility";
+  const matchRules = el.matchRules || [];
+  const baseScore = (el.baseScore == null) ? 40 : el.baseScore;
+  const includers = realCertain.length > 0 || matchRules.length > 0;
+  if (jType === "eligibility") {
+    if (!includers && baseScore < 40) {
+      errors.push(`対象ゼロ：baseScore=${baseScore}（<40）で対象ルールが無く、誰にも通知・表示されません。対象ルールを追加するか baseScore を 40 以上に`);
+    } else if (!includers && baseScore >= 40) {
+      warnings.push(`baseScore=${baseScore}（>=40）で対象ルール無し→全ユーザーが対象。意図的か確認`);
+    } else if (realCertain.length === 0 && matchRules.length > 0) {
+      const maxScore = baseScore + matchRules.reduce((s, r) => s + (Number(r.score) || 0), 0);
+      if (maxScore < 40) warnings.push(`matchRules を全て満たしても matchScore 最大 ${maxScore}（<40）→誰も対象になりません`);
+    }
+  }
+
   const level = errors.length ? "error" : warnings.length ? "warn" : "ok";
   return { level, messages: [...errors, ...warnings] };
 }
