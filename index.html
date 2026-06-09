@@ -1364,8 +1364,21 @@ function InfoCard({item,profile,liked,reminded,hidden,onLike,onRemind,onHide,onC
   );
 }
 
-function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked,reminded,onLike,onRemind,done,onDone,easy,setEasy,onGoProfile}){
+function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked,reminded,onLike,onRemind,done,onDone,easy,setEasy,onGoProfile,siblings,onSwipeTo}){
   const [miniQuiz,setMiniQuiz]=useState(false);
+  // イベント詳細：左右スワイプで隣のイベントへ（siblings=同カテゴリ順の配列）
+  const swipeRef=React.useRef({x:0,y:0});
+  const swipeNav=(dir)=>{
+    if(!siblings||!onSwipeTo) return;
+    const i=siblings.findIndex(s=>s.id===item.id);
+    if(i<0) return;
+    const j=i+dir;
+    if(j<0||j>=siblings.length) return;
+    onSwipeTo(siblings[j]);
+  };
+  const onTouchStart=(e)=>{ const t=e.touches[0]; swipeRef.current={x:t.clientX,y:t.clientY}; };
+  const onTouchEnd=(e)=>{ const t=e.changedTouches[0]; const dx=t.clientX-swipeRef.current.x; const dy=t.clientY-swipeRef.current.y;
+    if(Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.5){ swipeNav(dx<0?1:-1); } };
   const [hideConfirmed,setHideConfirmed]=useState(false);
   const [showRepeatConfirm,setShowRepeatConfirm]=useState(false);
   const [fetchedUrl,setFetchedUrl]=useState(null);
@@ -1508,7 +1521,10 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
 
   return (
     <div style={{position:"absolute",inset:0,top:90,background:"rgba(0,0,0,.7)",zIndex:40,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"80%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxHeight:"80%",overflowY:"auto",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()} onTouchStart={siblings?onTouchStart:undefined} onTouchEnd={siblings?onTouchEnd:undefined}>
+        {siblings&&siblings.length>1&&(
+          <div style={{color:C.t3,fontSize:11,textAlign:"center",marginBottom:8}}>← スワイプで他のイベント →</div>
+        )}
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
           <div style={{fontSize:36}}>{item.icon}</div>
           <div>
@@ -1861,6 +1877,7 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
   const [hideConfirm,setHideConfirm]=useState(null);
   const [repeatConfirmItem,setRepeatConfirmItem]=useState(null);
   const [expanded,setExpanded]=useState(false);
+  const [showAllEvents,setShowAllEvents]=useState(false);
   const [revealed,setRevealed]=useState(!revealMode); // revealModeならfalseスタート
   const banner=calcBanner(profile,items,done,hidden);
 
@@ -1893,34 +1910,35 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
     }
     return baseScore;
   };
-  const allVisible=items
+  const interestOf=(it)=>getItemInterestScore(it, profile.interestScores);
+  // 給付（eligibility）：対象(confidence!=="none")のみ縦リスト。確定→該当かも→利用済 の順。
+  //  興味は表示可否をゲートしない（給付は興味無関係）。並び順のタイブレークにのみ興味を使う。
+  const benefitItems=items
     .filter(it=>{
       if(hidden.includes(it.id)) return false;
-      if(getConfidence(it,profile)!=="none") return true;
-      // interest型は興味スコアが閾値を超えれば表示
-      if(it.judgmentType==="interest"){
-        return getItemInterestScore(it, profile.interestScores) > 0.1;
-      }
-      return false;
+      if((it.judgmentType||"eligibility")==="interest") return false; // イベントは別枠（横帯）
+      return getConfidence(it,profile)!=="none";
     })
     .sort((a,b)=>{
-      // 利用済みは最下位
-      const da=done.includes(a.id)?1:0;
-      const db=done.includes(b.id)?1:0;
-      if(da!==db) return da-db;
-      // 確信度優先（certain > それ以外）
-      const ca=getConfidence(a,profile)==="certain"?0:1;
-      const cb=getConfidence(b,profile)==="certain"?0:1;
-      if(ca!==cb) return ca-cb;
-      // 同率なら興味スコアをタイブレーカーに
-      const ia=getItemInterestScore(a, profile.interestScores);
-      const ib=getItemInterestScore(b, profile.interestScores);
-      if(Math.abs(ia-ib)>0.05) return ib-ia;
+      const da=done.includes(a.id)?1:0, db=done.includes(b.id)?1:0;
+      if(da!==db) return da-db;                                  // 利用済みは最下位
+      const ca=getConfidence(a,profile)==="certain"?0:1, cb=getConfidence(b,profile)==="certain"?0:1;
+      if(ca!==cb) return ca-cb;                                  // 確定 > 該当かも
+      const ia=interestOf(a), ib=interestOf(b);
+      if(Math.abs(ia-ib)>0.05) return ib-ia;                     // 同率なら興味でタイブレーク
       return getScore(b)-getScore(a);
     });
+  // イベント（interest）：関連=区民なら全件表示（興味で絞らない）。興味スコア順、利用済みは末尾。
+  const eventItems=items
+    .filter(it=> !hidden.includes(it.id) && (it.judgmentType||"eligibility")==="interest")
+    .sort((a,b)=>{
+      const da=done.includes(a.id)?1:0, db=done.includes(b.id)?1:0;
+      if(da!==db) return da-db;
+      return interestOf(b)-interestOf(a);
+    });
 
-  const featured=allVisible.slice(0,3);
-  const rest=allVisible.slice(3);
+  const featured=benefitItems.slice(0,3);
+  const rest=benefitItems.slice(3);
 
   const CardItem=({it, index=0, animate=true})=>{
     const conf=getConfidence(it,profile);
@@ -1993,9 +2011,33 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
         </div>
       </div>
 
-      {/* おすすめ3件 */}
-      <div style={{color:C.t2,fontSize:11,fontWeight:600,marginBottom:8}}>✨ あなたへのおすすめ</div>
+      {/* おすすめ給付（縦リスト・上位3件） */}
+      {featured.length>0&&<div style={{color:C.t2,fontSize:11,fontWeight:600,marginBottom:8}}>✨ あなたへのおすすめ</div>}
       {featured.map((it,i)=><CardItem key={it.id} it={it} index={i}/>)}
+
+      {/* イベント横カード列（区民は全件表示・興味順。給付の下＝上部で受動発見） */}
+      {eventItems.length>0&&(
+        <div style={{marginTop:14,marginBottom:6}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{color:C.t2,fontSize:11,fontWeight:600}}>🎟️ あなたに合うイベント・お得</span>
+            <button style={{background:"none",border:"none",color:C.blue,fontSize:12,cursor:"pointer",fontWeight:600}} onClick={()=>setShowAllEvents(true)}>すべて見る →</button>
+          </div>
+          <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4,scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+            {eventItems.map(it=>{
+              const isEvDone=done&&done.includes(it.id);
+              return (
+                <div key={it.id} onClick={()=>setDetail(it)}
+                  style={{flex:"0 0 auto",width:150,background:C.bg2,borderRadius:14,padding:"12px",border:`1px solid ${C.border}`,cursor:"pointer",opacity:isEvDone?0.55:1}}>
+                  <div style={{fontSize:24,marginBottom:6}}>{it.icon}</div>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:12,lineHeight:1.35,marginBottom:4,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{easy?it.title:(it.officialName||it.title)}</div>
+                  <div style={{color:C.t2,fontSize:11,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{it["catch"]||it["catchText"]||""}</div>
+                  {it.deadline&&it.deadline!=="通年"&&<div style={{color:C.blue,fontSize:10,marginTop:6}}>📅 {it.deadline}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 展開ボタン or 展開後のリスト */}
       {rest.length>0&&!expanded&&(
@@ -2021,7 +2063,37 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
         </button>
       </>}
 
-      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy} onGoProfile={onGoProfile}/>}
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy} onGoProfile={onGoProfile} siblings={(detail.judgmentType||"eligibility")==="interest"?eventItems:null} onSwipeTo={(it)=>setDetail(it)}/>}
+
+      {/* 全イベント一覧（すべて見る） */}
+      {showAllEvents&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setShowAllEvents(false)}>
+          <div style={{background:C.bg1,borderRadius:"20px 20px 0 0",padding:"16px 16px 24px",width:"100%",maxWidth:430,maxHeight:"82vh",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexShrink:0}}>
+              <span style={{color:C.t1,fontWeight:700,fontSize:15}}>🎟️ イベント・お得 一覧</span>
+              <button style={{background:"none",border:"none",color:C.t3,fontSize:20,cursor:"pointer"}} onClick={()=>setShowAllEvents(false)}>✕</button>
+            </div>
+            <div style={{flex:1,overflowY:"auto"}}>
+              {eventItems.map(it=>{
+                const isEvDone=done&&done.includes(it.id);
+                return (
+                  <div key={it.id} onClick={()=>{setShowAllEvents(false);setDetail(it);}}
+                    style={{background:C.bg2,borderRadius:14,padding:"12px 14px",marginBottom:8,border:`1px solid ${C.border}`,cursor:"pointer",opacity:isEvDone?0.55:1,display:"flex",gap:10,alignItems:"center"}}>
+                    <div style={{fontSize:24,flexShrink:0}}>{it.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{color:C.t1,fontWeight:700,fontSize:13}}>{easy?it.title:(it.officialName||it.title)}</div>
+                      <div style={{color:C.t2,fontSize:12,marginTop:2}}>{it["catch"]||it["catchText"]||""}</div>
+                      {it.deadline&&it.deadline!=="通年"&&<div style={{color:C.blue,fontSize:11,marginTop:2}}>📅 {it.deadline}</div>}
+                    </div>
+                    {isEvDone&&<span style={{color:C.t3,fontSize:11,flexShrink:0}}>✅ 済み</span>}
+                  </div>
+                );
+              })}
+              {eventItems.length===0&&<div style={{color:C.t3,textAlign:"center",padding:"30px 0"}}>イベントはまだありません</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 繰り返し使える制度の確認ポップ */}
       {repeatConfirmItem&&(
