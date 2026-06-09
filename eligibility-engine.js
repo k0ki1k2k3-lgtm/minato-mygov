@@ -257,27 +257,67 @@ function isRelevant(item, profile) {
   return r.certain || r.matchScore >= 40;
 }
 
-// ── 通知マトリクス判定 ──────────────────────────────────────
-// notifyLevel: "high" | "mid" | "low"
-// judgmentType: "eligibility" | "interest"
-function shouldNotify(item, profile, interestScores) {
-  const level        = item.notifyLevel  || "mid";
-  const jType        = item.judgmentType || "eligibility";
-  const interestScore = getItemInterestScore(item, interestScores);
+// ── 確定該当か（profileCheck の maybe 床に依存しない“真の関連”判定） ──
+// calcEligibilityData は profileCheck(3問以上=maybe_forced 等)で matchScore に 50 の床を
+// 付けるが、それは「未回答でも50」になり push 判定では“未確定”を確定と誤認させる。
+// push 判定ではこの床を使わず、certain合致 or 実マッチ(baseScore+合致matchRules)≥40 のみ確定とする。
+function isConfirmedRelevant(item, profile) {
+  const el = item.eligibility;
+  if (!el) return true;
+  if (el.exclude && el.exclude.some(c => evalCondition(c, profile))) return false;
+  if (el.certain && el.certain.length > 0 && evalCondArray(el.certain, profile, "and")) {
+    // certain が中間状態(申請中/購入予定等)を参照 → 未確定扱い
+    const refsInterim = el.certain.some(cond => Object.keys(cond).some(k => isInterim(profile[k])));
+    if (!refsInterim) return true;
+  }
+  let score = el.baseScore !== undefined ? el.baseScore : 40;
+  if (el.matchRules) {
+    el.matchRules.forEach(rule => { if (rule["if"] && evalCondition(rule["if"], profile)) score += rule.score; });
+  }
+  return score >= 40;
+}
 
-  if (jType === "eligibility") {
-    const relevant = isRelevant(item, profile);
-    if (!relevant) return { notify: false };
-    if (level === "high") return { notify: true,  useMiniQuiz: false };
-    if (level === "mid")  return { notify: true,  useMiniQuiz: true  };
-    // low → 通知しない（新着ポップのみ）
-    return { notify: false };
+// ── 判定に必要な「未回答の質問」数（未確定の出し分けに使う） ──
+// missingFor の未回答キー ＋ profileCheck の未回答(shouldAsk=true)フィールド の重複排除カウント。
+function countDecidingQuestions(item, profile) {
+  const el = item.eligibility;
+  if (!el) return 0;
+  const set = new Set();
+  (el.missingFor || []).forEach(k => { if (!profile[k] || profile[k] === "") set.add(k); });
+  (el.profileCheck || []).forEach(c => { if (c && c.field && shouldAsk(c.field, profile)) set.add(c.field); });
+  return set.size;
+}
+
+// 興味型(イベント)の notifyLevel→通知閾値。値が大きいほど“強い興味”が必要。
+function interestThreshold(level) {
+  return level === "high" ? 0.1 : level === "low" ? 0.4 : 0.2;
+}
+
+// ── 通知判定（push用・SW/アプリ共通） ──────────────────────────
+// 戻り値 action: "notify"(個別通知) | "digest"(まとめ通知に集約) | "none"(通知しない)
+//  - 給付(eligibility): 興味無関係。確定該当→notify／未確定(質問3問以上)→digest／
+//    1〜2問→none(アプリ内クイズ)／0問・対象外→none。
+//  - イベント(interest): 興味スコア>閾値(high0.1/mid0.2/low0.4)→notify／否→none。
+//  - notifyLevel は給付の useMiniQuiz、イベントの閾値に作用。
+function shouldNotify(item, profile, interestScores) {
+  const level = item.notifyLevel  || "mid";
+  const kind  = item.judgmentType || "eligibility";
+
+  if (kind === "interest") {
+    const score = getItemInterestScore(item, interestScores);
+    if (score > interestThreshold(level)) return { action: "notify", useMiniQuiz: level !== "high", kind };
+    return { action: "none", kind };
   }
 
-  // judgmentType === "interest"
-  if (level === "high") return { notify: true,  useMiniQuiz: false };
-  if (level === "mid")  return { notify: true,  useMiniQuiz: true  };
-  // low → 興味スコア 0.2 超のみ通知
-  if (level === "low" && interestScore > 0.2) return { notify: true, useMiniQuiz: false };
-  return { notify: false };
+  // 給付(eligibility)
+  const el = item.eligibility;
+  if (el && el.exclude && el.exclude.some(c => evalCondition(c, profile))) return { action: "none", kind };
+  if (isConfirmedRelevant(item, profile)) {
+    // 確定該当 → 個別通知（mid はミニクイズで確認導線、high は直接）
+    return { action: "notify", useMiniQuiz: level === "mid", kind };
+  }
+  // 未確定 → 質問数で出し分け
+  const q = countDecidingQuestions(item, profile);
+  if (q >= 3) return { action: "digest", kind };
+  return { action: "none", kind }; // 1〜2問はアプリ内クイズ／0問は非該当
 }

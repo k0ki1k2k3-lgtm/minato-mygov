@@ -187,18 +187,24 @@ localStorage / IndexedDB に `mgov_profile` として保存。
 
 ---
 
-## 通知マトリクス（shouldNotify ロジック）
+## 通知マトリクス（shouldNotify ロジック・v2.2〜）
 
-`sw.js` の `shouldNotify()` と `index.html` の表示順ロジックで使用。
+`eligibility-engine.js` の `shouldNotify()`（`sw.js` が importScripts して push 判定に使用）。
+戻り値 `action`: `"notify"`(個別通知) / `"digest"`(まとめ1通に集約) / `"none"`(出さない)。
+**興味は給付(eligibility)に無関係。ホーム表示の可否はゲートせず、興味は並び順と通知のみに作用。**
 
-| judgmentType | notifyLevel | 条件 | 通知 |
-|---|---|---|---|
-| eligibility | high | isRelevant=true | ✅ 通知（notifHookを使用） |
-| eligibility | mid | isRelevant=true | ✅ 通知（miniQuizTextを使用） |
-| eligibility | low | isRelevant=true | ❌ 通知しない |
-| interest | high | 常に | ✅ 通知 |
-| interest | mid | 常に | ✅ 通知（miniQuiz） |
-| interest | low | interestScore > 0.2 | ✅ 通知 |
+| kind | 条件 | action |
+|---|---|---|
+| eligibility | exclude 該当 | none |
+| eligibility | 確定該当（certain合致 or 実マッチ matchScore≥40 ※profileCheck の maybe 床は使わない） | notify（mid は miniQuiz、high は notifHook） |
+| eligibility | 未確定（未確定 かつ 判定に必要な未回答質問 ≥3） | digest（SWが集約し「🆕 新着の給付がN件」1通でクイズ誘導） |
+| eligibility | 未確定（質問 1〜2） | none（pushせずアプリ内インラインクイズ） |
+| eligibility | 未確定（質問 0）/非該当 | none |
+| interest | interestScore > 閾値（high>0.1 / mid>0.2 / low>0.4） | notify |
+| interest | 閾値以下 | none |
+
+- 質問数 = `countDecidingQuestions()`（missingFor 未回答 ＋ profileCheck 未回答 の重複排除）。
+- 新規（プロフィール空）は現状維持で全配信（オンボーディング）。
 
 ---
 

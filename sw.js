@@ -9,8 +9,11 @@
 // v2.1: 判定ロジックを eligibility-engine.js に一本化（importScripts）。アプリ(index.html)と
 //        同一コードで shouldNotify/isRelevant/calcEligibilityData を実行＝通知選別とアプリ表示の
 //        乖離（誕生日→年齢・世帯仮想キー・配列プロフィール・taxExemptLikely の取りこぼし）を根絶。
+// v2.2: shouldNotify を action型({notify|digest|none})に。給付=対象者へ(興味無関係)・確定該当は
+//        個別通知／未確定(質問3問以上)はまとめ1通(digest)でクイズ誘導／1〜2問はpushせずアプリ内。
+//        イベント(interest)は興味スコア>閾値(high0.1/mid0.2/low0.4)のみ通知。
 
-const CACHE_NAME = "minato-mygov-v2.1";
+const CACHE_NAME = "minato-mygov-v2.2";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 
@@ -142,18 +145,23 @@ async function handleUserPush(data) {
       const profile = await dbGet("profile", "current") || {};
       const noProfile = Object.keys(profile).length === 0;
       const interestScores = profile.interestScores || {};
-      const toNotify = [];
+      // action 別に振り分け（notify=個別 / digest=まとめ1通 / none=出さない）
+      const toNotify = [];     // 確定該当の給付・興味十分なイベント → 個別通知
+      const digestItems = [];  // 未確定(質問3問以上)の給付 → まとめ1通
       for (const item of data.items) {
         if (!item || !item.id) continue;
         if (Array.isArray(data.ids) && pushed.includes(item.id)) continue; // 既送
-        if (noProfile) { toNotify.push({ item, decision: { notify: true, useMiniQuiz: false } }); continue; }
-        const decision = shouldNotify(item, profile, interestScores);
-        if (decision.notify) toNotify.push({ item, decision });
+        if (noProfile) { toNotify.push({ item, useMiniQuiz: false }); continue; } // 新規は全配信(現状維持)
+        const d = shouldNotify(item, profile, interestScores);
+        if (d.action === "notify") toNotify.push({ item, useMiniQuiz: !!d.useMiniQuiz });
+        else if (d.action === "digest") digestItems.push(item);
+        // none → 何もしない
       }
-      if (toNotify.length === 0) { await advance(); return; } // この端末には関係なし＝正しく非表示
-      for (const { item, decision } of toNotify.slice(0, 2)) {
+      if (toNotify.length === 0 && digestItems.length === 0) { await advance(); return; }
+      // 個別通知（確定該当・興味イベント）。1回あたり最大2件。
+      for (const { item, useMiniQuiz } of toNotify.slice(0, 2)) {
         const t = item.title || item.officialName || "新しい制度";
-        const b = decision.useMiniQuiz
+        const b = useMiniQuiz
           ? (item.miniQuizText || data.body || "詳細はアプリで確認してください")
           : (item.notifHook || item.catch || data.body || "詳細はアプリで確認してください");
         await self.registration.showNotification(t, {
@@ -161,6 +169,15 @@ async function handleUserPush(data) {
           data: { url: APP_URL, itemId: item.id, notifyLevel: item.notifyLevel || "mid",
                   miniQuizKey: item.miniQuizKey || "", miniQuizText: item.miniQuizText || "",
                   categoryHint: item.categoryHint || "" },
+        });
+      }
+      // 未確定給付（要・複数質問）はまとめて1通でクイズへ誘導
+      if (digestItems.length > 0) {
+        const ids = digestItems.map(i => i.id);
+        await self.registration.showNotification(`🆕 新着の給付が${digestItems.length}件あります`, {
+          body: "あてはまるか、かんたんな質問で確認しましょう",
+          icon: ICON, badge: BADGE, tag: "minato-digest",
+          data: { url: `${APP_URL}?notif_digest=1`, digest: true, ids },
         });
       }
       await advance();
