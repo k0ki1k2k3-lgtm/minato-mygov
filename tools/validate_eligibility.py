@@ -136,14 +136,32 @@ def main() -> int:
         # 参考: sourceUrl 欠落
         if not it.get("sourceUrl"):
             warnings.append(f"{iid}: sourceUrl が未設定")
-        # 通知設定の健全性: judgmentType=eligibility なのに eligibility が空
-        #  → 誰にもターゲティングされず（baseScore既定=40で）全員に通知される。意図確認用。
+        # 通知設定の健全性（judgmentType=eligibility）。
+        #  アプリ/SW(eligibility-engine.js)は matchScore>=40 で「関係あり」＝通知。
+        #  matchScore = baseScore + 合致した matchRules の加点（certain合致は確定=100）。
+        #  baseScore 未指定はエンジン既定=40。管理画面は既定で 0 を書き込む点に注意。
         if it.get("judgmentType") == "eligibility":
-            has_rules = any((el.get(k) for k in ("certain", "exclude", "matchRules", "missingFor")))
-            if not has_rules:
-                warnings.append(
-                    f"{iid}: judgmentType=eligibility だが eligibility が空 "
-                    f"→ 全ユーザーに通知されます（ターゲティング無し）。意図的か確認")
+            certain = el.get("certain") or []
+            match_rules = el.get("matchRules") or []
+            base = el.get("baseScore", 40)  # エンジンと同じ: 未指定なら 40
+            includers = bool(certain) or bool(match_rules)
+            if not includers:
+                # 対象を選ぶルールが無い → 全員が matchScore=base になる
+                if base >= 40:
+                    warnings.append(
+                        f"{iid}: 対象ルールが無く baseScore={base}（>=40）"
+                        f"→ 全ユーザーに通知されます（ターゲティング無し）。意図的か確認")
+                else:
+                    warnings.append(
+                        f"{iid}: 対象ルールが無く baseScore={base}（<40）"
+                        f"→ 誰にも通知されません（対象者ゼロ）。baseScoreを40にするか対象ルールを追加")
+            elif not certain:
+                # matchRules はあるが、最大加点でも 40 に届かなければ誰も対象にならない
+                max_score = base + sum((r.get("score") or 0) for r in match_rules)
+                if max_score < 40:
+                    warnings.append(
+                        f"{iid}: matchRules を全て満たしても matchScore 最大 {max_score}（<40）"
+                        f"→ 誰も通知対象になりません。配点か baseScore を見直し")
 
     print(f"🔎 eligibility語彙検証: {len(items)}件 / 語彙キー {len(allowed)}種")
     for w in warnings:
