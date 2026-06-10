@@ -13,7 +13,7 @@
 //        個別通知／未確定(質問3問以上)はまとめ1通(digest)でクイズ誘導／1〜2問はpushせずアプリ内。
 //        イベント(interest)は興味スコア>閾値(high0.1/mid0.2/low0.4)のみ通知。
 
-const CACHE_NAME = "minato-mygov-v2.2";
+const CACHE_NAME = "minato-mygov-v2.3";
 const DB_NAME = "minato-mygov-db";
 const DB_VERSION = 1;
 

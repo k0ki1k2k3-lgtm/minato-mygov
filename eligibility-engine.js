@@ -117,9 +117,12 @@ function evalCondition(cond, profile) {
     if (typeof val === "string") { if (!pvArr.includes(val)) return false; continue; }
     if (Array.isArray(val)) { if (!val.some(v=>pvArr.includes(v))) return false; continue; }
     if (typeof val === "object") {
-      if ("not" in val) { if (pvArr.includes(val.not)) return false; continue; }
+      if ("not" in val) {
+        if (val.ifSet && pvArr.length===0) return false; // 未設定なら条件不成立（exclude発火させない）
+        if (pvArr.includes(val.not)) return false; continue;
+      }
       if ("notIn" in val) {
-        if (val.ifSet && pvArr.length===0) continue; // 未設定なら無視
+        if (val.ifSet && pvArr.length===0) return false; // 未設定なら条件不成立（exclude発火させない）
         if (val.notIn.some(v=>pvArr.includes(v))) return false; continue;
       }
     }
