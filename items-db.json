@@ -398,7 +398,9 @@
           }
         ],
         "baseScore": 0,
-        "missingFor": [],
+        "missingFor": [
+          "stage"
+        ],
         "excludeReasons": {
           "stage": "年金生活者・学生（22歳未満）は対象外です"
         },
@@ -596,7 +598,10 @@
           }
         ],
         "baseScore": 0,
-        "missingFor": [],
+        "missingFor": [
+          "hasKids",
+          "stage"
+        ],
         "excludeReasons": {
           "stage": "育休取得者（雇用保険加入）が対象です"
         },
@@ -1330,7 +1335,9 @@
           }
         ],
         "baseScore": 0,
-        "missingFor": [],
+        "missingFor": [
+          "birthday"
+        ],
         "excludeReasons": {
           "ageNum": "65歳未満は対象外です"
         },
@@ -2765,7 +2772,9 @@
           }
         ],
         "baseScore": 0,
-        "missingFor": [],
+        "missingFor": [
+          "birthday"
+        ],
         "excludeReasons": {},
         "hints": {
           "ageNum": "20歳以上なら子宮頸がん検診のみ対象。40歳以上で全種類対象です"
@@ -3351,7 +3360,9 @@
           }
         ],
         "baseScore": 0,
-        "missingFor": [],
+        "missingFor": [
+          "birthday"
+        ],
         "excludeReasons": {
           "ageNum": "65歳未満は対象外です",
           "income": "高所得の場合は対象外です"
