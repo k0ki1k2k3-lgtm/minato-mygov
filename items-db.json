@@ -4777,7 +4777,7 @@
         }
       },
       "notifyLevel": "low",
-      "judgmentType": "eligibility",
+      "judgmentType": "interest",
       "interestTags": [
         {
           "l1": "健康・医療",
