@@ -38,6 +38,13 @@ VIRTUAL_KEYS = {
 }
 
 
+def age_min_mentions(text: str) -> set:
+    """本文から「N歳以上」の N を集合で返す（内容の年齢整合チェック用）。"""
+    if not text:
+        return set()
+    return {int(n) for n in re.findall(r"(\d+)\s*歳以上", text)}
+
+
 def extract_vocab(html: str) -> dict:
     """index.html から key -> 許容“保存値”集合 を抽出する。"""
     allowed: dict[str, set] = {}
@@ -162,6 +169,42 @@ def main() -> int:
                     warnings.append(
                         f"{iid}: matchRules を全て満たしても matchScore 最大 {max_score}（<40）"
                         f"→ 誰も通知対象になりません。配点か baseScore を見直し")
+            # 過剰通知（koreisha型）: certain/matchRules で絞っているのに baseScore が高い/未指定
+            #  → 未回答ユーザーが baseScore だけで matchScore>=40 に達し、全員に通知されてしまう。
+            base_unspecified = "baseScore" not in el
+            has_always = any(
+                (c.get("if", c) if isinstance(c, dict) else {}).get("_always") is True
+                for c in certain)
+            if includers and base >= 40 and not has_always:
+                if base_unspecified:
+                    errors.append(
+                        f"{iid}: baseScore未指定（エンジン既定=40）かつ certain/matchRules で絞り込み"
+                        f"→ 未回答ユーザーが score40 で過剰通知されます。baseScore:0 を明示してください")
+                else:
+                    warnings.append(
+                        f"{iid}: baseScore={base}（>=40）で絞り込みあり"
+                        f"→ 未回答ユーザーにも通知される可能性。意図的か確認（属性ゲート給付は baseScore:0 が原則）")
+
+        # 先行除外（freeschool型）: exclude の否定条件に ifSet:true が無いと、
+        #  未回答ユーザーも除外され、通知もクイズも来ない（拾うべき未確定者を取りこぼす）。
+        for cond in (el.get("exclude") or []):
+            if not isinstance(cond, dict):
+                continue
+            for k, v in cond.items():
+                if k in VIRTUAL_KEYS:
+                    continue
+                if isinstance(v, dict) and ("not" in v or "notIn" in v) and not v.get("ifSet"):
+                    warnings.append(
+                        f"{iid} [exclude] 「{k}」の否定条件に ifSet:true が無い"
+                        f"→ 未回答ユーザーを先行除外（通知もクイズも来ない）。ifSet:true を付けてください")
+
+        # 内容の年齢整合（best-effort）: body と officialBody で「N歳以上」が食い違う＝内容誤りの兆候。
+        body_ages = age_min_mentions(it.get("body", ""))
+        ob_ages = age_min_mentions(it.get("officialBody", ""))
+        if body_ages and ob_ages and body_ages.isdisjoint(ob_ages):
+            warnings.append(
+                f"{iid}: body と officialBody で「N歳以上」が不一致 "
+                f"(body={sorted(body_ages)} / officialBody={sorted(ob_ages)}) → 内容の年齢を要確認")
 
     print(f"🔎 eligibility語彙検証: {len(items)}件 / 語彙キー {len(allowed)}種")
     for w in warnings:
