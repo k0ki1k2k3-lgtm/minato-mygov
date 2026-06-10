@@ -1494,7 +1494,10 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
     +" "+(item.gov==="港区"?"港区 申請":item.gov==="東京都"?"東京都 申請":"申請 公式")
   );
 
-  const targetUrl=fetchedUrl||fallbackUrl;
+  // DB に正しい公式URL(sourceUrl)があれば直接開く。無ければ従来の検索フォールバック。
+  const directUrl=(item.sourceUrl && /^https?:\/\//.test(item.sourceUrl)) ? item.sourceUrl : "";
+  const targetUrl=directUrl||fetchedUrl||fallbackUrl;
+  const hasDirectUrl=!!(directUrl||fetchedUrl);
 
   // ── 対象外確定画面（モーダル全体を覆うオーバーレイ） ──
   if(showExcludedScreen){
@@ -1729,14 +1732,14 @@ function DetailModal({item,onClose,liveData,conf,profile,setProfile,onHide,liked
             <><div style={{width:14,height:14,border:"2px solid #fff",borderTopColor:"transparent",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
             最新ページを検索中…</>
           ):(
-            fetchedUrl
+            hasDirectUrl
               ? <>🔗 公式ページを開く</>
               : <>🔍 公式ページを検索する</>
           )}
         </a>
         {!fetching&&(
           <div style={{color:C.t3,fontSize:10,textAlign:"center",marginBottom:12}}>
-            {fetchedUrl?"✓ AIが最新URLを取得しました":"公式サイト内を検索します"}
+            {hasDirectUrl?"✓ 公式ページに直接移動します":"公式サイト内を検索します"}
           </div>
         )}
         {/* いいね・リマインドボタン */}
