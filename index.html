@@ -360,6 +360,28 @@ function calcInterestScores(liked, done, allItems) {
 
 function getEligibilityHint(item, profile) { return getEligibilityHintData(item, profile); }
 
+// ── 興味ヒアリング：まだ興味が分からない中分類(l2)を1つ選ぶ（無ければnull） ──
+// いいね/申請で貯まる興味スコアの空白を、ポップで1問ずつ埋めて通知精度・並び順を上げる。
+function pickInterestQuestion(allItems, profile){
+  const scores=(profile&&profile.interestScores)||{};
+  const prefs=(profile&&profile.interestPrefs)||{};
+  const dismissed=(profile&&profile.interestDismissed)||[];
+  const counts={}, meta={};
+  // 興味は「イベント(interest型)」の通知・並び順にのみ効くので、イベントのタグだけを対象にする
+  (allItems||[]).filter(it=>(it.judgmentType||"eligibility")==="interest").forEach(it=>{
+    (getItemTags(it)||[]).forEach(({l1,l2})=>{
+      if(!l2) return;
+      const key="l2:"+l2;
+      if((scores[key]||0)>0) return;     // 既に興味が分かっている
+      if(prefs[key]!==undefined) return; // 既に明示回答済み
+      if(dismissed.includes(key)) return;// 「興味なし」で除外済み
+      counts[l2]=(counts[l2]||0)+1; meta[l2]={l1,l2};
+    });
+  });
+  const ranked=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  return ranked.length? meta[ranked[0]] : null;
+}
+
 // ── 全プロフィール質問定義（ミニクイズ用） ──────────────────
 const ALL_PROFILE_QUESTIONS = {
   housing:     {label:"住居形態",         opts:["持ち家（戸建て）","持ち家（マンション）","賃貸","社宅・寮","その他"]},
@@ -4111,6 +4133,33 @@ function App(){
   const [dbUpdatedAt, setDbUpdatedAt] = useState("");
   const [showSeasonal, setShowSeasonal] = useState(false);
   const [dueRecheck, setDueRecheck] = useState(null);
+  const [interestAsk, setInterestAsk] = useState(null); // 興味ヒアリングのポップ（{l1,l2} or null）
+
+  // 興味ヒアリング：1セッション1問、未取得の中分類を聞く（オンボーディングでは聞かない）
+  useEffect(()=>{
+    if(!dbLoaded || phase!=="main") return;
+    if(sessionStorage.getItem("mgov_interest_session")) return; // 今セッションは確認済み
+    if(showSeasonal || dueRecheck || showNewPop) return;        // 他のポップ優先
+    const q=pickInterestQuestion(ITEMS_BASE, profile);
+    if(!q) return;
+    const t=setTimeout(()=>{ setInterestAsk(q); }, 1600);
+    return ()=>clearTimeout(t);
+  },[dbLoaded, phase, showSeasonal, dueRecheck, showNewPop, profile.interestScores]);
+
+  const answerInterest=(yes)=>{
+    if(interestAsk){
+      const {l1,l2}=interestAsk;
+      const k2="l2:"+l2, k1="l1:"+l1;
+      if(yes){
+        setProfile(p=>{ const prefs={...(p.interestPrefs||{}), [k2]:1, [k1]:1};
+          return {...p, interestPrefs:prefs, interestScores:{...(p.interestScores||{}), ...prefs}}; });
+      }else{
+        setProfile(p=>({...p, interestDismissed:[...new Set([...(p.interestDismissed||[]), k2])]}));
+      }
+    }
+    sessionStorage.setItem("mgov_interest_session","1");
+    setInterestAsk(null);
+  };
 
   useEffect(()=>{
     loadItemsDB().then(result=>{
@@ -4253,11 +4302,11 @@ function App(){
   useEffect(()=>{ lsSave(LS_LIKED, liked); },[liked]);
   useEffect(()=>{ lsSave(LS_REMINDED, reminded); },[reminded]);
   useEffect(()=>{ lsSave(LS_DONE, done); },[done]);
-  // liked/done 変化 → interestScores 再計算
+  // liked/done 変化 → interestScores 再計算（明示的な興味回答 interestPrefs を上書きマージ）
   useEffect(()=>{
     if (!dbLoaded) return;
     const scores = calcInterestScores(liked, done, ITEMS_BASE);
-    setProfile(p => ({...p, interestScores: scores}));
+    setProfile(p => ({...p, interestScores: {...scores, ...(p.interestPrefs||{})}}));
   },[liked, done, dbLoaded]);
   useEffect(()=>{ lsSave(LS_HIDDEN, hidden); },[hidden]);
   useEffect(()=>{ lsSave("mgov_festival_notified", festivalNotified); },[festivalNotified]);
@@ -4628,6 +4677,33 @@ function App(){
                 }}
                 onClose={()=>{ setDueRecheck(null); }}
               />
+            )}
+
+            {/* 興味ヒアリングのポップ（1セッション1問） */}
+            {interestAsk && phase==="main" && (
+              <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)",zIndex:160,display:"flex",alignItems:"flex-end"}} onClick={()=>answerInterest(false)}>
+                <div style={{background:C.bg1,borderRadius:"24px 24px 0 0",width:"100%",padding:"24px 24px 32px",animation:"slideUp .3s ease"}} onClick={e=>e.stopPropagation()}>
+                  <div style={{fontSize:34,textAlign:"center",marginBottom:8}}>🎟️</div>
+                  <div style={{color:C.t1,fontWeight:700,fontSize:17,textAlign:"center",marginBottom:6}}>
+                    「{interestAsk.l2}」に興味はありますか？
+                  </div>
+                  <div style={{color:C.t2,fontSize:13,textAlign:"center",marginBottom:20,lineHeight:1.6}}>
+                    お答えいただくと、関連するイベント・お得情報の通知や並び順がよくなります。
+                  </div>
+                  <div style={{display:"flex",gap:10,marginBottom:10}}>
+                    <button style={{flex:1,...S.btn(C.blue,false),fontSize:14,fontWeight:700}} onClick={()=>answerInterest(true)}>
+                      😊 興味あり
+                    </button>
+                    <button style={{flex:1,...S.btn(C.bg3,false),border:`1px solid ${C.border}`,fontSize:14}} onClick={()=>answerInterest(false)}>
+                      興味なし
+                    </button>
+                  </div>
+                  <button style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer",padding:"4px"}}
+                    onClick={()=>{ sessionStorage.setItem("mgov_interest_session","1"); setInterestAsk(null); }}>
+                    あとで
+                  </button>
+                </div>
+              </div>
             )}
 
             <BottomNav tab={tab} setTab={handleSetTab}
