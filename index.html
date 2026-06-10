@@ -164,6 +164,33 @@ async function scheduleServerRecheck(field,value,dueAt,msg){
       body:JSON.stringify({endpoint:sub.endpoint,field,value,dueAt,message:msg})}); }catch(e){}
 }
 
+// 「YYYY年MM月DD日」形式の締切を時刻(ms)に。取れなければ null。
+function parseDeadlineDate(s){
+  const m=String(s||"").match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  return m? new Date(+m[1], +m[2]-1, +m[3]).getTime() : null;
+}
+const LS_BENEFIT_REMIND="mgov_benefit_remind"; // リマインド予約済みの給付id
+// 確定給付で未申請のものに「申請お済みですか？」リマインドを控えめに1回予約する。
+// 締切あり→締切3日前、締切なし→確定14日後。一度予約したidは再予約しない（控えめ）。
+// done/hidden は対象外。配信は Worker の RECHECK 経路（要・通知許可＋購読）。
+function scheduleBenefitReminders(profile, items, done, hidden){
+  if(typeof Notification==="undefined" || Notification.permission!=="granted") return;
+  const sent=lsLoad(LS_BENEFIT_REMIND,[]); const now=Date.now(); let changed=false;
+  (items||[]).forEach(it=>{
+    if((it.judgmentType||"eligibility")!=="eligibility") return;
+    if(done.includes(it.id)||hidden.includes(it.id)||sent.includes(it.id)) return;
+    const el=it.eligibility; if(!el) return;
+    if(!calcEligibilityData(profile, el).certain) return; // 確定対象のみ
+    const dl=parseDeadlineDate(it.deadline);
+    let dueAt = dl ? dl - 3*86400000 : now + 14*86400000;
+    if(dueAt<=now) dueAt = now + 60000;
+    scheduleServerRecheck("benefit:"+it.id, "remind", dueAt,
+      `「${it.title}」の申請はお済みですか？受け取れる可能性があります。`);
+    sent.push(it.id); changed=true;
+  });
+  if(changed) lsSave(LS_BENEFIT_REMIND, sent);
+}
+
 // ── 判定ロジックは eligibility-engine.js に集約（SWと共有） ──
 // ageFromBirthday / householdSize / isLikelyTaxExempt / isInterim / calcHouseholdStats /
 // matchCount / evalCondition / evalCondArray / PROFILE_RECHECK_DAYS / shouldAsk /
@@ -4308,6 +4335,11 @@ function App(){
     const scores = calcInterestScores(liked, done, ITEMS_BASE);
     setProfile(p => ({...p, interestScores: {...scores, ...(p.interestPrefs||{})}}));
   },[liked, done, dbLoaded]);
+  // 確定給付の未申請リマインドを控えめに予約（通知許可時のみ・給付id単位で1回）
+  useEffect(()=>{
+    if (!dbLoaded || phase!=="main") return;
+    scheduleBenefitReminders(profile, ITEMS_BASE, done, hidden);
+  },[profile, done, hidden, dbLoaded, phase]);
   useEffect(()=>{ lsSave(LS_HIDDEN, hidden); },[hidden]);
   useEffect(()=>{ lsSave("mgov_festival_notified", festivalNotified); },[festivalNotified]);
   useEffect(()=>{ lsSave("mgov_easy", easy); },[easy]);
