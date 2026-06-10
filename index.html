@@ -4889,13 +4889,20 @@ async function subscribePush(sw, type = "user") {
     }
     // ライフステージをプロフィールから取得（Cron送信時刻の決定に使用）
     const stage = lsLoad("mgov_profile", {}).stage || "";
-    await fetch(`${PUSH_WORKER_URL}/subscribe`, {
+    const res = await fetch(`${PUSH_WORKER_URL}/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...sub.toJSON(), stage }),
     });
+    // サーバ登録の成否を検証（silent fail 防止）。失敗時は false を返し呼び出し側が気づけるように。
+    if (!res.ok) {
+      console.warn(`Push購読のサーバ登録に失敗: HTTP ${res.status}`);
+      return false;
+    }
+    return true;
   } catch (e) {
     console.warn("Push通知登録失敗:", e.message);
+    return false;
   }
 }
 
@@ -4958,8 +4965,9 @@ window.requestPushPermission = async () => {
     const reg = window._swReg || await navigator.serviceWorker.ready;
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
-      await subscribePush(reg, "user");
-      return true;
+      const ok = await subscribePush(reg, "user");
+      if (!ok) console.warn("通知許可は得たが購読のサーバ登録に失敗しました");
+      return ok;
     } else {
       console.warn("通知が拒否されました");
       return false;
