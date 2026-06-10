@@ -68,7 +68,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -169,7 +170,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -461,7 +463,8 @@
           },
           {
             "stage": {
-              "not": "学生"
+              "not": "学生",
+              "ifSet": true
             }
           },
           {
@@ -887,7 +890,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -977,8 +981,9 @@
         ],
         "exclude": [
           {
-            "householdChildCount": {
-              "lte": 2
+            "hasKids": {
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           }
         ],
@@ -987,16 +992,10 @@
             "if": {
               "hasKids": "いる（または予定あり）"
             },
-            "score": 40
-          },
-          {
-            "if": {
-              "ageMin": 35
-            },
-            "score": 20
+            "score": 30
           }
         ],
-        "baseScore": 30,
+        "baseScore": 0,
         "missingFor": [],
         "excludeReasons": {
           "hasKids": "お子さんがいない場合は対象外です"
@@ -1069,7 +1068,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -1189,7 +1189,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -1537,10 +1538,12 @@
         "exclude": [
           {
             "stage": {
-              "not": "学生"
+              "not": "学生",
+              "ifSet": true
             },
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           }
         ],
@@ -1620,7 +1623,7 @@
       "icon": "📝",
       "colorKey": "purple",
       "tag": "教育",
-      "title": "塾代・受験料を無利子で借りられる（高校3年生）",
+      "title": "塾代・受験料を無利子で借りられる（中3・高3）",
       "officialName": "受験生チャレンジ支援貸付事業",
       "catch": "塾・予備校の受講料や受験料を無利子で貸付",
       "body": "東京都の制度。一定所得以下の世帯の中学3年生・高校3年生を対象に、学習塾等の受講料（上限30万円）や高校・大学等の受験料（高校受験は上限2.74万円、大学受験は上限12万円）を無利子で貸し付ける。合格すれば返済免除になる場合もあり。港区に住所がある方は港区立子ども家庭支援センターへ申請。",
@@ -1643,14 +1646,10 @@
       "potentialLabel": "受講料最大30万円＋大学受験料最大12万円",
       "reminderLabel": "港区立子ども家庭支援センターへ申請。1月中旬が期限",
       "sourceUrl": "https://www.city.minato.tokyo.jp/kateisoudantan/challenge.html",
-      "easyTitle": "塾代・受験料を無利子で借りられる（高校3年生）",
+      "easyTitle": "塾代・受験料を無利子で借りられる（中3・高3）",
       "eligibility": {
         "certain": [],
-        "exclude": [
-          {
-            "_alwaysExclude": true
-          }
-        ],
+        "exclude": [],
         "matchRules": [
           {
             "if": {
@@ -1663,6 +1662,15 @@
               "studentLevel": "中学生"
             },
             "score": 55
+          },
+          {
+            "if": {
+              "kidsAge": [
+                "13〜15歳",
+                "16〜18歳"
+              ]
+            },
+            "score": 50
           },
           {
             "if": {
@@ -1680,8 +1688,7 @@
         "baseScore": 0,
         "missingFor": [],
         "excludeReasons": {},
-        "hints": {},
-        "_note": "令和8年1月16日で期限切れ・一時非表示"
+        "hints": {}
       },
       "interestTags": [
         {
@@ -1918,7 +1925,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -1996,7 +2004,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -2103,12 +2112,14 @@
         "exclude": [
           {
             "marital": {
-              "not": "離婚・死別"
+              "not": "離婚・死別",
+              "ifSet": true
             }
           },
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -2447,7 +2458,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             },
             "ageMin": 16
           },
@@ -2537,7 +2549,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -2842,7 +2855,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -2931,7 +2945,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -3024,7 +3039,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -3147,7 +3163,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -3565,7 +3582,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -3672,7 +3690,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -3963,7 +3982,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -4182,12 +4202,14 @@
         "exclude": [
           {
             "marital": {
-              "not": "離婚・死別"
+              "not": "離婚・死別",
+              "ifSet": true
             }
           },
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           }
         ],
@@ -4199,6 +4221,11 @@
             },
             "score": 95
           }
+        ],
+        "baseScore": 0,
+        "missingFor": [
+          "marital",
+          "hasKids"
         ]
       },
       "interestTags": [
@@ -4256,7 +4283,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           }
         ],
@@ -4273,6 +4301,11 @@
             },
             "score": 20
           }
+        ],
+        "baseScore": 0,
+        "missingFor": [
+          "marital",
+          "hasKids"
         ]
       },
       "interestTags": [
@@ -4318,7 +4351,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           },
           {
@@ -4332,6 +4366,10 @@
           }
         ],
         "baseScore": 30,
+        "missingFor": [
+          "hasKids",
+          "kidsAge"
+        ],
         "matchRules": [
           {
             "if": {
@@ -4374,36 +4412,29 @@
       "title": "骨髄ドナー助成金",
       "officialName": "港区骨髄移植ドナー支援事業助成金",
       "catch": "骨髄提供で仕事を休んだ分を助成",
-      "body": "骨髄・末梢血幹細胞の提供（ドナー）のために入院・通院が必要となった場合、ドナー本人と雇用事業者の双方に対して助成金を交付します。港区在住のドナーが対象です。",
-      "officialBody": "骨髄移植又は末梢血幹細胞移植のためにドナーとなった方及びその方を雇用する事業者に対し、入院・通院に要した日数に応じた助成金を交付することにより、ドナー登録及び骨髄移植の推進を図ります。",
+      "body": "骨髄・末梢血幹細胞の提供（ドナー）のために入院・通院が必要となった場合、ドナー本人に日額3万円、ドナーが勤務する事業所に日額1万円を、1回の提供につき通算7日を限度に交付します。提供時に港区在住の日本骨髄バンクのドナーが対象です。",
+      "officialBody": "骨髄移植又は末梢血幹細胞移植のためにドナーとなった方及びその方を雇用する事業者に対し、入院・通院に要した日数（1回の提供につき通算7日が限度）に応じた助成金（ドナー本人：日額3万円、事業所：日額1万円）を交付することにより、ドナー登録及び骨髄移植の推進を図ります。",
       "deadline": "通年",
       "urgent": false,
       "subsidyType": "cash",
-      "subsidy_note": "ドナー：日額2万円程度×日数、事業者：日額2万円程度×日数（要確認）",
+      "subsidy_note": "ドナー本人：日額3万円、勤務事業所：日額1万円（1回の提供につき通算7日まで）",
       "potentialLabel": "提供日数に応じた助成",
       "sourceUrl": "https://www.city.minato.tokyo.jp/hokenyobou/kenko/kenko/jose/kotuzuiishokudona-sienn.html",
-      "_confidence": "medium",
+      "_confidence": "high",
       "_reason": "港区独自の医療支援制度。ドナー登録促進・骨髄移植推進に寄与する重要制度。",
-      "_needs_verification": [
-        "助成上限額・日額",
-        "申請受付窓口",
-        "対象者要件（港区在住・在勤等）"
-      ],
       "_source": "crawl",
       "_status": "pending",
       "_created_at": "2026-05-26T12:59:16.325153",
       "eligibility": {
         "certain": [
           {
-            "ageMin": 18
+            "_always": true
           }
         ],
-        "exclude": [
-          {
-            "ageMax": 17
-          }
-        ],
-        "baseScore": 80
+        "exclude": [],
+        "matchRules": [],
+        "baseScore": 100,
+        "missingFor": []
       },
       "interestTags": [
         {
@@ -4415,7 +4446,8 @@
           "l2": "予防・検診"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "interest",
+      "notifyLevel": "low"
     },
     {
       "id": "koreisha_nyuyokuken",
@@ -4427,7 +4459,7 @@
       "officialName": "高齢者無料入浴券の給付",
       "catch": "70歳以上の区民に銭湯の無料券をプレゼント",
       "body": "70歳以上の港区在住の方に、区内の公衆浴場（一部近隣区）で使える無料入浴券を年間最大52枚給付します（申請月により枚数が異なる）。健康維持・生活意欲の向上を目的とした港区独自の高齢者支援です。",
-      "officialBody": "65歳以上の区民に対し、区内の浴場（銭湯）で利用できる無料入浴券を給付します。高齢者の健康増進及び閉じこもり防止等を図るとともに、地域コミュニティの活性化を目的とします。",
+      "officialBody": "70歳以上の区民に対し、区内の浴場（銭湯）で利用できる無料入浴券を年間最大52枚給付します。高齢者の健康増進及び閉じこもり防止等を図るとともに、地域コミュニティの活性化を目的とします。",
       "deadline": "通年",
       "urgent": false,
       "subsidyType": "savings",
@@ -4452,16 +4484,12 @@
         ],
         "exclude": [
           {
-            "ageMax": 64
+            "ageMax": 69
           }
         ],
-        "matchRules": [
-          {
-            "if": {
-              "ageMin": 65
-            },
-            "score": 30
-          }
+        "baseScore": 0,
+        "missingFor": [
+          "birthday"
         ]
       },
       "interestTags": [
@@ -4513,7 +4541,8 @@
         "exclude": [
           {
             "hasKids": {
-              "not": "いる（または予定あり）"
+              "not": "いる（または予定あり）",
+              "ifSet": true
             }
           }
         ],
@@ -4524,6 +4553,10 @@
             },
             "score": 95
           }
+        ],
+        "baseScore": 0,
+        "missingFor": [
+          "hasKids"
         ]
       },
       "interestTags": [
