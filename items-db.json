@@ -1715,7 +1715,7 @@
       "title": "重度の障害がある人の医療費が大幅に減る",
       "officialName": "重度心身障害者医療費助成制度（マル障）",
       "catch": "重度障害者の医療費自己負担をほぼゼロに",
-      "body": "東京都の「マル障」制度。身体障害者手帳1〜3級、愛の手帳1〜2度、精神障害者保健福祉手帳1級などを持つ方の医療費自己負担分を助成。医療証を提示するだけで窓口負担が大幅に軽減される。所得制限あり。港区国保年金課給付係で申請。",
+      "body": "東京都の「マル障」制度。身体障害者手帳1・2級（内部障害は1〜3級）、愛の手帳1・2度、精神障害者保健福祉手帳1級などを持つ方の医療費自己負担分を助成。医療証を提示するだけで窓口負担が大幅に軽減される。所得制限あり。港区国保年金課給付係で申請。",
       "deadline": "通年（随時申請）",
       "urgent": false,
       "subsidyType": "savings",
@@ -4513,13 +4513,13 @@
       "title": "物価高対応子育て応援手当",
       "officialName": "物価高対応子育て応援手当",
       "catch": "物価高から子育て家庭を応援する港区独自給付",
-      "body": "物価高騰の影響を受ける子育て家庭を支援するため、港区が独自に支給する手当です。対象となる子どもがいる家庭に現金を給付します。申請書による申請が必要です。",
+      "body": "物価高騰の影響を受ける子育て家庭を支援するため、港区が独自に支給する手当。0歳〜高校生年代の対象児童1人につき2万円を1回給付する。令和7年9月分の児童手当受給者は申請不要（公務員等は申請が必要）。",
       "officialBody": "物価高騰等による家計への影響を踏まえ、子育て家庭の経済的負担を軽減するため、対象児童を養育する保護者に対して港区独自の応援手当を支給します。",
       "deadline": "通年",
       "urgent": true,
       "subsidyType": "cash",
-      "subsidy_note": "金額・対象年齢は要確認",
-      "potentialLabel": "子ども1人あたり現金給付",
+      "subsidy_note": "対象児童1人につき2万円（1回限り）",
+      "potentialLabel": "子ども1人あたり2万円",
       "sourceUrl": "https://www.city.minato.tokyo.jp/kodomokyufu/kodomo/kodomo/bukkadakataioukosodateouenteate.html",
       "_confidence": "medium",
       "_reason": "物価高対応の港区独自制度。申請書PDFが2026年更新のため現行制度と判断。urgentとして扱う。",
@@ -4569,7 +4569,8 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "potentialSubsidy": 20000
     },
     {
       "id": "nenkin_seikatsusha_shien_kyuufukin",
