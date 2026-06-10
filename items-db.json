@@ -1421,7 +1421,7 @@
             "score": 50
           }
         ],
-        "baseScore": 40,
+        "baseScore": 0,
         "missingFor": [
           "housing"
         ],
@@ -2668,7 +2668,7 @@
             "score": 50
           }
         ],
-        "baseScore": 40,
+        "baseScore": 0,
         "missingFor": [
           "housing"
         ],
