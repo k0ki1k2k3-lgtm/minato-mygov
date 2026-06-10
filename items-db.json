@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-06-09T00:39:36.219Z",
-    "totalItems": 50,
+    "updatedAt": "2026-06-10T23:13:26.678Z",
+    "totalItems": 51,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -4719,6 +4719,71 @@
       "notifyLevel": "mid",
       "judgmentType": "eligibility",
       "interestTags": [],
+      "miniQuizKey": "",
+      "miniQuizText": "",
+      "categoryHint": "",
+      "notifHook": ""
+    },
+    {
+      "id": "kokuho_kenko_soudan",
+      "gov": "港区",
+      "icon": "🩺",
+      "colorKey": "green",
+      "tag": "医療",
+      "title": "無料健康相談（国民健康保険）",
+      "officialName": "無料健康相談（国民健康保険）",
+      "catch": "国保加入者は健康相談が無料で受けられる",
+      "body": "港区国民健康保険に加入している方を対象に、医師・保健師・管理栄養士などによる健康相談を無料で提供します。生活習慣病予防や健康管理に関する悩みを専門家に相談できます。",
+      "officialBody": "港区国民健康保険の被保険者を対象に、医師・保健師・管理栄養士等の専門家が健康に関する相談を無料で行う事業です。生活習慣病の予防・改善や日常の健康管理に関するご相談にお応えします。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "cash",
+      "subsidyRules": [
+        {
+          "default": true,
+          "amount": 0
+        }
+      ],
+      "subsidyLabelRules": [
+        {
+          "default": true,
+          "label": null
+        }
+      ],
+      "potentialSubsidy": 0,
+      "potentialLabel": "無料で専門家に健康相談",
+      "reminderLabel": "",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/jigyou/hokenjigyou/r3mkenko.html",
+      "easyTitle": "",
+      "eligibility": {
+        "certain": [],
+        "exclude": [],
+        "matchRules": [
+          {
+            "if": {
+              "healthInsurance": "国民健康保険"
+            },
+            "score": 60
+          }
+        ],
+        "baseScore": 0,
+        "missingFor": [
+          "healthInsurance"
+        ],
+        "profileCheck": [],
+        "excludeReasons": {},
+        "hints": {
+          "healthInsurance": "港区の国民健康保険加入者が対象"
+        }
+      },
+      "notifyLevel": "low",
+      "judgmentType": "eligibility",
+      "interestTags": [
+        {
+          "l1": "健康・医療",
+          "l2": "予防・検診"
+        }
+      ],
       "miniQuizKey": "",
       "miniQuizText": "",
       "categoryHint": "",
