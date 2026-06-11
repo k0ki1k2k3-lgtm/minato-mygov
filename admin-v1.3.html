@@ -7,6 +7,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <!-- アプリ/SWと同一の判定エンジン。条件欄の「誰に届くか」プレビューに使う（単一実装の共有） -->
+  <script src="eligibility-engine.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif; }
     body { background:#f0f4f8; min-height:100vh; }
@@ -786,6 +788,7 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
       {/* 要確認事項バナー（草稿由来。AIが「ここは人が確認して」と挙げた項目）*/}
       {((form._needs_verification && form._needs_verification.length > 0) ||
         (form._validation && form._validation.messages && form._validation.messages.length > 0) ||
+        (form._self_audit && form._self_audit.level === "review") ||
         form.adminWarning) && (
         <div style={{background:C.red+"0d",border:`1.5px solid ${C.red}44`,borderRadius:12,padding:"14px 18px",marginBottom:20}}>
           <div style={{color:C.red,fontWeight:800,fontSize:14,marginBottom:8}}>⚠️ 公開前に確認・補完すべき項目</div>
@@ -802,6 +805,20 @@ function EditTab({item, existingIds, onSave, onCancel, showToast}) {
                 <li key={"val"+i} style={{color:"#b06000",fontSize:13,lineHeight:1.9}}>🔍 {v}</li>
               ))}
             </ul>
+          )}
+          {form._self_audit && form._self_audit.level === "review" && (
+            <div style={{marginTop:4,borderTop:`1px solid ${C.red}22`,paddingTop:6}}>
+              <div style={{color:"#b06000",fontWeight:700,fontSize:12,marginBottom:3}}>🔍 AI自己監査（出典本文と照合）</div>
+              {form._self_audit.classification_ok === false && (
+                <div style={{color:C.t1,fontSize:13}}>・分類: {form._self_audit.classification_reason||"給付/イベントの再分類を検討"}</div>
+              )}
+              {(form._self_audit.unsupported||[]).map((v,i)=>(
+                <div key={"sa-u"+i} style={{color:C.red,fontSize:13}}>・未根拠: {v}</div>
+              ))}
+              {(form._self_audit.issues||[]).map((v,i)=>(
+                <div key={"sa-i"+i} style={{color:C.t1,fontSize:13}}>・{v}</div>
+              ))}
+            </div>
           )}
           {form.adminWarning && (
             <div style={{color:"#b06000",fontSize:12,marginTop:4}}>{form.adminWarning}</div>
@@ -1213,8 +1230,8 @@ function condToLabel(cond) {
     if (k === "ageBetween") return `${v[0]}〜${v[1]}歳`;
     if (typeof v === "string") return `${label}＝${v}`;
     if (Array.isArray(v)) return `${label}＝[${v.join("/")}]`;
-    if (v && typeof v === "object" && "not" in v) return `${label}≠${v.not}`;
-    if (v && typeof v === "object" && "notIn" in v) return `${label}∉[${v.notIn.join("/")}]`;
+    if (v && typeof v === "object" && "not" in v) return `${label}≠${v.not}${v.ifSet?"":" ⚠未回答も除外"}`;
+    if (v && typeof v === "object" && "notIn" in v) return `${label}∉[${v.notIn.join("/")}]${v.ifSet?"":" ⚠未回答も除外"}`;
     return `${label}:${JSON.stringify(v)}`;
   }).join(" AND ");
 }
@@ -1273,8 +1290,8 @@ function CondEditor({ cond, onChange, onRemove, mode }) {
       const arr = Array.isArray(cur) ? cur : (cur ? [cur] : []);
       onChange({ ...cond, [firstKey]: { notIn: arr, ifSet: true } });
     } else {
-      // 通常 → not形式へ
-      onChange({ ...cond, [firstKey]: { not: typeof cur === "string" ? cur : (def?.opts?.[0] || "") } });
+      // 通常 → not形式へ（ifSet:true で未回答者を先行除外しない＝クイズに乗せる）
+      onChange({ ...cond, [firstKey]: { not: typeof cur === "string" ? cur : (def?.opts?.[0] || ""), ifSet: true } });
     }
   };
 
@@ -1351,7 +1368,7 @@ function CondEditor({ cond, onChange, onRemove, mode }) {
             const cur = isNot ? cond[firstKey]?.not : cond[firstKey];
             return (
               <button key={opt}
-                onClick={() => isNot ? onChange({...cond,[firstKey]:{not:opt}}) : handleValChange(opt)}
+                onClick={() => isNot ? onChange({...cond,[firstKey]:{not:opt, ifSet:true}}) : handleValChange(opt)}
                 style={{...btnStyle(cur === opt),fontSize:11}}>
                 {opt}
               </button>
@@ -1642,6 +1659,65 @@ function ProfileCheckEditor({ profileCheck, onChange, ctx, showToast }) {
   );
 }
 
+// ── 「誰に届くか」ライブプレビュー（アプリ/SWと同一の eligibility-engine.js で判定） ──
+const SAMPLE_PROFILES = [
+  {name:"新規(未入力)",  p:{}},
+  {name:"70歳",          p:{birthday:"1955-01"}},
+  {name:"40歳",          p:{birthday:"1985-01"}},
+  {name:"親(小学生の子)", p:{hasKids:"いる（または予定あり）", kidsAge:"6〜12歳"}},
+  {name:"子なし",        p:{hasKids:"いない（または18歳以上のみ）"}},
+  {name:"非課税世帯",    p:{taxStatus:"非課税"}},
+  {name:"高校生",        p:{stage:"学生", studentLevel:"高校生"}},
+  {name:"ひとり親",      p:{marital:"離婚・死別", hasKids:"いる（または予定あり）"}},
+];
+
+function eligibilitySummaryText(el) {
+  const parts = [];
+  const certain = (el.certain||[]).filter(c=>!c._always && !c._alwaysExclude);
+  if ((el.certain||[]).some(c=>c._always)) parts.push("全員が対象");
+  else if (certain.length) parts.push("確実対象＝" + certain.map(condToLabel).join(" / "));
+  if ((el.exclude||[]).length) parts.push("除外＝" + el.exclude.map(condToLabel).join(" / "));
+  const base = el.baseScore==null ? 40 : el.baseScore;
+  if ((el.matchRules||[]).length) parts.push(`加点ルール${el.matchRules.length}件（base ${base}）`);
+  else if (!certain.length) parts.push(`base ${base}${base>=40?"（=全員に該当）":"（=絞り込み）"}`);
+  if ((el.missingFor||[]).length) parts.push("未回答者はクイズで確認＝" + el.missingFor.join("/"));
+  return parts.join(" ／ ") || "（条件未設定）";
+}
+
+function TargetingPreview({ item, el }) {
+  const ready = typeof shouldNotify === "function" && typeof calcEligibilityData === "function";
+  if (!ready) return null;
+  const fullItem = {...item, eligibility: el};
+  const isInterest = (item.judgmentType || "eligibility") === "interest";
+  const verdict = (p) => {
+    let action = "none";
+    try { action = shouldNotify(fullItem, p, {}).action; } catch(e) {}
+    if (action === "notify") return {t:"🔔 通知", c:C.green};
+    if (action === "digest") return {t:"📨 まとめ通知", c:C.blue};
+    let q = 0;
+    try { q = (typeof countDecidingQuestions==="function") ? countDecidingQuestions(fullItem, p) : 0; } catch(e){}
+    if (q > 0) return {t:"🔍 クイズで確認", c:"#e08a20"};
+    return {t:"— 非表示", c:C.t3};
+  };
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.t1,marginBottom:6}}>👁 この設定だと…</div>
+      <div style={{color:C.t2,fontSize:11.5,lineHeight:1.6,marginBottom:8}}>{eligibilitySummaryText(el)}</div>
+      {isInterest && <div style={{color:"#e08a20",fontSize:11,marginBottom:6}}>※ イベント型：配信は興味スコアで決定（下のプロフィール判定は参考）</div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr auto",rowGap:3,columnGap:10,
+                   borderTop:`1px solid ${C.border}`,paddingTop:8}}>
+        {SAMPLE_PROFILES.map(sp => {
+          const v = verdict(sp.p);
+          return (<React.Fragment key={sp.name}>
+            <span style={{color:C.t2,fontSize:12}}>{sp.name}</span>
+            <span style={{color:v.c,fontSize:12,fontWeight:700,textAlign:"right"}}>{v.t}</span>
+          </React.Fragment>);
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EligibilityBuilder({ eligibility, onChange, ctx, showToast }) {
   const el = eligibility || { certain:[], exclude:[], matchRules:[], baseScore:0, missingFor:[], excludeReasons:{}, hints:{} };
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -1689,6 +1765,9 @@ function EligibilityBuilder({ eligibility, onChange, ctx, showToast }) {
           </span>
         ))}
       </div>
+
+      {/* 👁 誰に届くか ライブプレビュー＋日本語サマリー */}
+      <TargetingPreview item={ctx || {}} el={el} />
 
       {/* ✅ certain */}
       <CondList
@@ -2026,10 +2105,35 @@ function DraftsTab({drafts, loading, publishing, existingIds, onApprove, onReloa
                           ⚠️ 要確認{draft._needs_verification.length}項目
                         </span>
                       )}
+                      {/* AI自己監査(Layer2)のバッジ */}
+                      {draft._self_audit?.level === "review" && (
+                        <span style={{background:"#e8a00022",color:"#b87a00",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>🔍 AI監査:要確認</span>
+                      )}
+                      {draft._self_audit?.level === "ok" && (
+                        <span style={{background:C.green+"22",color:C.green,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>✅ AI監査OK</span>
+                      )}
                     </div>
                     <div style={{fontWeight:700,fontSize:16,color:C.t1,marginBottom:4}}>{draft.title||"(タイトルなし)"}</div>
                     <div style={{color:C.t2,fontSize:13,marginBottom:6}}>{draft.catch||""}</div>
                     <div style={{color:C.t3,fontSize:12,lineHeight:1.6}}>{draft.body||""}</div>
+                    {/* AI自己監査(Layer2)：出典本文照合の指摘。要確認なら詳細を展開表示 */}
+                    {draft._self_audit?.level === "review" && (
+                      <div style={{marginTop:8,background:"#e8a00011",border:"1px solid #e8a00044",borderRadius:8,padding:"8px 10px"}}>
+                        <div style={{color:"#b87a00",fontWeight:700,fontSize:12,marginBottom:4}}>🔍 AI自己監査：要確認（出典本文と照合）</div>
+                        {draft._self_audit.classification_ok === false && (
+                          <div style={{color:C.t2,fontSize:12,marginBottom:2}}>・分類: {draft._self_audit.classification_reason||"給付/イベントの再分類を検討"}</div>
+                        )}
+                        {(draft._self_audit.unsupported||[]).map((u,j)=>(
+                          <div key={"u"+j} style={{color:C.red,fontSize:12}}>・未根拠: {u}</div>
+                        ))}
+                        {(draft._self_audit.issues||[]).map((u,j)=>(
+                          <div key={"i"+j} style={{color:C.t2,fontSize:12}}>・{u}</div>
+                        ))}
+                        {typeof draft._self_audit.confidence === "number" && (
+                          <div style={{color:C.t3,fontSize:11,marginTop:3}}>確信度 {Math.round(draft._self_audit.confidence*100)}%</div>
+                        )}
+                      </div>
+                    )}
                     {draft._draft_meta?.detectedAt && (
                       <div style={{color:C.t3,fontSize:11,marginTop:8}}>
                         🕐 収集日時: {new Date(draft._draft_meta.detectedAt).toLocaleDateString("ja-JP")}
