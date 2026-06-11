@@ -3784,32 +3784,27 @@
       "easyTitle": "港区で家を買うなら区から費用補助がある",
       "eligibility": {
         "certain": [],
-        "exclude": [
-          {
-            "housing": [
-              "持ち家（戸建て）",
-              "持ち家（マンション）"
-            ]
-          }
-        ],
+        "exclude": [],
         "matchRules": [
           {
             "if": {
+              "housing": [
+                "持ち家（戸建て）",
+                "持ち家（マンション）"
+              ],
               "hasKids": "いる（または予定あり）"
             },
-            "score": 70
+            "score": 80
           },
           {
             "if": {
+              "housing": [
+                "持ち家（戸建て）",
+                "持ち家（マンション）"
+              ],
               "ageMax": 39
             },
-            "score": 60
-          },
-          {
-            "if": {
-              "marital": "既婚"
-            },
-            "score": 20
+            "score": 80
           }
         ],
         "baseScore": 0,
@@ -3818,7 +3813,7 @@
         ],
         "excludeReasons": {},
         "hints": {
-          "housing": "港区内で住宅を取得した場合に対象になります"
+          "housing": "港区内で住宅を取得した子育て世帯・若年夫婦が対象です"
         }
       },
       "interestTags": [
