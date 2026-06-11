@@ -3786,9 +3786,6 @@
         "certain": [],
         "exclude": [
           {
-            "ageMin": 56
-          },
-          {
             "housing": [
               "持ち家（戸建て）",
               "持ち家（マンション）"
@@ -3819,9 +3816,7 @@
         "missingFor": [
           "housing"
         ],
-        "excludeReasons": {
-          "ageNum": "56歳以上は対象外です"
-        },
+        "excludeReasons": {},
         "hints": {
           "housing": "港区内で住宅を取得した場合に対象になります"
         }
@@ -3894,6 +3889,9 @@
               "800〜1000万円",
               "1000万円以上"
             ]
+          },
+          {
+            "ageMin": 65
           }
         ],
         "matchRules": [
@@ -3918,7 +3916,8 @@
         ],
         "excludeReasons": {
           "disability": "障がいがない場合は対象外です",
-          "income": "高所得の場合は対象外です"
+          "income": "高所得の場合は対象外です",
+          "ageNum": "65歳以上は対象外です（65歳未満が対象）"
         },
         "hints": {
           "disabilityGrade": "手帳の等級によって手当額が異なります"
