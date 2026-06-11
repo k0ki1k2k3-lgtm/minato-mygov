@@ -89,12 +89,13 @@ jobs:
           print(f"payloadサイズ: {len(json.dumps(payload, ensure_ascii=False).encode('utf-8'))} bytes / items {len(payload.get('items', []))}件")
           PYEOF
 
-      - name: ユーザーにPush通知を送信（即時）
+      - name: ユーザーにPush通知をキュー投入（本番）
         run: |
-          # /notify/now = キューに溜めず即時に全購読者へ送信（毎時Cron・ステージ別時刻・
-          # 1日2件キャップを経由しない）。表示の個人化はSW(handleUserPush)側で行う。
+          # /notify/users = 本番キュー。毎時Cron(scheduled)でライフステージ別の配信時刻・
+          # 1日最大2件キャップに従って排出する。実機検証(2026-06-11完了)につき即時 /notify/now
+          # から本番へ復帰。表示の個人化はSW(handleUserPush)側で行う。
           curl -s -w "\nHTTP Status: %{http_code}" \
-            -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/now" \
+            -X POST "https://minato-mygov-push.k-0k-i1k-2k-3.workers.dev/notify/users" \
             -H "Authorization: Bearer ${{ secrets.NOTIFY_SECRET }}" \
             -H "Content-Type: application/json" \
             -d @notify-payload.json
