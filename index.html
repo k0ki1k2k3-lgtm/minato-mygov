@@ -3067,9 +3067,10 @@ function ProfileTab({profile,setProfile,hidden,done,allItems,onRestoreAll,onRest
     setProfile(prev=>{
       const before=countCertain(prev);
       const next=typeof updater==="function"?updater(prev):updater;
-      const after=countCertain(next);
+      const synced=syncChildren(prev,next);
+      const after=countCertain(synced);
       if(after>before && onProfileGain) onProfileGain(after-before);
-      return next;
+      return synced;
     });
   };
 
@@ -3709,6 +3710,45 @@ const HH_WORK=["収入なし","パート・アルバイト","会社員","自営�
 const HH_DISABILITY=["なし","身体","知的","精神","難病"];
 const HH_CARE=["なし","要支援1","要支援2","要介護1","要介護2","要介護3","要介護4","要介護5"];
 
+/* ══════ 子ども情報の双方向同期（世帯構成 ⇄ 子育て・教育） ══════ */
+// household の rel:"child" を「正」とし、kids[] と相互ミラーする。
+// 突合キー = childId（= household child の id）。旧データは birthYear+birthMonth でフォールバック。
+const HH_SCHOOL_TO_CARE = { // 就学前ステージのみ childcareStatus へマップ（小学校以上は保育対象外）
+  "保育園":"認可保育園", "幼稚園":"幼稚園", "認定こども園":"認定こども園",
+  "未就園":"在宅育児", "就学していない":"在宅育児",
+};
+function childBirthKey(c){ return `${(c&&c.birthYear)||""}-${(c&&c.birthMonth)||""}`; }
+function householdChildren(hh){ return Array.isArray(hh)?hh.filter(m=>m.rel==="child"):[]; }
+function childToKid(c){ return {childId:c.id, nickname:c.name||"", birthYear:c.birthYear||"", birthMonth:c.birthMonth||""}; }
+function kidToChild(k){ return {id:(k.childId!=null?k.childId:(Date.now()+Math.floor(Math.random()*100000))), rel:"child", emoji:"👶", name:k.nickname||"", birthYear:k.birthYear||"", birthMonth:k.birthMonth||"", cohabit:true}; }
+
+// 編集された側を検出して他方へ伝播（union ではないので削除も正しく効く）。
+// prev/next 両方が見える applyProfile / setProfile(updater) から呼ぶ。
+function syncChildren(prev, next){
+  const hhChanged = next.household !== prev.household;
+  const kidsChanged = next.kids !== prev.kids;
+  if(!hhChanged && !kidsChanged) return next;
+  if(hhChanged){
+    // 世帯構成が編集された → 生年月のある子メンバーを kids[] へミラー（school/同居等は household 側に残る）
+    const kids = householdChildren(next.household).filter(c=>c.birthYear).map(childToKid);
+    return {...next, kids};
+  }
+  // 子育て欄が編集された → kids[] を household の子メンバーへ反映（一致childの school/cohabit 等は保持）
+  const kids = Array.isArray(next.kids)?next.kids:[];
+  const hh = Array.isArray(next.household)?next.household:[];
+  // 非child と「生年月未設定の不完全child」は温存（kids に表れず誤削除になるため）
+  const keep = hh.filter(m=> m.rel!=="child" || !m.birthYear);
+  const existing = hh.filter(m=> m.rel==="child" && m.birthYear);
+  const children = kids.filter(k=>k.birthYear).map(k=>{
+    const match = (k.childId!=null && existing.find(c=>c.id===k.childId)) || existing.find(c=>childBirthKey(c)===childBirthKey(k));
+    if(match) return {...match, name:k.nickname||match.name||"", birthYear:k.birthYear, birthMonth:k.birthMonth};
+    return kidToChild(k);
+  });
+  // 両側に childId を行き渡らせ整合（household順＝kids順を維持）
+  const syncedKids = children.map(childToKid);
+  return {...next, household:[...keep, ...children], kids:syncedKids};
+}
+
 function MemberDetailSheet({member,onSave,onClose,onDelete}){
   const [d,setD]=React.useState({...member});
   const [showOther,setShowOther]=React.useState(!!(d.disability&&d.disability!=="なし")||!!(d.care&&d.care!=="なし"));
@@ -3864,7 +3904,7 @@ function BirthdaySheetPop({birthday,onSave,onClose}){
 
 // 子ども詳細シート（ニックネーム＋年月）
 function KidsSheetPop({kids,onSave,onClose}){
-  const init=(Array.isArray(kids)&&kids.length)?kids.map(k=>({nickname:k.nickname||"",birthYear:k.birthYear||"",birthMonth:k.birthMonth||""})):[{nickname:"",birthYear:"",birthMonth:""}];
+  const init=(Array.isArray(kids)&&kids.length)?kids.map(k=>({childId:k.childId,nickname:k.nickname||"",birthYear:k.birthYear||"",birthMonth:k.birthMonth||""})):[{nickname:"",birthYear:"",birthMonth:""}];
   const [list,setList]=React.useState(init);
   const upd=(i,k,v)=>{const c=[...list];c[i]={...c[i],[k]:v};setList(c);};
   const ty=new Date().getFullYear(); const years=[]; for(let y=ty;y>=ty-22;y--) years.push(y);
@@ -4299,13 +4339,51 @@ function App(){
     // 本人の年齢：birthday があれば自動算出して ageNum に反映
     const a=ageFromBirthday(p.birthday);
     if(a!==null) next.ageNum=a;
-    // 子の最年少年齢帯：kids[] があれば自動算出
-    if(Array.isArray(p.kids)&&p.kids.length){
-      const ages=p.kids.map(k=>ageFromBirthday(`${k.birthYear}-${k.birthMonth||1}`)).filter(x=>x!==null);
-      if(ages.length){
-        const min=Math.min(...ages);
-        next.kidsAge = min<=2?"0〜2歳":min<=5?"3〜5歳":min<=12?"6〜12歳":min<=15?"13〜15歳":"16〜18歳";
-        if(!p.hasKids) next.hasKids="いる（または予定あり）";
+    // ── 子ども同期（household child ⇄ kids[]・ADD専用リンク・冪等） ──
+    // 生年月のある子だけを正準対象とする。突合は childId、旧データは birthYear+birthMonth。
+    // applyProfile/SeasonalPopup の syncChildren で常時整合するが、初回ロードや他経路の
+    // 未リンクデータをここで相互補完する（削除は行わず追加のみ＝既存の削除と競合しない）。
+    {
+      const hhArr=Array.isArray(p.household)?p.household:[];
+      const kidsArr=Array.isArray(p.kids)?p.kids:[];
+      const hhKids=hhArr.filter(m=>m.rel==="child" && m.birthYear);
+      let kids=kidsArr.map(k=>({...k}));
+      let changedKids=false, changedHH=false;
+      // household child → kids（未存在なら追加・childId を stamp）
+      hhKids.forEach(c=>{
+        let k=kids.find(k=>k.childId===c.id) || kids.find(k=>k.birthYear && childBirthKey(k)===childBirthKey(c));
+        if(k){ if(k.childId!==c.id){ k.childId=c.id; changedKids=true; } }
+        else { kids.push(childToKid(c)); changedKids=true; }
+      });
+      // kids → household child（未存在なら追加・childId を stamp）
+      let hh=hhArr.map(m=>({...m}));
+      kids.filter(k=>k.birthYear).forEach(k=>{
+        let c=(k.childId!=null && hh.find(m=>m.id===k.childId)) || hh.find(m=>m.rel==="child"&&m.birthYear&&childBirthKey(m)===childBirthKey(k));
+        if(c){ if(k.childId!==c.id){ k.childId=c.id; changedKids=true; } }
+        else { const nc=kidToChild(k); k.childId=nc.id; changedKids=true; hh.push(nc); changedHH=true; }
+      });
+      if(changedKids) next.kids=kids;
+      if(changedHH) next.household=hh;
+    }
+    // 子の最年少年齢帯：正準の子リスト（household∪kids＝同期後 next.kids）から自動算出
+    const finalKids=Array.isArray(next.kids)?next.kids:(Array.isArray(p.kids)?p.kids:[]);
+    const finalHH=Array.isArray(next.household)?next.household:(Array.isArray(p.household)?p.household:[]);
+    const ages=finalKids.map(k=>ageFromBirthday(`${k.birthYear}-${k.birthMonth||1}`)).filter(x=>x!==null);
+    if(ages.length){
+      const min=Math.min(...ages);
+      next.kidsAge = min<=2?"0〜2歳":min<=5?"3〜5歳":min<=12?"6〜12歳":min<=15?"13〜15歳":"16〜18歳";
+    }
+    // 子が1人でも居れば hasKids を補完（明示の「いない」は尊重して上書きしない）
+    if((finalKids.length>0 || finalHH.some(m=>m.rel==="child")) && !p.hasKids){
+      next.hasKids="いる（または予定あり）";
+    }
+    // childcareStatus 自動補完（就学情報の同期）：空/未定のときのみ household 子の school からマップ
+    if(!p.childcareStatus || p.childcareStatus==="未定"){
+      const pre=finalHH.filter(m=>m.rel==="child" && HH_SCHOOL_TO_CARE[m.school]);
+      if(pre.length){
+        pre.sort((x,y)=>{ const ax=ageFromBirthday(`${x.birthYear}-${x.birthMonth||1}`); const ay=ageFromBirthday(`${y.birthYear}-${y.birthMonth||1}`); return (ax==null?999:ax)-(ay==null?999:ay); });
+        const mapped=HH_SCHOOL_TO_CARE[pre[0].school];
+        if(mapped && mapped!==p.childcareStatus) next.childcareStatus=mapped;
       }
     }
     // ペット種別に「犬」が含まれれば hasDog=true に同期（旧フィールド互換）
@@ -4315,7 +4393,7 @@ function App(){
   useEffect(()=>{
     const synced=syncDerivedProfile(profile);
     // 算出値が変わったら profile を更新（無限ループ防止のため差分チェック）
-    if(synced.ageNum!==profile.ageNum || synced.kidsAge!==profile.kidsAge || synced.hasKids!==profile.hasKids || synced.hasDog!==profile.hasDog){
+    if(synced.ageNum!==profile.ageNum || synced.kidsAge!==profile.kidsAge || synced.hasKids!==profile.hasKids || synced.hasDog!==profile.hasDog || synced.kids!==profile.kids || synced.household!==profile.household || synced.childcareStatus!==profile.childcareStatus){
       setProfile(synced); return;
     }
     lsSave(LS_PROFILE, profile);
@@ -4687,7 +4765,7 @@ function App(){
             {showSeasonal && phase==="main" && (
               <SeasonalPopup
                 profile={profile}
-                onSave={(d)=>{ setProfile(d); lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); }}
+                onSave={(d)=>{ setProfile(prev=>syncChildren(prev,d)); lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); }}
                 onClose={()=>{ lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); }}
                 onOpenProfile={()=>{ lsSave(LS_SEASONAL_AT, currentSeasonKey()); setShowSeasonal(false); setTab("profile"); }}
               />
