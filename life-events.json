@@ -1,0 +1,73 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "description": "ライフイベント別『やることチェックリスト』。itemId 付きステップは items-db.json の制度詳細にリンク。itemId:null は給付でない純手続き。"
+  },
+  "events": [
+    {
+      "key": "birth",
+      "label": "出産・赤ちゃんが生まれた",
+      "icon": "👶",
+      "desc": "出生届から手当の申請まで、産後にやることをまとめました",
+      "steps": [
+        { "title": "出生届を出す", "deadline": "生後14日以内", "where": "区役所・総合支所", "desc": "出生証明書と母子健康手帳を持参して提出します。", "itemId": null },
+        { "title": "赤ちゃんを健康保険に加入させる", "deadline": "なるべく早く", "where": "勤務先 または 区役所（国保）", "desc": "扶養家族として健康保険に追加します。", "itemId": null },
+        { "title": "児童手当を申請する", "itemId": "jidouteate" },
+        { "title": "出産育児一時金を受け取る", "itemId": "shussan" },
+        { "title": "妊婦・子育て応援給付金（計10万円）を申請", "itemId": "ninpu_kyufu" },
+        { "title": "子ども医療費助成の医療証を申請", "itemId": "iryo_free" },
+        { "title": "育児休業給付金（育休を取る場合）", "itemId": "ikuji_kyufu" }
+      ]
+    },
+    {
+      "key": "moving",
+      "label": "引越し・港区に転入した",
+      "icon": "📦",
+      "desc": "住所変更にともなう手続きをもれなく",
+      "steps": [
+        { "title": "転出届を出す（旧住所）", "deadline": "引越し前後14日以内", "where": "旧住所の市区町村", "desc": "同一区内の引越し（転居）の場合は不要です。", "itemId": null },
+        { "title": "転入届・転居届を出す", "deadline": "引越し後14日以内", "where": "区役所・総合支所", "desc": "本人確認書類とマイナンバーカードを持参します。", "itemId": null },
+        { "title": "マイナンバーカードの住所変更", "deadline": "転入後90日以内", "where": "区役所・総合支所", "desc": "期限を過ぎるとカードが失効します。", "itemId": null },
+        { "title": "国民健康保険・国民年金の住所変更", "deadline": "14日以内", "where": "区役所（該当者）", "desc": "会社の健康保険・厚生年金の方は勤務先で手続きします。", "itemId": null },
+        { "title": "児童手当・子ども医療証の住所変更", "deadline": "なるべく早く", "where": "区役所（子がいる場合）", "desc": "転入先での再申請が必要です。", "itemId": null }
+      ]
+    },
+    {
+      "key": "retire",
+      "label": "退職・転職・離職した",
+      "icon": "💼",
+      "desc": "健康保険・年金・失業給付など、退職後の手続き",
+      "steps": [
+        { "title": "健康保険を切り替える（任意継続 または 国保）", "deadline": "退職後20日／14日以内", "where": "健保組合 または 区役所", "desc": "任意継続は退職後20日以内、国保加入は14日以内が目安です。", "itemId": null },
+        { "title": "国民年金に切り替える", "deadline": "14日以内", "where": "区役所", "desc": "厚生年金から外れる場合に必要です。配偶者の扶養も確認を。", "itemId": null },
+        { "title": "失業給付（基本手当）の手続き", "deadline": "離職票が届いたら", "where": "ハローワーク", "desc": "離職票・本人確認書類・通帳を持って求職申込をします。", "itemId": null },
+        { "title": "住居確保給付金（家賃が払えないとき）", "itemId": "chintai_hojo" },
+        { "title": "教育訓練給付で学び直す", "itemId": "reskilling" }
+      ]
+    },
+    {
+      "key": "divorce",
+      "label": "離婚・ひとり親になった",
+      "icon": "🧑‍🍼",
+      "desc": "ひとり親家庭が受けられる支援をまとめました",
+      "steps": [
+        { "title": "離婚届・各種名義変更", "where": "区役所", "desc": "住所・氏名・世帯主の変更、健康保険の手続きも確認します。", "itemId": null },
+        { "title": "児童扶養手当を申請する", "itemId": "jidofuyohand" },
+        { "title": "ひとり親家庭等医療費助成（医療証）", "itemId": "hitorioya_iryo" },
+        { "title": "都営交通の無料乗車券", "itemId": "hitorioya_kotsupas" },
+        { "title": "離婚前後の親の支援助成（養育費の取り決め等）", "itemId": "rikon_shien_josei" },
+        { "title": "ひとり親の在宅ワーク習得支援", "itemId": "hitorioya_telework" }
+      ]
+    },
+    {
+      "key": "illness",
+      "label": "病気・入院・ケガをした",
+      "icon": "🏥",
+      "desc": "医療費の負担を軽くする制度。いざという時に",
+      "steps": [
+        { "title": "限度額適用認定証を申請（入院前）／高額療養費", "itemId": "kougaku_ryoyo" },
+        { "title": "傷病手当金（会社員が4日以上休んだとき）", "itemId": "shogai_kyufu" }
+      ]
+    }
+  ]
+}

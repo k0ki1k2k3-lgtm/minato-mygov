@@ -14,6 +14,12 @@
 // ── 中間状態（申請中・購入予定など）。確定判定の対象外にする値 ──
 const INTERIM_VALUES = ["申請中","購入予定","購入予定（軽自動車）","購入予定（普通車）","購入予定（EV）","飼育予定"];
 
+// ── 前面(front)に出すための matchRules“実発火”スコアの閾値 ──
+// 素の baseScore は前面判定に使わない（条件未作り込みの制度が自動的に前面へ浮く＝ノイズを防ぐ）。
+// 50 とすることで、所得だけ等“単発の弱い加点”では前面に出さず、確度の高いものだけを厳選する。
+// （本質要件＋加点で 50 超 → 前面。弱い一致のみ → 参照面。取りこぼしは参照面が担保。）
+const FRONT_MATCH_THRESHOLD = 50;
+
 // ── 誕生日(YYYY-MM-DD)/生まれ年月(YYYY-MM)から年齢を算出 ──
 function ageFromBirthday(bd){
   if(!bd) return null;
@@ -260,24 +266,59 @@ function isRelevant(item, profile) {
   return r.certain || r.matchScore >= 40;
 }
 
-// ── 確定該当か（profileCheck の maybe 床に依存しない“真の関連”判定） ──
-// calcEligibilityData は profileCheck(3問以上=maybe_forced 等)で matchScore に 50 の床を
-// 付けるが、それは「未回答でも50」になり push 判定では“未確定”を確定と誤認させる。
-// push 判定ではこの床を使わず、certain合致 or 実マッチ(baseScore+合致matchRules)≥40 のみ確定とする。
-function isConfirmedRelevant(item, profile) {
-  const el = item.eligibility;
-  if (!el) return true;
-  if (el.exclude && el.exclude.some(c => evalCondition(c, profile))) return false;
+// ── deliveryType（配信タイプ）取得：未設定は judgmentType から後方互換で補完 ──
+//  targeted(対象限定給付) / universal(全員対象・備え) / interest(興味イベント)。
+function deliveryTypeOf(item) {
+  if (item && item.deliveryType) return item.deliveryType;
+  return (item && item.judgmentType === "interest") ? "interest" : "targeted";
+}
+
+// ── 「真の前面マッチ」判定：baseScore の床に依存しない ──
+// certain 合致（中間状態でない） or matchRules の“実発火”合計が閾値以上 のときだけ true。
+// 素の baseScore は前面判定に使わない（条件未作り込みの自動浮上＝ノイズを防ぐ）。
+function hasPositiveMatch(el, profile) {
+  if (!el) return false;
   if (el.certain && el.certain.length > 0 && evalCondArray(el.certain, profile, "and")) {
     // certain が中間状態(申請中/購入予定等)を参照 → 未確定扱い
     const refsInterim = el.certain.some(cond => Object.keys(cond).some(k => isInterim(profile[k])));
     if (!refsInterim) return true;
   }
-  let score = el.baseScore !== undefined ? el.baseScore : 40;
   if (el.matchRules) {
-    el.matchRules.forEach(rule => { if (rule["if"] && evalCondition(rule["if"], profile)) score += rule.score; });
+    let fired = 0;
+    el.matchRules.forEach(rule => { if (rule["if"] && evalCondition(rule["if"], profile)) fired += rule.score; });
+    if (fired >= FRONT_MATCH_THRESHOLD) return true;
   }
-  return score >= 40;
+  return false;
+}
+
+// ── 確定該当か（push/前面用の“真の関連”判定） ──
+// 旧実装は baseScore 既定40で「未回答でも確定」と誤認していた。hasPositiveMatch に統一。
+function isConfirmedRelevant(item, profile) {
+  const el = item.eligibility;
+  if (!el) return true;
+  if (el.exclude && el.exclude.some(c => evalCondition(c, profile))) return false;
+  return hasPositiveMatch(el, profile);
+}
+
+// ── 表示面の振り分け（2面構成の中核） ──
+// 戻り値: "front"(前面=厳選) | "reference"(参照面=網羅・備え棚) | "event"(興味の横帯) | "hidden"(除外)
+//  - interest  : 横帯（興味スコア順）。eligibility 無くても event。
+//  - exclude   : hidden。
+//  - universal : 常に reference（備え棚）。前面昇格はライフイベントモードで担保。
+//  - targeted  : 確定該当 or 実マッチ(≥閾値) → front ／ それ以外 → reference。
+function getDeliveryTier(item, profile) {
+  const dt = deliveryTypeOf(item);
+  if (dt === "interest") return "event";
+  const el = item.eligibility;
+  if (el && el.exclude && el.exclude.some(c => evalCondition(c, profile))) return "hidden";
+  if (dt === "universal") return "reference";
+  return isConfirmedRelevant(item, profile) ? "front" : "reference";
+}
+
+// ── ライフイベントで関係する制度を束ねる（ライフイベントモード用） ──
+function getItemsForLifeEvent(eventKey, items) {
+  if (!eventKey || !Array.isArray(items)) return [];
+  return items.filter(it => Array.isArray(it.lifeEvents) && it.lifeEvents.includes(eventKey));
 }
 
 // ── 判定に必要な「未回答の質問」数（未確定の出し分けに使う） ──
@@ -298,13 +339,14 @@ function interestThreshold(level) {
 
 // ── 通知判定（push用・SW/アプリ共通） ──────────────────────────
 // 戻り値 action: "notify"(個別通知) | "digest"(まとめ通知に集約) | "none"(通知しない)
-//  - 給付(eligibility): 興味無関係。確定該当→notify／未確定(質問3問以上)→digest／
+//  - targeted(対象限定給付): 興味無関係。確定該当→notify／未確定(質問3問以上)→digest／
 //    1〜2問→none(アプリ内クイズ)／0問・対象外→none。
-//  - イベント(interest): 興味スコア>閾値(high0.1/mid0.2/low0.4)→notify／否→none。
+//  - universal(全員対象・備え): 通常フローでは push しない（出番はライフイベントモードで担保）。
+//  - interest(興味イベント): 興味スコア>閾値(high0.1/mid0.2/low0.4)→notify／否→none。
 //  - notifyLevel は給付の useMiniQuiz、イベントの閾値に作用。
 function shouldNotify(item, profile, interestScores) {
-  const level = item.notifyLevel  || "mid";
-  const kind  = item.judgmentType || "eligibility";
+  const level = item.notifyLevel || "mid";
+  const kind  = deliveryTypeOf(item);
 
   if (kind === "interest") {
     const score = getItemInterestScore(item, interestScores);
@@ -312,9 +354,13 @@ function shouldNotify(item, profile, interestScores) {
     return { action: "none", kind };
   }
 
-  // 給付(eligibility)
   const el = item.eligibility;
   if (el && el.exclude && el.exclude.some(c => evalCondition(c, profile))) return { action: "none", kind };
+
+  // 全員対象・備え型：通常 push しない（ライフイベントモードで「今が出番」を出す）
+  if (kind === "universal") return { action: "none", kind };
+
+  // 対象限定給付(targeted)
   if (isConfirmedRelevant(item, profile)) {
     // 確定該当 → 個別通知（mid はミニクイズで確認導線、high は直接）
     return { action: "notify", useMiniQuiz: level === "mid", kind };
@@ -323,4 +369,15 @@ function shouldNotify(item, profile, interestScores) {
   const q = countDecidingQuestions(item, profile);
   if (q >= 3) return { action: "digest", kind };
   return { action: "none", kind }; // 1〜2問はアプリ内クイズ／0問は非該当
+}
+
+// ── テスト用エクスポート（ブラウザ/SW では module 未定義のため無視される） ──
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    ageFromBirthday, householdSize, isLikelyTaxExempt, isInterim, calcHouseholdStats,
+    evalCondition, evalCondArray, checkProfileQuiz, calcEligibilityData,
+    getItemTags, getItemInterestScore, isRelevant, isConfirmedRelevant, hasPositiveMatch,
+    countDecidingQuestions, interestThreshold, shouldNotify,
+    deliveryTypeOf, getDeliveryTier, getItemsForLifeEvent,
+  };
 }

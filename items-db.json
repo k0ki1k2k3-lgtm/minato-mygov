@@ -113,7 +113,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "shussan",
@@ -217,7 +221,11 @@
           "l2": "医療費・助成"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "nenkin_men",
@@ -335,7 +343,11 @@
           "l2": "高等教育"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "reskilling",
@@ -420,7 +432,11 @@
           "l2": "スキルアップ"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "job"
+      ]
     },
     {
       "id": "scholarship",
@@ -532,7 +548,11 @@
           "l2": "高等教育"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "ikuji_kyufu",
@@ -644,7 +664,12 @@
           "l2": "多様な働き方"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth",
+        "job"
+      ]
     },
     {
       "id": "kougaku_ryoyo",
@@ -747,7 +772,11 @@
           "l2": "給付・手当"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "universal",
+      "lifeEvents": [
+        "illness"
+      ]
     },
     {
       "id": "shogai_kyufu",
@@ -836,7 +865,11 @@
           "l2": "労働環境・権利"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "universal",
+      "lifeEvents": [
+        "illness"
+      ]
     },
     {
       "id": "ninpu_kyufu",
@@ -939,7 +972,11 @@
           "l2": "妊娠・出産"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "tashi_musho",
@@ -1018,7 +1055,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "flat35_kosodate",
@@ -1137,7 +1178,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "moving"
+      ]
     },
     {
       "id": "hoiku_muryou",
@@ -1272,7 +1317,12 @@
           "l2": "補助・助成"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth",
+        "school"
+      ]
     },
     {
       "id": "silver_pass",
@@ -1360,7 +1410,9 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "solar_tokyo",
@@ -1464,7 +1516,9 @@
           "l2": "補助・助成"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "shiritsu_muryou",
@@ -1615,7 +1669,11 @@
           "l2": "学齢期"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "juken_challenge",
@@ -1704,7 +1762,11 @@
           "l2": "高等教育"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "mutsumi_iryo",
@@ -1804,7 +1866,11 @@
           "l2": "給付・手当"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "disability"
+      ]
     },
     {
       "id": "tokyo_point",
@@ -1881,7 +1947,9 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "universal",
+      "lifeEvents": []
     },
     {
       "id": "akachan_first",
@@ -1959,7 +2027,11 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "rs_vaccine",
@@ -2068,7 +2140,11 @@
           "l2": "妊娠・出産"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "hitorioya_telework",
@@ -2164,7 +2240,12 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "marriage",
+        "job"
+      ]
     },
     {
       "id": "chintai_hojo",
@@ -2274,7 +2355,11 @@
           "l2": "給付・手当"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "universal",
+      "lifeEvents": [
+        "job"
+      ]
     },
     {
       "id": "sports_free",
@@ -2331,7 +2416,9 @@
         }
       ],
       "judgmentType": "interest",
-      "notifyLevel": "low"
+      "notifyLevel": "low",
+      "deliveryType": "interest",
+      "lifeEvents": []
     },
     {
       "id": "yoyou",
@@ -2387,7 +2474,9 @@
         }
       ],
       "judgmentType": "interest",
-      "notifyLevel": "low"
+      "notifyLevel": "low",
+      "deliveryType": "interest",
+      "lifeEvents": []
     },
     {
       "id": "iryo_free",
@@ -2496,7 +2585,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "hoiku_mosikomi",
@@ -2607,7 +2700,12 @@
           "l2": "乳幼児・保育"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth",
+        "school"
+      ]
     },
     {
       "id": "solar_minato",
@@ -2715,7 +2813,9 @@
           "l2": "補助・助成"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "cancer_check",
@@ -2799,7 +2899,9 @@
           "l2": "予防・検診"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "universal",
+      "lifeEvents": []
     },
     {
       "id": "babybirthday",
@@ -2889,7 +2991,11 @@
           "l2": "お得・節約"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "shussan_minato",
@@ -2979,7 +3085,11 @@
           "l2": "妊娠・出産"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "doula_support",
@@ -3099,7 +3209,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "ninshin_kenshin",
@@ -3221,7 +3335,11 @@
           "l2": "補助・助成"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "teishotoku_kyufu",
@@ -3307,7 +3425,9 @@
           "l2": "生活費支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "smartphone_hojo",
@@ -3398,7 +3518,9 @@
           "l2": "デジタル・エンタメ"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "kagakukan_free",
@@ -3458,7 +3580,9 @@
         }
       ],
       "judgmentType": "interest",
-      "notifyLevel": "low"
+      "notifyLevel": "low",
+      "deliveryType": "interest",
+      "lifeEvents": []
     },
     {
       "id": "shogai_intern",
@@ -3538,7 +3662,12 @@
           "l2": "精神障害"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "disability",
+        "job"
+      ]
     },
     {
       "id": "hitorioya_iryo",
@@ -3646,7 +3775,11 @@
           "l2": "給付・手当"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "marriage"
+      ]
     },
     {
       "id": "jidofuyohand",
@@ -3750,7 +3883,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "marriage"
+      ]
     },
     {
       "id": "jutaku_hojo",
@@ -3830,7 +3967,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "moving"
+      ]
     },
     {
       "id": "shinshin_teate",
@@ -3932,7 +4073,11 @@
           "l2": "知的障害"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "disability"
+      ]
     },
     {
       "id": "kodomo_dare_tsuen",
@@ -4045,7 +4190,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "shugaku_enjo",
@@ -4155,7 +4304,11 @@
           "l2": "学齢期"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "hitorioya_kotsupas",
@@ -4236,7 +4389,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "marriage"
+      ]
     },
     {
       "id": "rikon_shien_josei",
@@ -4312,7 +4469,11 @@
           "l2": "子育て支援"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "marriage"
+      ]
     },
     {
       "id": "freeschool_josei",
@@ -4395,7 +4556,11 @@
           "l2": "補助・助成"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "school"
+      ]
     },
     {
       "id": "kotsui_donor_josei",
@@ -4420,14 +4585,10 @@
       "_status": "pending",
       "_created_at": "2026-05-26T12:59:16.325153",
       "eligibility": {
-        "certain": [
-          {
-            "_always": true
-          }
-        ],
+        "certain": [],
         "exclude": [],
         "matchRules": [],
-        "baseScore": 100,
+        "baseScore": 0,
         "missingFor": []
       },
       "interestTags": [
@@ -4440,8 +4601,10 @@
           "l2": "予防・検診"
         }
       ],
-      "judgmentType": "interest",
-      "notifyLevel": "low"
+      "judgmentType": "eligibility",
+      "notifyLevel": "low",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "koreisha_nyuyokuken",
@@ -4496,7 +4659,9 @@
           "l2": "旅行・お出かけ"
         }
       ],
-      "judgmentType": "eligibility"
+      "judgmentType": "eligibility",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "bukka_kosodate_teate",
@@ -4564,7 +4729,11 @@
         }
       ],
       "judgmentType": "eligibility",
-      "potentialSubsidy": 20000
+      "potentialSubsidy": 20000,
+      "deliveryType": "targeted",
+      "lifeEvents": [
+        "birth"
+      ]
     },
     {
       "id": "nenkin_seikatsusha_shien_kyuufukin",
@@ -4643,7 +4812,9 @@
       "miniQuizKey": "",
       "miniQuizText": "",
       "categoryHint": "",
-      "notifHook": ""
+      "notifHook": "",
+      "deliveryType": "targeted",
+      "lifeEvents": []
     },
     {
       "id": "kaigai_gakko_taiken",
@@ -4711,12 +4882,24 @@
         }
       },
       "notifyLevel": "mid",
-      "judgmentType": "eligibility",
-      "interestTags": [],
+      "judgmentType": "interest",
+      "interestTags": [
+        {
+          "l1": "子育て・教育",
+          "l2": "学齢期"
+        },
+        {
+          "l1": "多文化・国際支援",
+          "l2": "教育・言語",
+          "l3": "海外派遣"
+        }
+      ],
       "miniQuizKey": "",
       "miniQuizText": "",
       "categoryHint": "",
-      "notifHook": ""
+      "notifHook": "",
+      "deliveryType": "interest",
+      "lifeEvents": []
     },
     {
       "id": "kokuho_kenko_soudan",
@@ -4771,7 +4954,7 @@
         }
       },
       "notifyLevel": "low",
-      "judgmentType": "interest",
+      "judgmentType": "eligibility",
       "interestTags": [
         {
           "l1": "健康・医療",
@@ -4781,7 +4964,9 @@
       "miniQuizKey": "",
       "miniQuizText": "",
       "categoryHint": "",
-      "notifHook": ""
+      "notifHook": "",
+      "deliveryType": "universal",
+      "lifeEvents": []
     }
   ],
   "repeatableIds": [

@@ -288,6 +288,7 @@ const LS_REMINDED     = "mgov_reminded";
 const LS_HIDDEN       = "mgov_hidden";
 const LS_DONE         = "mgov_done";
 const LS_PHASE        = "mgov_phase";
+const LS_LE_PROGRESS  = "mgov_le_progress"; // ライフイベント やることリストの完了状態 {eventKey:{stepIdx:true}}
 const LS_SEASONAL_AT  = "mgov_seasonal_at"; // 季節ポップ最終表示（YYYY-Q）
 
 function lsSave(key, val) {
@@ -300,7 +301,7 @@ function lsLoad(key, fallback) {
   } catch(e) { return fallback; }
 }
 function lsClearAll() {
-  [LS_PROFILE, LS_LIKED, LS_REMINDED, LS_HIDDEN, LS_DONE, LS_PHASE,
+  [LS_PROFILE, LS_LIKED, LS_REMINDED, LS_HIDDEN, LS_DONE, LS_PHASE, LS_LE_PROGRESS,
    LS_LAST_SEEN_AT, LS_SEEN_IDS, "mgov_notif_deferred", "mgov_toggle_tried", "mgov_easy", "mgov_dark",
    "mgov_festival_notified", "mgov_festival_radius", "mgov_festival_fireworksRadius"].forEach(k => {
     try { localStorage.removeItem(k); } catch(e) {}
@@ -1944,6 +1945,7 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
   const [hideConfirm,setHideConfirm]=useState(null);
   const [repeatConfirmItem,setRepeatConfirmItem]=useState(null);
   const [expanded,setExpanded]=useState(false);
+  const [refQuery,setRefQuery]=useState("");
   const [showAllEvents,setShowAllEvents]=useState(false);
   const [revealed,setRevealed]=useState(!revealMode); // revealModeならfalseスタート
   const banner=calcBanner(profile,items,done,hidden);
@@ -1978,56 +1980,74 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
     return baseScore;
   };
   const interestOf=(it)=>getItemInterestScore(it, profile.interestScores);
-  // 給付（eligibility）：対象(confidence!=="none")のみ縦リスト。確定→該当かも→利用済 の順。
-  //  興味は表示可否をゲートしない（給付は興味無関係）。並び順のタイブレークにのみ興味を使う。
-  const benefitItems=items
-    .filter(it=>{
-      if(hidden.includes(it.id)) return false;
-      if((it.judgmentType||"eligibility")==="interest") return false; // イベントは別枠（横帯）
-      return getConfidence(it,profile)!=="none";
-    })
-    .sort((a,b)=>{
-      const da=done.includes(a.id)?1:0, db=done.includes(b.id)?1:0;
-      if(da!==db) return da-db;                                  // 利用済みは最下位
-      const ca=getConfidence(a,profile)==="certain"?0:1, cb=getConfidence(b,profile)==="certain"?0:1;
-      if(ca!==cb) return ca-cb;                                  // 確定 > 該当かも
-      const ia=interestOf(a), ib=interestOf(b);
-      if(Math.abs(ia-ib)>0.05) return ib-ia;                     // 同率なら興味でタイブレーク
-      return getScore(b)-getScore(a);
-    });
-  // イベント（interest）：関連=区民なら全件表示（興味で絞らない）。興味スコア順、利用済みは末尾。
-  const eventItems=items
-    .filter(it=> !hidden.includes(it.id) && (it.judgmentType||"eligibility")==="interest")
+  const tierOf=(it)=>getDeliveryTier(it, profile);
+  // 給付の並び：利用済みは最下位 → 確定 > 該当かも → 興味タイブレーク → スコア。
+  const sortBenefit=(a,b)=>{
+    const da=done.includes(a.id)?1:0, db=done.includes(b.id)?1:0;
+    if(da!==db) return da-db;
+    const ca=getConfidence(a,profile)==="certain"?0:1, cb=getConfidence(b,profile)==="certain"?0:1;
+    if(ca!==cb) return ca-cb;
+    const ia=interestOf(a), ib=interestOf(b);
+    if(Math.abs(ia-ib)>0.05) return ib-ia;
+    return getScore(b)-getScore(a);
+  };
+  const visible=items.filter(it=>!hidden.includes(it.id));
+  // 2面構成：前面（プッシュ面＝確実・確度高のみ・厳選）／参照面（プル面＝網羅）。
+  const frontItems    = visible.filter(it=>tierOf(it)==="front").sort(sortBenefit);
+  const referenceItems= visible.filter(it=>tierOf(it)==="reference").sort(sortBenefit);
+  const safetyNetItems= referenceItems.filter(it=>deliveryTypeOf(it)==="universal"); // 備え棚
+  const otherRefItems = referenceItems.filter(it=>deliveryTypeOf(it)!=="universal");  // カテゴリ別
+  // イベント（interest）：興味スコア順、利用済みは末尾。横帯で受動発見。
+  const eventItems=visible.filter(it=>tierOf(it)==="event")
     .sort((a,b)=>{
       const da=done.includes(a.id)?1:0, db=done.includes(b.id)?1:0;
       if(da!==db) return da-db;
       return interestOf(b)-interestOf(a);
     });
 
-  const featured=benefitItems.slice(0,3);
-  const rest=benefitItems.slice(3);
+  // 参照面：カテゴリ（tag）別グルーピング。検索時はフラット表示。
+  const REF_CAT_ORDER=["子育て","教育","学び","健康","医療","キャリア","住まい","生活","高齢"];
+  const q=(refQuery||"").trim().toLowerCase();
+  const refMatch=(it)=> !q || [it.title,it.officialName,it.catch,it.tag].some(s=>(s||"").toLowerCase().includes(q));
+  const otherRefFiltered=otherRefItems.filter(refMatch);
+  const safetyNetFiltered=safetyNetItems.filter(refMatch);
+  const refGroups=[];
+  const seenCats=new Set();
+  REF_CAT_ORDER.forEach(cat=>{
+    const g=otherRefFiltered.filter(it=>it.tag===cat);
+    if(g.length){ refGroups.push([cat,g]); seenCats.add(cat); }
+  });
+  otherRefFiltered.filter(it=>!seenCats.has(it.tag)).forEach(it=>{
+    let g=refGroups.find(x=>x[0]===(it.tag||"その他"));
+    if(!g){ g=[it.tag||"その他",[]]; refGroups.push(g); }
+    g[1].push(it);
+  });
 
   const CardItem=({it, index=0, animate=true})=>{
     const conf=getConfidence(it,profile);
     const isCertain=conf==="certain";
+    const dt=deliveryTypeOf(it);
     const amount=it.subsidy(profile);
     const isDone=done&&done.includes(it.id);
     const isLiked=liked&&liked.includes(it.id);
+    // 配信タイプ連動のバッジ：universal=全員対象 / 確定=対象確実 / それ以外=該当するかも
+    const accent = dt==="universal" ? C.blue : isCertain ? C.green : "#f0a030";
+    const badgeText = dt==="universal" ? "🛡️ 全員対象" : isCertain ? "✅ 対象確実" : "🔶 該当するかも";
     // revealMode: featuredのみアニメ（animate=trueのとき）
     const delay = (revealMode && animate) ? `${index * 80}ms` : "0ms";
     const cardAnim = (revealMode && animate)
       ? { opacity: revealed ? 1 : 0, transform: revealed ? "translateY(0)" : "translateY(-28px)", transition: `opacity .45s ease ${delay}, transform .45s cubic-bezier(.22,1,.36,1) ${delay}` }
       : {};
     return (
-      <div style={{background:isDone?C.bg2+"88":C.bg2,borderRadius:16,padding:"12px 14px",marginBottom:8,border:`1px solid ${isDone?"#ffffff11":isCertain?C.green+"44":"#f0a03033"}`,cursor:"pointer",opacity:isDone?0.6:1,...cardAnim}} onClick={()=>setDetail(it)}>
+      <div style={{background:isDone?C.bg2+"88":C.bg2,borderRadius:16,padding:"12px 14px",marginBottom:8,border:`1px solid ${isDone?"#ffffff11":accent+"44"}`,cursor:"pointer",opacity:isDone?0.6:1,...cardAnim}} onClick={()=>setDetail(it)}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{fontSize:26,flexShrink:0,filter:isDone?"grayscale(1)":"none"}}>{it.icon}</div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:"flex",gap:5,marginBottom:3,flexWrap:"wrap"}}>
               {isDone&&<span style={{background:"#ffffff11",color:C.t3,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>✅ 済み</span>}
               {!isDone&&<span style={S.tag(it.color)}>{it.gov}</span>}
-              {!isDone&&<span style={{background:isCertain?C.green+"22":"#f0a03022",color:isCertain?C.green:"#f0a030",borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>
-                {isCertain?"✅ 対象確実":"🔶 関係あるかも"}
+              {!isDone&&<span style={{background:accent+"22",color:accent,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                {badgeText}
               </span>}
             </div>
             <div style={{color:isDone?C.t3:C.t1,fontWeight:700,fontSize:13}}>{easy?(it.title):(it.officialName||it.title)}</div>
@@ -2078,9 +2098,17 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
         </div>
       </div>
 
-      {/* おすすめ給付（縦リスト・上位3件） */}
-      {featured.length>0&&<div style={{color:C.t2,fontSize:11,fontWeight:600,marginBottom:8}}>✨ あなたへのおすすめ</div>}
-      {featured.map((it,i)=><CardItem key={it.id} it={it} index={i}/>)}
+      {/* 前面（プッシュ面）：確実・確度高のみ厳選 */}
+      {frontItems.length>0&&<div style={{color:C.t2,fontSize:11,fontWeight:600,marginBottom:8}}>✨ あなたへのおすすめ</div>}
+      {frontItems.map((it,i)=><CardItem key={it.id} it={it} index={i}/>)}
+      {frontItems.length===0&&(
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:"18px 14px",marginBottom:8,textAlign:"center"}}>
+          <div style={{fontSize:22,marginBottom:6}}>🔎</div>
+          <div style={{color:C.t1,fontWeight:700,fontSize:13,marginBottom:4}}>今ぴったり該当する制度はありません</div>
+          <div style={{color:C.t2,fontSize:12,lineHeight:1.6,marginBottom:10}}>プロフィールを設定すると、あなたに該当する制度がここに表示されます。下のカテゴリからも探せます。</div>
+          <button style={{...S.btn(C.blue),fontSize:13,fontWeight:700,padding:"8px 16px"}} onClick={onGoProfile}>プロフィールを設定する</button>
+        </div>
+      )}
 
       {/* イベント横カード列（区民は全件表示・興味順。給付の下＝上部で受動発見） */}
       {eventItems.length>0&&(
@@ -2106,31 +2134,50 @@ function Home({profile,setProfile,liked,reminded,hidden,onLike,onRemind,onHide,o
         </div>
       )}
 
-      {/* 展開ボタン or 展開後のリスト */}
-      {rest.length>0&&!expanded&&(
+      {/* 参照面（プル面）：網羅。備え棚＋カテゴリ別＋検索。取りこぼし防止はここが担保。 */}
+      {referenceItems.length>0&&!expanded&&(
         <button
-          style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"11px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:4}}
+          style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"11px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8}}
           onClick={()=>setExpanded(true)}>
-          <span style={{color:C.t2,fontSize:13,fontWeight:600}}>他 {rest.length}件の制度を見る</span>
+          <span style={{color:C.t2,fontSize:13,fontWeight:600}}>📚 ほかの制度も見る（{referenceItems.length}件）</span>
           <span style={{color:C.t3,fontSize:13}}>↓</span>
         </button>
       )}
-      {expanded&&<>
+      {expanded&&<div style={{marginTop:8}}>
         <button
-          style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:11,cursor:"pointer",padding:"4px",marginBottom:4,textAlign:"center"}}
-          onClick={()=>setExpanded(false)}>
+          style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:11,cursor:"pointer",padding:"4px",marginBottom:8,textAlign:"center"}}
+          onClick={()=>{setExpanded(false);setRefQuery("");}}>
           ↑ 折りたたむ
         </button>
-        <div style={{color:C.t3,fontSize:11,fontWeight:600,marginBottom:8}}>その他の制度</div>
-        {rest.map((it,i)=><CardItem key={it.id} it={it} index={i+3} animate={false}/>)}
+        {/* 検索：参照面の全制度を名前・カテゴリで横断検索 */}
+        <input value={refQuery} onChange={e=>setRefQuery(e.target.value)} placeholder="🔍 制度を検索（名前・カテゴリ）"
+          style={{width:"100%",boxSizing:"border-box",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",color:C.t1,fontSize:13,marginBottom:12,outline:"none"}}/>
+        {/* 備え棚（全員対象・いざという時の制度） */}
+        {safetyNetFiltered.length>0&&<>
+          <div style={{color:C.t2,fontSize:11,fontWeight:700,marginBottom:6,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <span>🛡️ 備えて知っておきたい制度</span>
+            <span style={{color:C.t3,fontWeight:500,fontSize:10}}>全員対象・いざという時に</span>
+          </div>
+          {safetyNetFiltered.map((it,i)=><CardItem key={it.id} it={it} index={i} animate={false}/>)}
+        </>}
+        {/* カテゴリ別 */}
+        {refGroups.map(([cat,group])=>(
+          <div key={cat} style={{marginTop:10}}>
+            <div style={{color:C.t3,fontSize:11,fontWeight:700,marginBottom:6}}>{cat}</div>
+            {group.map((it,i)=><CardItem key={it.id} it={it} index={i} animate={false}/>)}
+          </div>
+        ))}
+        {safetyNetFiltered.length===0&&refGroups.length===0&&(
+          <div style={{color:C.t3,textAlign:"center",padding:"24px 0",fontSize:13}}>「{refQuery}」に一致する制度はありません</div>
+        )}
         <button
-          style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer",padding:"8px",marginTop:4}}
-          onClick={()=>setExpanded(false)}>
+          style={{width:"100%",background:"none",border:"none",color:C.t3,fontSize:12,cursor:"pointer",padding:"10px",marginTop:8}}
+          onClick={()=>{setExpanded(false);setRefQuery("");}}>
           ↑ 折りたたむ
         </button>
-      </>}
+      </div>}
 
-      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy} onGoProfile={onGoProfile} siblings={(detail.judgmentType||"eligibility")==="interest"?eventItems:null} onSwipeTo={(it)=>setDetail(it)}/>}
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy} onGoProfile={onGoProfile} siblings={deliveryTypeOf(detail)==="interest"?eventItems:null} onSwipeTo={(it)=>setDetail(it)}/>}
 
       {/* 全イベント一覧（すべて見る） */}
       {showAllEvents&&(
@@ -3564,30 +3611,93 @@ function AdminTab({onAddItem, existingIds}){
   );
 }
 
-/* ─── AI相談窓口タブ ─── */
-function ConsultTab(){
+/* ─── ライフイベントモード（やることチェックリスト） ─── */
+function LifeEventTab({lifeEvents, items, done, onDone, liked, reminded, onLike, onRemind, onHide, profile, setProfile, easy, liveData, onGoProfile}){
+  const [selKey,setSelKey]=useState(null);
+  const [detail,setDetail]=useState(null);
+  const [progress,setProgress]=useState(()=>lsLoad(LS_LE_PROGRESS,{}));
+  useEffect(()=>{ lsSave(LS_LE_PROGRESS, progress); },[progress]);
+
+  const events=(lifeEvents&&lifeEvents.events)||[];
+  const itemById=(id)=>items.find(it=>it.id===id);
+  // 完了判定：itemId付きは申請済(done)連動／純手続きは progress に記録
+  const isStepDone=(ev,idx,step)=> step.itemId ? done.includes(step.itemId) : !!(progress[ev.key]&&progress[ev.key][idx]);
+  const toggleStep=(ev,idx,step)=>{
+    if(step.itemId){ onDone(step.itemId, done.includes(step.itemId)?"undo":"done"); return; }
+    setProgress(p=>{ const e={...(p[ev.key]||{})}; e[idx]=!e[idx]; return {...p,[ev.key]:e}; });
+  };
+
+  // 一覧画面：ライフイベントを選ぶ
+  if(!selKey){
+    return (
+      <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
+        <div style={{color:C.t1,fontWeight:700,fontSize:18,marginBottom:4}}>🧭 ライフイベントの手続き</div>
+        <div style={{color:C.t2,fontSize:13,lineHeight:1.7,marginBottom:16}}>
+          出産・引越し・退職など、できごとが起きたら、関係する手続きと制度を「やることリスト」でまとめて確認できます。
+        </div>
+        {events.map(ev=>{
+          const total=ev.steps.length;
+          const dn=ev.steps.filter((s,i)=>isStepDone(ev,i,s)).length;
+          return (
+            <div key={ev.key} onClick={()=>setSelKey(ev.key)}
+              style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 16px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
+              <div style={{fontSize:30,flexShrink:0}}>{ev.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{color:C.t1,fontWeight:700,fontSize:14}}>{ev.label}</div>
+                <div style={{color:C.t2,fontSize:12,marginTop:2,lineHeight:1.4}}>{ev.desc}</div>
+                <div style={{color:dn>0?C.green:C.t3,fontSize:11,marginTop:4}}>やること {total}件{dn>0?` ・ ${dn}件完了`:""}</div>
+              </div>
+              <div style={{color:C.t3,fontSize:20}}>›</div>
+            </div>
+          );
+        })}
+        {events.length===0&&<div style={{color:C.t3,textAlign:"center",padding:"30px 0"}}>読み込み中…</div>}
+        {/* 補助：相談窓口 */}
+        <div style={{background:C.bg2,borderRadius:14,padding:16,border:`1px solid ${C.border}`,marginTop:8}}>
+          <div style={{color:C.t2,fontSize:12,marginBottom:8}}>迷ったら相談</div>
+          <a href="https://www.city.minato.tokyo.jp/fukushimadoguchitan/fukushisougoumadoguchi.html" target="_blank" rel="noopener noreferrer"
+            style={{display:"block",background:C.bg3,color:C.t1,textAlign:"center",padding:"11px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",border:`1px solid ${C.border}`}}>
+            🤝 港区 福祉総合窓口
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // 詳細画面：やることチェックリスト
+  const ev=events.find(e=>e.key===selKey);
+  if(!ev){ return <div style={{flex:1,padding:16}}><button onClick={()=>setSelKey(null)} style={{background:"none",border:"none",color:C.blue,cursor:"pointer"}}>← 戻る</button></div>; }
+  const dn=ev.steps.filter((s,i)=>isStepDone(ev,i,s)).length;
   return (
-    <div style={{flex:1,overflowY:"auto",padding:32,display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
-      <div style={{fontSize:48,marginTop:16}}>💬</div>
-      <div style={{color:C.t1,fontWeight:700,fontSize:18}}>AI相談窓口</div>
-      <div style={{color:C.t2,fontSize:13,textAlign:"center",lineHeight:1.7}}>
-        港区・東京都・国の制度について<br/>AIに相談できる機能です。<br/>近日公開予定です。
+    <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
+      <button onClick={()=>setSelKey(null)} style={{background:"none",border:"none",color:C.blue,fontSize:13,cursor:"pointer",padding:"2px 0",marginBottom:10,fontWeight:600}}>← ライフイベント一覧</button>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+        <div style={{fontSize:30}}>{ev.icon}</div>
+        <div style={{color:C.t1,fontWeight:700,fontSize:17}}>{ev.label}</div>
       </div>
-      <div style={{background:C.bg2,borderRadius:14,padding:16,border:`1px solid ${C.border}`,width:"100%",marginTop:8}}>
-        <div style={{color:C.t2,fontSize:12,marginBottom:8}}>今すぐ相談したい場合</div>
-        <a href="https://www.google.com/search?q=港区+相談窓口+site:city.minato.tokyo.jp" target="_blank" rel="noopener noreferrer"
-          style={{display:"block",background:C.blue,color:"#fff",textAlign:"center",padding:"12px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",marginBottom:8}}>
-          🔍 港区の相談窓口を検索する
-        </a>
-        <a href="https://www.city.minato.tokyo.jp/fukushimadoguchitan/fukushisougoumadoguchi.html" target="_blank" rel="noopener noreferrer"
-          style={{display:"block",background:C.bg3,color:C.t1,textAlign:"center",padding:"12px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",border:`1px solid ${C.border}`,marginBottom:8}}>
-          🤝 福祉総合窓口（高齢・障害・子育て等）
-        </a>
-        <a href="https://www.city.minato.tokyo.jp/kosodatesien/kosodate/index.html" target="_blank" rel="noopener noreferrer"
-          style={{display:"block",background:C.bg3,color:C.t1,textAlign:"center",padding:"12px",borderRadius:10,fontWeight:700,fontSize:13,textDecoration:"none",border:`1px solid ${C.border}`}}>
-          👶 子育て支援相談窓口
-        </a>
-      </div>
+      <div style={{color:dn===ev.steps.length?C.green:C.t3,fontSize:12,marginBottom:14}}>やること {ev.steps.length}件 ・ {dn}件完了{dn===ev.steps.length?" 🎉":""}</div>
+      {ev.steps.map((step,i)=>{
+        const sd=isStepDone(ev,i,step);
+        const it=step.itemId?itemById(step.itemId):null;
+        return (
+          <div key={i} style={{background:C.bg2,border:`1px solid ${sd?C.green+"55":C.border}`,borderRadius:14,padding:"12px 14px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start"}}>
+            <button onClick={()=>toggleStep(ev,i,step)} aria-label="完了"
+              style={{flexShrink:0,width:26,height:26,borderRadius:"50%",border:`2px solid ${sd?C.green:C.border}`,background:sd?C.green:"transparent",color:"#fff",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,marginTop:1,padding:0}}>
+              {sd?"✓":""}
+            </button>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{color:sd?C.t3:C.t1,fontWeight:700,fontSize:13,textDecoration:sd?"line-through":"none",lineHeight:1.45}}>
+                <span style={{color:C.t3,marginRight:6}}>{i+1}.</span>{step.title}
+              </div>
+              {step.deadline&&<div style={{color:"#f0a030",fontSize:11,marginTop:3}}>📅 {step.deadline}</div>}
+              {step.where&&<div style={{color:C.t2,fontSize:11,marginTop:2}}>📍 {step.where}</div>}
+              {step.desc&&<div style={{color:C.t2,fontSize:11,marginTop:2,lineHeight:1.5}}>{step.desc}</div>}
+              {it&&<button onClick={()=>setDetail(it)} style={{background:"none",border:`1px solid ${C.blue}`,color:C.blue,borderRadius:8,padding:"3px 10px",fontSize:11,cursor:"pointer",marginTop:6,fontWeight:600}}>制度の詳細を見る →</button>}
+            </div>
+          </div>
+        );
+      })}
+      {detail&&<DetailModal item={detail} onClose={()=>setDetail(null)} liveData={liveData[detail.id]} conf={getConfidence(detail,profile)} profile={profile} setProfile={setProfile} onHide={(id)=>{onHide(id);setDetail(null);}} liked={liked} reminded={reminded} onLike={onLike} onRemind={onRemind} done={done} onDone={onDone} easy={easy} onGoProfile={onGoProfile} siblings={null} onSwipeTo={null}/>}
     </div>
   );
 }
@@ -4152,7 +4262,7 @@ function NewItemsPopup({ newItemIds, allItems, onClose, profile, setProfile, onL
 function BottomNav({tab,setTab,notifCount,festivalCount}){
   const tabs=[
     {id:"home",    icon:"🏠", label:"ホーム"},
-    {id:"consult", icon:"💬", label:"相談"},
+    {id:"life",    icon:"🧭", label:"手続き"},
     {id:"notif",   icon:"🔔", label:"通知", badge:notifCount},
     {id:"festival",icon:"🎪", label:"お祭り", badge:festivalCount},
     {id:"profile", icon:"👤", label:"プロフィール"},
@@ -4289,6 +4399,9 @@ function App(){
   const [reminded,setReminded]=useState(()=>lsLoad(LS_REMINDED,[]));
   const [done,setDone]=useState(()=>lsLoad(LS_DONE,[]));
   const [hidden,setHidden]=useState(()=>lsLoad(LS_HIDDEN,[]));
+  // ライフイベント定義（やることチェックリスト）。失敗時は null のまま（タブで読み込み中表示）。
+  const [lifeEventsData,setLifeEventsData]=useState(null);
+  useEffect(()=>{ fetch("life-events.json").then(r=>r.json()).then(setLifeEventsData).catch(()=>{}); },[]);
   const [toast,setToast]=useState({msg:"",visible:false});
   // festivalSettings: リロード後もプロフィールから復元する
   const [festivalSettings,setFestivalSettings]=useState(()=>{
@@ -4656,7 +4769,28 @@ function App(){
               onUpdate={handleUpdate} updating={updating} updateProgress={updateProgress}
               onGoProfile={()=>setTab("profile")}
             />}
-            {tab==="consult"&&<ConsultTab profile={profile}/>}
+            {tab==="life"&&<LifeEventTab lifeEvents={lifeEventsData} items={allItems} done={done}
+              onDone={(id,action)=>{
+                if(action==="undo"){
+                  setDone(d=>d.filter(x=>x!==id));
+                  setHidden(h=>h.filter(x=>x!==id));
+                  showToast("申請済みを取消しました");
+                } else {
+                  setDone(d=>d.includes(id)?d:[...d,id]);
+                  if(!REPEATABLE_IDS.has(id)) setHidden(h=>h.includes(id)?h:[...h,id]);
+                  showToast("✅ 申請済みとして記録しました");
+                }
+              }}
+              liked={liked} reminded={reminded}
+              onLike={(id)=>{setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id]);showToast(liked.includes(id)?"いいね解除":"❤️ いいね！");}}
+              onRemind={(id)=>{
+                const wasReminded=reminded.includes(id);
+                setReminded(r=>wasReminded?r.filter(x=>x!==id):[...r,id]);
+                showToast(wasReminded?"リマインド解除":"🔔 リマインドしました");
+              }}
+              onHide={(id)=>{setHidden(h=>[...h,id]);showToast("非表示にしました");}}
+              profile={profile} setProfile={setProfile} easy={easy} liveData={liveData}
+              onGoProfile={()=>setTab("profile")}/>}
             {tab==="notif"&&<NotifTab liked={liked} reminded={reminded}
               onLike={(id)=>{setLiked(l=>l.includes(id)?l.filter(x=>x!==id):[...l,id]);showToast(liked.includes(id)?"いいね解除":"❤️ いいね！");}}
               onRemind={(id)=>{
