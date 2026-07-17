@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": "1.4",
-    "updatedAt": "2026-06-10T23:13:26.678Z",
-    "totalItems": 51,
+    "updatedAt": "2026-07-17T00:02:57.904292Z",
+    "totalItems": 52,
     "description": "minato-mygov 制度データベース。判定条件はデータ形式で記述（evalなし）。"
   },
   "items": [
@@ -4967,6 +4967,47 @@
       "notifHook": "",
       "deliveryType": "universal",
       "lifeEvents": []
+    },
+    {
+      "id": "takanawa_coco_kosodate",
+      "gov": "港区",
+      "icon": "👶",
+      "color": "C.green",
+      "tag": "子育て",
+      "title": "高輪ほっとひといき子育て支援COCO",
+      "easyTitle": "赤ちゃんとママの集まれる場所",
+      "officialName": "高輪ほっとひといき子育て支援事業COCO（ココ）",
+      "catch": "1歳未満の赤ちゃんと保護者の交流の場",
+      "body": "高輪地区在住で主に1歳未満のお子さんと保護者が集まり、ミニ講座や育児相談、参加者同士の交流ができる予約制の子育て支援事業です。ベビーリトミックや親子体操などの講座もあります。",
+      "officialBody": "高輪ほっとひといき子育て支援事業は、高輪地区在住の、主に1歳未満のお子さんと保護者の交流の場です。ミニ講座（20分程度）・情報交換・育児相談・身体測定等を行っています。定員12組（予約制）。会場は高輪区民センター・白金台児童館・高輪児童館。申込みは各月初回開催の1か月前の正午から開催日前日の正午まで（先着順）。",
+      "deadline": "通年",
+      "urgent": false,
+      "subsidyType": "savings",
+      "subsidy_note": "無料の交流・講座事業（本文に費用の記載なし）",
+      "potentialLabel": "無料で参加できる子育て交流イベント",
+      "sourceUrl": "https://www.city.minato.tokyo.jp/takanawahokenfukushi/hot/20180320.html",
+      "interestTags": [
+        {
+          "l1": "子育て・教育",
+          "l2": "乳幼児・保育"
+        },
+        {
+          "l1": "子育て・教育",
+          "l2": "子育て支援"
+        }
+      ],
+      "judgmentType": "interest",
+      "notifyLevel": "low",
+      "eligibility": {
+        "certain": [],
+        "exclude": [],
+        "matchRules": [],
+        "baseScore": 0,
+        "missingFor": [],
+        "profileCheck": [],
+        "excludeReasons": {},
+        "hints": {}
+      }
     }
   ],
   "repeatableIds": [
